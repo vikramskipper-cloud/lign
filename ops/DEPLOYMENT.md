@@ -47,8 +47,9 @@ project needs almost no dashboard configuration.
 
 ## 2. What `app/vercel.json` already does
 
-- Builds with `npm --prefix app ci && npm --prefix app run build`, publishing
-  `app/dist`.
+- **Declares no install or build command.** The Vite preset's defaults
+  (`npm ci`, `npm run build`, output `dist`) are already correct once Root
+  Directory is `app`.
 - **SPA rewrite** — every path falls through to `index.html`. Vercel checks the
   filesystem first, so hashed assets and `favicon.svg` still serve directly.
   Without this, a hard refresh on `/workspace/:id/projects` 404s.
@@ -58,6 +59,27 @@ project needs almost no dashboard configuration.
 - **Security headers**: `nosniff`, `X-Frame-Options: DENY`, a strict referrer
   policy, a `Permissions-Policy` denying camera/microphone/geolocation, and
   HSTS.
+
+## 2a. Troubleshooting: dashboard overrides win
+
+**Settings in the Vercel dashboard take precedence over `app/vercel.json`.** If
+Build & Development Settings has an *Install Command* or *Build Command*
+override toggled on, that value runs and the repo config is ignored — so no
+commit can fix a broken build.
+
+Symptom: the build log shows a command that appears nowhere in the repo.
+
+Fix: Project → Settings → Build & Development Settings, and switch **off** the
+override for Install Command, Build Command and Output Directory so each falls
+back to the Vite preset. Confirm Root Directory is `app` and Framework Preset
+is Vite. Then Deployments → ⋯ → Redeploy, with "Use existing Build Cache"
+**unchecked**.
+
+Verify from the next build log:
+
+```
+Running "install" command: `npm ci`      ← not npm --prefix, not cd app
+```
 
 ## 3. Rollback
 
