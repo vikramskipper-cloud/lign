@@ -13,10 +13,15 @@ project needs almost no dashboard configuration.
 
 1. **Import the repo.** Vercel → Add New → Project → import
    `vikramskipper-cloud/lign`.
-2. **Leave Root Directory as `/`.** `vercel.json` already points the build at
-   `app/`. Setting it to `app` instead would make Vercel ignore that file.
-3. **Framework preset: Other.** Explicit commands in `vercel.json` beat preset
-   inference for a non-root app.
+2. **Root Directory must be `app`.** `vercel.json` lives at `app/vercel.json`
+   and every path in it is relative to that directory. Vercel runs the install
+   and build commands *inside* the Root Directory, so a root-level config with
+   `cd app` fails with `cd: app: No such file or directory` — that is exactly
+   how the first two deploys failed.
+3. **Framework preset: Vite** (Vercel detects this). No install or build
+   command is declared: the preset's defaults are already `npm ci` and
+   `npm run build`, and every command we wrote by hand was a chance to get the
+   working directory wrong.
 4. **Environment variables** — add to Production *and* Preview:
 
    | Name | Value |
@@ -34,7 +39,13 @@ project needs almost no dashboard configuration.
    without this, and the failure looks like a broken app rather than a config
    gap.
 
-## 2. What `vercel.json` already does
+> **Note on CI vs Vercel.** `.github/workflows/ci.yml` uses `cd app && npm ci`
+> because GitHub Actions checks out to the repo root. Vercel declares no command
+> at all because it already starts inside `app/`. The two differ deliberately —
+> they run from different working directories. Do not "fix" one to match the
+> other.
+
+## 2. What `app/vercel.json` already does
 
 - Builds with `npm --prefix app ci && npm --prefix app run build`, publishing
   `app/dist`.
