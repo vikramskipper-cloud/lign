@@ -38,5 +38,18 @@ select 'INDEX', indexname, tablename, indexdef from pg_indexes where schemaname 
 union all
 select 'FUNCTION', p.proname, pg_get_function_identity_arguments(p.oid), md5(p.prosrc)
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
+union all
+-- Table-level privileges. Added 2026-09-18 after APP 011 behavioural testing
+-- found that production grants authenticated SELECT/INSERT/UPDATE/DELETE on
+-- every public table while a fresh replay grants none of it: those GRANTs are
+-- Supabase platform state applied at project creation, not carried by any
+-- migration. A replay check that ignores privileges reports a schema as
+-- reproduced when the rebuilt database would in fact reject every request
+-- with 42501 before RLS is ever consulted.
+select 'GRANT', table_name, grantee,
+       string_agg(distinct privilege_type, ',' order by privilege_type)
+from information_schema.role_table_grants
+where table_schema = 'public' and grantee in ('anon', 'authenticated', 'service_role')
+group by table_name, grantee
 ) s
 order by 1, 2, 3;

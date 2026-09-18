@@ -200,8 +200,19 @@ This closes both gaps that the provenance audit left open:
   production matches what the migrations produce. Nothing was altered outside
   the migration path.
 
-`supabase/migrations/` is now a proven-faithful reproduction of the deployed
-database, not merely a byte-match of recorded statements.
+`supabase/migrations/` reproduces the deployed database's **schema objects**,
+not merely a byte-match of recorded statements.
+
+> **Qualified 2026-09-18 (APP 011 behavioural testing).** The 590/590 result
+> above covers tables, policies, triggers, functions and indexes. It does **not**
+> cover table privileges, and privileges differ: production grants
+> `SELECT/INSERT/UPDATE/DELETE` to `anon`, `authenticated` and `service_role` on
+> all 32 tables, while a pristine replay grants none of it (96 grant pairs, zero
+> holding SELECT). Those GRANTs are Supabase platform state applied at project
+> creation, not emitted by any migration. A database rebuilt from this directory
+> alone would reject every request with `42501` before RLS was consulted.
+> `ops/schema_inventory.sql` now captures `GRANT` rows so future replay checks
+> catch it. See `docs/APP_011_IMPLEMENTATION_REPORT.md` §3.
 
 ---
 

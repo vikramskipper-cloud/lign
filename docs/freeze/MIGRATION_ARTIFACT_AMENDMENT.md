@@ -111,6 +111,14 @@ schema compared to production object by object:
 **590/590 identical**, comparing full definitions including policy
 `USING`/`WITH CHECK` predicates and `md5(prosrc)` for every function.
 
-Migration ordering is verified, and no out-of-band `ALTER` exists. The residual
-risk recorded in earlier revisions of this document is closed. Re-run either
-script after any migration to keep it closed.
+Migration ordering is verified, and no out-of-band `ALTER` exists. Re-run either
+script after any migration to keep it that way.
+
+**Qualified 2026-09-18.** Both checks compare schema *objects*. Neither compared
+table *privileges*, and privileges differ: production grants full DML to `anon`,
+`authenticated` and `service_role` on all 32 tables; a pristine replay grants
+none of it. Those GRANTs are Supabase platform state, not migration output, so
+the migration set alone cannot currently rebuild a working system.
+`ops/schema_inventory.sql` now emits `GRANT` rows so this is caught in future.
+Open decision — add a grants migration, or document platform grants as
+out-of-band — recorded in `docs/APP_011_IMPLEMENTATION_REPORT.md` §3.4.

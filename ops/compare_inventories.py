@@ -19,7 +19,7 @@ def load(path):
     return d
 
 prod, shadow = load(sys.argv[1]), load(sys.argv[2])
-kinds = ["TABLE", "POLICY", "TRIGGER", "FUNCTION", "INDEX"]
+kinds = ["TABLE", "POLICY", "TRIGGER", "FUNCTION", "INDEX", "GRANT"]
 only_prod = sorted(set(prod) - set(shadow))
 only_shadow = sorted(set(shadow) - set(prod))
 both = set(prod) & set(shadow)
