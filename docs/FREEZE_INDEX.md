@@ -267,7 +267,7 @@ Status verified against the live database and `docs/freeze/` on **2026-09-18**.
 | **APP 008 — Requirements** | Requirements list, applicability, assessments UI | **Frozen** | `APP_008_FREEZE_INDEX.md` · `freeze/APP_008_FINAL_CERTIFICATION.md` |
 | **APP 009 — Releases** | Release bundles, detail, item selection, publish/withdraw UI | **Frozen** | `APP_009_FREEZE_INDEX.md` · `freeze/APP_009_FINAL_CERTIFICATION.md` |
 | **APP 010 — Notifications** | Router trigger on `activity_events`, `notifications` table, inbox, bell | **Frozen** | `APP_010_FREEZE_INDEX.md` · `freeze/APP_010_FINAL_CERTIFICATION.md` |
-| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | **Not started** (backend partially prepared) | - |
+| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | **Freeze Index drafted** 2026-09-18, awaiting approval | `APP_011_FREEZE_INDEX.md` |
 | **APP 012 — Production Hardening** | Bundle splitting, prefetching, performance instrumentation, ops runbook | **Not started** | - |
 
 Backend layers, same date: **AUTH 001-009** frozen; **STORAGE 001-004** frozen;
