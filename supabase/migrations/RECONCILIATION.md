@@ -152,20 +152,40 @@ triggers, grants and data on `hsfporioghapwghrvvzd` are untouched, and every
 `docs/freeze/` certification remains accurate about the deployed state. See
 `docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md` for the governance record.
 
-### Out-of-band objects
+### Out-of-band objects — audited 2026-09-18, clean
 
-Before adopting, 25 of the highest-risk production objects were traced back to
-an applied migration — the newer tables (`user_bookmarks`, `user_saved_views`,
-`notifications`, `requirement_design_assets`,
-`version_requirement_assessments`, `disciplines`), triggers and functions from
-the divergent slices, indexes suggesting later extensions
-(`comments_target_requirement_*`, `requirements_title_desc_trgm_idx`,
-`notifications_dedup_uniq_idx`), and a sample of RLS policies. **All 25 traced
-to a migration; no orphans.** That is a spot-check across roughly 500 objects,
-not an exhaustive sweep. A shadow-database diff (`supabase db diff`, needs
-Docker and a CLI login on the IWillBuild org) would settle it rigorously, and
-is worth running before the migration set is first relied on for real — when
-standing up staging, or onboarding a second developer.
+The concern was that objects created by ad-hoc `execute_sql` or dashboard edits
+would live in production while appearing in no migration. `ops/schema_inventory.sql`
++ `ops/audit_schema_provenance.py` check this exhaustively in three directions.
+All **590** live objects were examined:
+
+| Check | Result |
+|---|---|
+| **Forward** — every live object is `CREATE`d by a migration | 32 tables, 69 policies, 66 triggers, 160 functions, 263 indexes → **0 orphans** |
+| **Reverse** — every migration-created object is live, or `DROP`ped by a later migration | 515 created → 512 live, 3 explicitly dropped → **0 unexplained absences** |
+| **Bodies** — each function's `prosrc` is byte-identical to a definition in the files | **160/160 match** |
+
+The body check is the sharpest of the three: it would catch an out-of-band
+`CREATE OR REPLACE FUNCTION` that silently changed an RPC, and it covers every
+`SECURITY DEFINER` RPC, trigger function and authorization helper. Nothing was
+found.
+
+### What is still not proven
+
+This is **provenance, not replay**. It shows every deployed object traces to a
+migration; it does not prove the 67 files apply cleanly in order into an empty
+database. Two gaps remain, both narrow:
+
+- **Ordering.** A migration could depend on state a replay would not have
+  produced yet. Unlikely — these statements did apply in this order once.
+- **Out-of-band `ALTER`.** A policy predicate or column default changed by
+  `ALTER` without changing the object name would pass all three checks.
+  Function bodies are covered; policy predicates are not.
+
+Closing those needs a shadow database — `supabase db diff` (Docker + a CLI
+login on the IWillBuild org) or a Supabase preview branch (billable; branch
+creation was declined on 2026-09-18). Worth doing before the migration set is
+first relied on for real: standing up staging, or onboarding a second developer.
 
 ---
 
