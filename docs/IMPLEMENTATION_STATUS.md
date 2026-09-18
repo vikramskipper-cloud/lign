@@ -2,27 +2,90 @@
 
 Operational log of database migrations, RPCs, storage, and notification wiring applied to the Lign Supabase project. **Not architecture.** The frozen architecture lives in `DOMAIN_MODEL.md`, `DATABASE_SCHEMA.md`, `PERMISSIONS.md`, `STATE_MACHINES.md`, and `EVENT_MODEL.md`.
 
-**Target project:** `Lign` (`hsfporioghapwghrvvzd`) — IWillBuild org, us-east-2, Postgres 17.6.
+**Target project:** `Lign` (`hsfporioghapwghrvvzd`) - IWillBuild org, us-east-2, Postgres 17.6.
 **All migrations target this project ID only.** The `nuesync` project is never touched.
+
+---
+
+> ## Status of this document - read first
+>
+> **Last verified against the live database: 2026-09-18.**
+>
+> The per-migration log below is **historical and stops at Migration 009**
+> (`activity_events`, applied 2026-07-29). It was last written on 2026-07-29 and
+> its "Implementation stages" table was badly out of date: it claimed RLS,
+> RPCs, events, storage, and notifications were "not started" long after all of
+> them shipped. That table has been replaced by the accurate one below.
+>
+> **67 migrations are applied.** This document details the first 9. For
+> everything after Migration 009, the authoritative records are:
+>
+> - `docs/freeze/APP_0NN_FINAL_CERTIFICATION.md` - per-slice certification
+> - `docs/APP_0NN_FREEZE_INDEX.md` - per-slice frozen contracts
+> - `supabase/migrations/RECONCILIATION.md` - migration-file vs deployed-DB audit
+> - `supabase/_applied_snapshot/` - verbatim body of all 67 applied migrations
+>
+> Extending the per-migration log to cover Migrations 010-067 is outstanding
+> work. Until it exists, do not read this file's silence as evidence that
+> something was not built.
 
 ---
 
 ## Implementation stages
 
+Verified against `hsfporioghapwghrvvzd` on 2026-09-18 (67 migrations, 32 public
+tables, 69 RLS policies, 160 public functions, 0 security advisor ERRORs).
+
 | Stage | Status |
 |---|---|
-| 1. Structural database schema | **COMPLETE** (Migrations 001–009 applied — all 25 domain tables, 15 functions, 41 triggers, 0 policies, 0 unindexed FKs, 0 duplicate indexes) |
-| 2. RLS + authorization helpers | Not started |
-| 3. Transactional/domain RPCs | Not started |
-| 4. Events | Not started |
-| 5. Storage | Not started |
-| 6. Notifications | Not started |
+| 1. Structural database schema | **COMPLETE** - Migrations 001-009 |
+| 2. RLS + authorization helpers | **COMPLETE** - AUTH 001-009 |
+| 3. Transactional/domain RPCs | **COMPLETE** for APP 001-010 surfaces |
+| 4. Events | **COMPLETE** - `activity_events` spine + per-slice emission |
+| 5. Storage | **COMPLETE** - STORAGE 001-004 (bucket, upload/finalize, publish/discard, sweep/purge) |
+| 6. Notifications | **COMPLETE (Wave 1)** - APP 010 router + `notifications` table + 10 RPCs |
+| 7. Realtime | **PARTIAL** - `realtime_002_publication_scope` put 8 tables in `supabase_realtime`; no client subscriptions exist yet (APP 011) |
+| 8. Production hardening | **NOT STARTED** - APP 012 |
+
+### Application slices
+
+| Slice | Status | Certification |
+|---|---|---|
+| APP 001 Domain model | Frozen | `DOMAIN_MODEL.md` |
+| APP 002 Application shell | Frozen | `FREEZE_INDEX.md` |
+| APP 003 Projects & design workspace | Frozen (re-freeze 2026-08-07, disciplines) | `FREEZE_INDEX.md` |
+| APP 004 Files & viewer | Frozen | `FREEZE_INDEX.md` |
+| APP 005 Comments & annotations | Frozen | `FREEZE_INDEX.md` |
+| APP 006 Reviews | Frozen | `freeze/APP_006_FINAL_CERTIFICATION.md` |
+| APP 007 Approvals | Frozen | `freeze/APP_007_FINAL_CERTIFICATION.md` |
+| APP 008 Requirements | Frozen | `freeze/APP_008_FINAL_CERTIFICATION.md` |
+| APP 009 Releases | Frozen | `freeze/APP_009_FINAL_CERTIFICATION.md` |
+| APP 010 Notifications | Frozen | `freeze/APP_010_FINAL_CERTIFICATION.md` |
+| APP 011 Realtime | Not started | - |
+| APP 012 Production hardening | Not started | - |
+
+### Known gaps as of 2026-09-18
+
+- `supabase/migrations/` is **not** a faithful replay of the deployed database.
+  24 of the 38 pre-2026-09-18 files differ structurally from what was applied,
+  and `app_010_notifications_authz_and_rpcs` holds no executable SQL at all.
+  See `supabase/migrations/RECONCILIATION.md` §3 for the open decision.
+- `comment.mentioned` is consumed by the APP 010 notification router but is
+  emitted by nothing, so mention notifications never fire. Consistent with
+  `FREEZE_INDEX.md`'s "Mentions - not persisted, notification emission
+  deferred", but the APP 010 certification reads as though the path is live.
+- No automated test suite and no CI. The only executable tests are the
+  REALTIME 002 probes in `tests/realtime/`, which run against the live project.
+- Test fixtures (`storage_003_test_fixtures`) and seven test users share the
+  production project; there is no staging/prod separation.
+- Auth setting `leaked_password_protection` is disabled (security advisor WARN).
 
 ## Documentation reconciliations
 
 | Date | File | Change | Reason |
 |---|---|---|---|
 | 2026-07-29 | `DATABASE_SCHEMA.md` §3.3 | Removed `guest` from `workspace_members.role` CHECK vocabulary. | Documentation-only reconciliation with the later frozen `PERMISSIONS.md` §3.1 decision and the already-applied Migration 002. No architectural change. |
+| 2026-09-18 | `IMPLEMENTATION_STATUS.md` header | Replaced the stale "Implementation stages" table; added the scope warning above. | The table claimed stages 2-6 were "not started" while all had shipped. Verified against the live database. No architectural change. |
 
 ---
 

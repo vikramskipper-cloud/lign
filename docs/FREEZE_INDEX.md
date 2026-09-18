@@ -4,6 +4,15 @@
 
 This document is purely navigational. It records the current frozen state of every APP layer so future APPs can reference contracts without rediscovering them. It introduces no new decisions and reinterprets no existing freeze.
 
+> **Coverage note (2026-09-18).** The detailed per-APP sections below cover
+> **APP 001-005 only**. APP 006-010 are also frozen and certified, but their
+> contracts were never folded into this file; each has its own freeze index and
+> final certification instead (see the APP ownership table). Writing full
+> sections for APP 006-010 here is outstanding work. Until then this file is
+> **not** a complete index - check `docs/APP_0NN_FREEZE_INDEX.md` and
+> `docs/freeze/APP_0NN_FINAL_CERTIFICATION.md` before assuming a contract is
+> absent.
+
 ---
 
 ## APP 001 — Domain Model & Platform Baseline
@@ -242,19 +251,44 @@ For each concern, the APP (or backend layer) that owns the canonical contract.
 
 ---
 
-# Future APP Ownership
+# APP Ownership
 
-| APP | Concern | Status |
-|---|---|---|
-| **APP 006 — Reviews** | Review request/response/complete workflow, reviewer roster, review panel in workspace | Not yet frozen |
-| **APP 007 — Approvals** | Approval request, response, aggregate outcome; approver picker | Not yet frozen |
-| **APP 008 — Requirements** | Requirements list, applicability, assessments UI | Not yet frozen |
-| **APP 009 — Releases** | Release bundles, release detail, item selection, publish/withdraw UI | Not yet frozen |
-| **APP 010 — Activity + Inbox + Notifications** | Activity feed, per-user inbox, `comment.mentioned` emission path | Not yet frozen |
-| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | Not yet frozen |
-| **APP 012 — Production Hardening** | Bundle splitting, prefetching, performance instrumentation, ops runbook | Not yet frozen |
+Status verified against the live database and `docs/freeze/` on **2026-09-18**.
+
+| APP | Concern | Status | Authoritative document |
+|---|---|---|---|
+| **APP 001 — Domain Model** | Entity vocabulary, cardinalities, lifecycle rules | **Frozen** | `DOMAIN_MODEL.md` + §APP 001 below |
+| **APP 002 — Application Shell** | Router, session, layouts, capability fetching | **Frozen** | §APP 002 below |
+| **APP 003 — Projects & Design Workspace** | Projects, collections, disciplines, assets, workspace shell | **Frozen** (re-freeze 2026-08-07 for Discipline) | §APP 003 below |
+| **APP 004 — Files & Viewer** | Upload state machine, viewer dispatch, signed URLs, thumbnails | **Frozen** | §APP 004 below |
+| **APP 005 — Comments & Annotations** | Threads, resolve, annotation overlay, mentions (display only) | **Frozen** | §APP 005 below |
+| **APP 006 — Reviews** | Review request/response/complete workflow, reviewer roster, review panel | **Frozen** | `APP_006_FREEZE_INDEX.md` · `freeze/APP_006_FINAL_CERTIFICATION.md` |
+| **APP 007 — Approvals** | Approval request, response, aggregate outcome; approver picker | **Frozen** | `APP_007_FREEZE_INDEX.md` · `freeze/APP_007_FINAL_CERTIFICATION.md` |
+| **APP 008 — Requirements** | Requirements list, applicability, assessments UI | **Frozen** | `APP_008_FREEZE_INDEX.md` · `freeze/APP_008_FINAL_CERTIFICATION.md` |
+| **APP 009 — Releases** | Release bundles, detail, item selection, publish/withdraw UI | **Frozen** | `APP_009_FREEZE_INDEX.md` · `freeze/APP_009_FINAL_CERTIFICATION.md` |
+| **APP 010 — Notifications** | Router trigger on `activity_events`, `notifications` table, inbox, bell | **Frozen** | `APP_010_FREEZE_INDEX.md` · `freeze/APP_010_FINAL_CERTIFICATION.md` |
+| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | **Not started** (backend partially prepared) | - |
+| **APP 012 — Production Hardening** | Bundle splitting, prefetching, performance instrumentation, ops runbook | **Not started** | - |
+
+Backend layers, same date: **AUTH 001-009** frozen; **STORAGE 001-004** frozen;
+**REQUIREMENTS 001-005** frozen; **REALTIME 002** applied
+(`realtime_002_publication_scope` added 8 tables to the `supabase_realtime`
+publication - `comments`, `annotations`, `asset_versions`, `reviews`,
+`review_participants`, `approval_requests`, `approval_responses`,
+`design_assets`). No client-side channel subscription exists yet, so APP 011 is
+mostly frontend work against an already-prepared publication.
 
 Each future APP must consult this index and the referenced freeze reports before adding architecture. New RPCs, capabilities, events, or tables require an explicit re-freeze note in the affected owner's section.
+
+## Known index gaps
+
+- No §APP 006-010 sections in this file (see coverage note at the top).
+- The **Mentions** row in Cross-cutting Contracts says notification emission is
+  deferred. That is still true: `comment.mentioned` is consumed by the APP 010
+  router but emitted by nothing, so mention notifications never fire. The APP
+  010 certification reads as though the path is live; it is not.
+- `supabase/migrations/` is not a faithful replay of the deployed database.
+  See `supabase/migrations/RECONCILIATION.md`.
 
 ---
 
