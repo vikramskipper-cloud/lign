@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    name: Typecheck, test, build, bundle budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        run: npm --prefix app ci
+
+      - name: Typecheck
+        run: npm --prefix app run typecheck
+
+      - name: Unit tests
+        run: npm --prefix app test
+
+      - name: Build
+        run: npm --prefix app run build
+
+      # APP 012 wave 1: the ratchet. Without this the bundle silently regrows.
+      - name: Bundle budget
+        run: node ops/check_bundle_budget.mjs
+
+  schema:
+    name: Migration drift and schema provenance
+    runs-on: ubuntu-latest
+    # These compare the repo against the LIVE database, so they need a
+    # connection string. Without the secret the job reports skipped rather than
+    # failing — a red X for a missing credential trains people to ignore CI.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check credentials
+        id: creds
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SUPABASE_DB_URL is not set — schema gates skipped."
+            echo "Add it in Settings → Secrets → Actions to enable them."
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install psql
+        if: steps.creds.outputs.available == 'true'
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      # PLATFORM_CHEATSHEET rule 20: every migration file byte-identical to the
+      # statement actually applied.
+      - name: Migration drift
+        if: steps.creds.outputs.available == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$SUPABASE_DB_URL" -At -f ops/migration_manifest.sql > /tmp/manifest
+          ops/verify_migrations.sh /tmp/manifest
+
+      # Every deployed object traces to a migration; nothing was created or
+      # altered out of band.
+      - name: Schema provenance
+        if: steps.creds.outputs.available == 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$SUPABASE_DB_URL" -At -F$'\t' -f ops/schema_inventory.sql > /tmp/inventory.tsv
+          ops/audit_schema_provenance.py /tmp/inventory.tsv

@@ -1,0 +1,5 @@
+{
+  "_comment": "APP 012 wave 1 baseline. Measured 2026-09-18 at 1012.18 KB raw / 277.85 KB gzip in a single chunk, with ~9% headroom so the gate catches regression without blocking today's work. LOWER THESE after wave 2 splits the bundle — the budget is a ratchet, and leaving it loose wastes the win.",
+  "maxInitialRawKb": 1100,
+  "maxInitialGzipKb": 300
+}
