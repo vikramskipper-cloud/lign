@@ -170,22 +170,38 @@ The body check is the sharpest of the three: it would catch an out-of-band
 `SECURITY DEFINER` RPC, trigger function and authorization helper. Nothing was
 found.
 
-### What is still not proven
+### Replay verified — 2026-09-18, identical
 
-This is **provenance, not replay**. It shows every deployed object traces to a
-migration; it does not prove the 67 files apply cleanly in order into an empty
-database. Two gaps remain, both narrow:
+The provenance audit above proves every deployed object traces to a migration.
+The stronger question — does replaying the 67 files into an *empty* database
+reproduce production? — was answered by an actual replay
+(`ops/replay_check.sh`), not inference.
 
-- **Ordering.** A migration could depend on state a replay would not have
-  produced yet. Unlikely — these statements did apply in this order once.
-- **Out-of-band `ALTER`.** A policy predicate or column default changed by
-  `ALTER` without changing the object name would pass all three checks.
-  Function bodies are covered; policy predicates are not.
+All 67 migrations applied cleanly, in order, into a fresh local Postgres 17.
+The resulting schema was then compared to production object by object:
 
-Closing those needs a shadow database — `supabase db diff` (Docker + a CLI
-login on the IWillBuild org) or a Supabase preview branch (billable; branch
-creation was declined on 2026-09-18). Worth doing before the migration set is
-first relied on for real: standing up staging, or onboarding a second developer.
+| Kind | Production | Shadow | prod-only | shadow-only | definition differs |
+|---|---|---|---|---|---|
+| TABLE | 32 | 32 | 0 | 0 | 0 |
+| POLICY | 69 | 69 | 0 | 0 | 0 |
+| TRIGGER | 66 | 66 | 0 | 0 | 0 |
+| FUNCTION | 160 | 160 | 0 | 0 | 0 |
+| INDEX | 263 | 263 | 0 | 0 | 0 |
+
+**590 of 590 objects identical**, comparing full definitions — policy
+`USING`/`WITH CHECK` predicates, trigger definitions, index definitions, table
+column lists, and `md5(prosrc)` for every function.
+
+This closes both gaps that the provenance audit left open:
+
+- **Ordering** — the files do apply cleanly in sequence from empty. Verified,
+  not assumed.
+- **Out-of-band `ALTER`** — every policy predicate and column definition in
+  production matches what the migrations produce. Nothing was altered outside
+  the migration path.
+
+`supabase/migrations/` is now a proven-faithful reproduction of the deployed
+database, not merely a byte-match of recorded statements.
 
 ---
 

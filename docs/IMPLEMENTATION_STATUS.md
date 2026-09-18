@@ -71,8 +71,11 @@ tables, 69 RLS policies, 160 public functions, 0 security advisor ERRORs).
   are byte-identical to the applied statements, in apply order, verified by
   `ops/verify_migrations.sh` (67/67 PASS). See
   `supabase/migrations/RECONCILIATION.md` §3 and
-  `docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md`. **Standing rule:** apply
-  migrations from the file, never by pasting SQL into `execute_sql`.
+  `docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md`. Replay was then *proven*, not
+  assumed: all 67 migrations were applied to an empty local Postgres 17 and the
+  resulting schema matched production on **590/590 objects** including every
+  policy predicate and function body (`ops/replay_check.sh`). **Standing rule:**
+  apply migrations from the file, never by pasting SQL into `execute_sql`.
 - `comment.mentioned` is consumed by the APP 010 notification router but is
   emitted by nothing, so mention notifications never fire. Consistent with
   `FREEZE_INDEX.md`'s "Mentions - not persisted, notification emission

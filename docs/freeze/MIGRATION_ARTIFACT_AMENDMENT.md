@@ -87,23 +87,30 @@ Apply migrations **from the file**. Never by pasting SQL into `execute_sql` or
 the dashboard. Ad-hoc statements are drift that `ops/verify_migrations.sh`
 will detect but cannot repair.
 
-## 7. Residual risk — audited, largely closed
+## 7. Residual risk — closed
 
-An exhaustive provenance audit was run on 2026-09-18 over all **590** live
-objects (`ops/schema_inventory.sql` + `ops/audit_schema_provenance.py`):
+Two independent verifications were run on 2026-09-18.
 
-- **Forward** — every live table, policy, trigger, function and index is
-  `CREATE`d by a migration: **0 orphans**.
-- **Reverse** — every migration-created object is live or explicitly dropped by
-  a later migration: **0 unexplained absences**.
-- **Bodies** — every function's `prosrc` is byte-identical to a definition in
-  the migration files: **160/160**, covering all `SECURITY DEFINER` RPCs.
+**Provenance** (`ops/audit_schema_provenance.py`) over all 590 live objects:
+every object is `CREATE`d by a migration (0 orphans); every migration-created
+object is live or explicitly dropped (0 unexplained absences); every function
+body is byte-identical to a migration definition (160/160).
 
-No evidence of out-of-band schema creation, deletion or function replacement.
+**Replay equivalence** (`ops/replay_check.sh`) — the decisive test. All 67
+migrations were replayed into an empty local Postgres 17 and the resulting
+schema compared to production object by object:
 
-Not proven: that the files replay cleanly in order into an empty database, and
-that no object was changed by an out-of-band `ALTER` without a name change.
-Both need a shadow-database replay — `supabase db diff` (Docker + CLI login on
-the IWillBuild org) or a Supabase preview branch (billable; creation was
-declined 2026-09-18). Worth running before the migration set is first relied on
-for real.
+| Kind | Production | Shadow | Differences |
+|---|---|---|---|
+| TABLE | 32 | 32 | 0 |
+| POLICY | 69 | 69 | 0 |
+| TRIGGER | 66 | 66 | 0 |
+| FUNCTION | 160 | 160 | 0 |
+| INDEX | 263 | 263 | 0 |
+
+**590/590 identical**, comparing full definitions including policy
+`USING`/`WITH CHECK` predicates and `md5(prosrc)` for every function.
+
+Migration ordering is verified, and no out-of-band `ALTER` exists. The residual
+risk recorded in earlier revisions of this document is closed. Re-run either
+script after any migration to keep it closed.

@@ -13,6 +13,8 @@
 --
 -- Target project: hsfporioghapwghrvvzd (Lign). Never nuesync.
 
+select kind, name, parent, regexp_replace(coalesce(def,''), '[\n\t ]+', ' ', 'g') as def
+from (
 select 'TABLE' as kind, c.relname as name, ''::text as parent,
        string_agg(a.attname || ' ' || format_type(a.atttypid, a.atttypmod), ', ' order by a.attnum) as def
 from pg_class c
@@ -36,4 +38,5 @@ select 'INDEX', indexname, tablename, indexdef from pg_indexes where schemaname 
 union all
 select 'FUNCTION', p.proname, pg_get_function_identity_arguments(p.oid), md5(p.prosrc)
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'
+) s
 order by 1, 2, 3;
