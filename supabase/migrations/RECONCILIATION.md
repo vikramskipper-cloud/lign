@@ -211,8 +211,12 @@ not merely a byte-match of recorded statements.
 > holding SELECT). Those GRANTs are Supabase platform state applied at project
 > creation, not emitted by any migration. A database rebuilt from this directory
 > alone would reject every request with `42501` before RLS was consulted.
-> `ops/schema_inventory.sql` now captures `GRANT` rows so future replay checks
-> catch it. See `docs/APP_011_IMPLEMENTATION_REPORT.md` §3.
+> **Closed 2026-09-18** by migration `platform_001_role_grants`, which codifies
+> those GRANTs. A pristine replay now holds all 96 grant pairs and matches
+> production's effective function privileges function by function; production
+> was unaffected (identical function-ACL fingerprint before and after).
+> `ops/schema_inventory.sql` also captures `GRANT` rows now, so this class of
+> drift is caught in future. See `docs/APP_011_IMPLEMENTATION_REPORT.md` §3.
 
 ---
 

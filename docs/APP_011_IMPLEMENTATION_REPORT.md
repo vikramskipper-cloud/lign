@@ -86,11 +86,15 @@ A database rebuilt from `supabase/migrations/` alone — disaster recovery, stag
 
 `ops/schema_inventory.sql` now emits `GRANT` rows, and `ops/compare_inventories.py` reports them, so any future replay check surfaces this class of drift instead of silently passing.
 
-### 3.4 Open decision for the architect
+### 3.4 Resolved — migration `platform_001_role_grants` (2026-09-18)
 
-Add a grants migration so the set is self-contained, or document platform grants as out-of-band. **Recommendation: add the migration.** It is idempotent against production (those grants already exist, so applying it changes nothing) and it is the difference between a migration set that can and cannot rebuild the system. It must grant exactly what production has and no more.
+A grants migration was written, applied and verified.
 
-Not done here: it is a privilege change to production and belongs to the migration/re-freeze process, not to an APP 011 frontend wave.
+- **Production impact: none.** Every privilege it grants already existed there. A function-ACL fingerprint taken before and after is **identical** (`4a9fe30d…`), and all 27 functions that withhold EXECUTE from `authenticated` still do.
+- **Replay impact: decisive.** A pristine 69-migration replay now yields all 96 grant pairs holding SELECT (was 0), and effective function privileges match production **function by function** — `has_function_privilege` fingerprint `14f56a35…` identical on both, 133 executable / 27 not / 160 total.
+- **Proof it produces a working system:** the payload probe now runs against a pristine replay with *only* an auth fixture applied — no harness grants — and passes.
+
+**The migration deliberately does not grant EXECUTE on functions.** 27 of 160 withhold it on purpose (`enforce_requirement_hierarchy`, `resolve_notification_router_targets`, `handle_new_auth_user`, `list_purgeable_files`, …), each hardened by an explicit REVOKE. A blanket `grant execute on all functions … to authenticated` would have re-granted all 27 and silently undone hardening across AUTH, STORAGE, REQUIREMENTS and APP 006–010. `ALTER DEFAULT PRIVILEGES` is included and is safe precisely because it applies only to objects created after it runs, so it cannot affect an existing REVOKE.
 
 ### 3.5 Security observation
 
@@ -98,14 +102,49 @@ Production grants full DML to `anon` on all 32 tables. This is standard Supabase
 
 ---
 
-## 4. Not verified
+## 4. Verification, updated 2026-09-18
+
+Live payloads now observed for **6 of 9** published tables, up from 3:
+
+| Table | Observed |
+|---|---|
+| `comments` | INSERT, 17 cols |
+| `annotations` | INSERT, 13 cols |
+| `design_assets` | INSERT, 14 cols |
+| `reviews` | INSERT + UPDATE, 22 cols |
+| `review_participants` | INSERT, 14 cols |
+| `notifications` | INSERT, 21 cols |
+
+The notification observation is wave 1B proven end to end at the transport
+layer: p_lead creates a review → `activity_events` INSERT → router trigger →
+notification row for p_reviewer → Realtime delivers it under the recipient
+filter. It required a second identity, because the router correctly excludes the
+actor.
+
+**Reconnect assumption verified** (`tests/realtime/reconnect_probe.mjs`). The
+§7.2 sweep depends on supabase-js re-firing `SUBSCRIBED` after a drop; if it did
+not, the sweep would never run and realtime would be permanently staler than the
+polling it replaced. Killing the realtime container mid-subscription produced
+`SUBSCRIBED → CHANNEL_ERROR → SUBSCRIBED`. **The sweep will fire.**
+
+### 4.1 Still not verified
 
 - **End-to-end in a browser.** No test asserts that a change by user A visibly refreshes user B's screen. The mapping and the transport are each verified; their composition in a live React tree is not.
 - **Reconnect sweep under real network loss.** §7.2's behaviour is implemented and reviewed but not exercised against an actual dropped socket.
-- **`reviews`, `review_participants`, `approval_requests`, `approval_responses` payload shapes.** The probe covered `comments`, `annotations` and `design_assets`; the other four were not written to, because doing so requires driving their RPC workflows to produce valid rows. Their required columns are all `NOT NULL` in schema, so the risk is low, but it is inference rather than observation.
+- **`asset_versions`, `approval_requests`, `approval_responses` payload shapes.** Driving their RPC workflows to produce valid rows was out of scope. Their required columns are all `NOT NULL` in schema, so the risk is low, but it is inference rather than observation.
 
 ---
 
-## 5. Housekeeping
+## 5. Observation: `create_review` overload hazard
+
+The probe's first RPC call failed with `PGRST203` — PostgREST cannot resolve
+between the 9-arg and 15-arg `create_review` overloads. **This is not a live
+bug:** `features/reviews/mutations.ts` passes all 15 arguments and resolves
+correctly. But it is a latent trap for any future 9-arg caller, and it is
+exactly the hazard APP 009 eliminated for itself under F-2 by dropping its
+frozen overload. APP 006 did not. Dropping it is a re-freeze decision, not
+recorded as a defect here — recorded as a hazard.
+
+## 6. Housekeeping
 
 `npm audit` reports one high-severity advisory: `nanoid < 3.3.18`, reached via `vite → postcss`. **Pre-existing** — it was in the committed lockfile before `vitest` was added, and it is a dev-time dependency. Not addressed here; flagged rather than silently folded into this change.

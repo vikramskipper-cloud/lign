@@ -2,7 +2,7 @@
 
 **Permanent governance record for APP 011 — Realtime.**
 
-- **Certification date:** 2026-09-18
+- **Certification date:** 2026-09-18 (amended same day — §7, §8)
 - **Implementation status:** Complete — waves 1A, 1B and 2 all shipped.
 - **Freeze status:** **Frozen, with behavioural sign-off explicitly deferred** (see §7).
 
@@ -91,14 +91,21 @@ All three recorded in the source documents:
 This certification covers **construction and unit-level behaviour**. It does **not** assert that the feature works end to end in a browser. Deferred by plan to the UI/UX polish + testing phase that follows APP 012:
 
 - **Browser end-to-end.** Nothing confirms that user A's change visibly refreshes user B's screen, or that two users see each other in the presence stack.
-- **Reconnect sweep under real network loss.** Implemented and reviewed; never exercised against a genuinely dropped socket.
-- **Payload shape for 5 of 9 tables.** The probe covered `comments`, `annotations`, `design_assets`. `reviews`, `review_participants`, `approval_requests`, `approval_responses` and `notifications` were not written to — driving their RPC workflows to produce valid rows was out of scope. Their required columns are `NOT NULL` in schema, so this is inference, not observation.
+- **Payload shape for 3 of 9 tables.** `asset_versions`, `approval_requests` and `approval_responses` were not written to. Their required columns are `NOT NULL` in schema, so this is inference, not observation.
+
+**Closed since first issue (2026-09-18):**
+- ~~Reconnect sweep under real network loss.~~ **Verified.** Killing the realtime container mid-subscription produced `SUBSCRIBED → CHANNEL_ERROR → SUBSCRIBED`, so the §7.2 sweep does fire (`tests/realtime/reconnect_probe.mjs`).
+- ~~Payload shape for 5 of 9 tables.~~ Now **6 of 9 observed**: `comments`, `annotations`, `design_assets`, `reviews` (INSERT+UPDATE), `review_participants`, `notifications`. The notification observation proves wave 1B end to end at the transport layer — review created → `activity_events` → router → notification row → delivered under the recipient filter.
 
 **Any future claim that APP 011 "works" must cite a browser test, not this document.**
 
-## 8. Adjacent open item (not APP 011)
+## 8. Adjacent item — closed
 
-APP 011 testing exposed that the migration set carries no table privileges: a pristine replay grants `anon`/`authenticated`/`service_role` no SELECT/INSERT/UPDATE/DELETE on any of the 32 tables (96 grant pairs, zero holding SELECT), so a rebuilt database would reject every request with `42501` before RLS ran. Recorded in `APP_011_IMPLEMENTATION_REPORT.md` §3 with a recommendation to add a grants migration. **Open.**
+APP 011 testing exposed that the migration set carried no table privileges: a pristine replay granted `anon`/`authenticated`/`service_role` no SELECT/INSERT/UPDATE/DELETE on any of the 32 tables, so a rebuilt database would reject every request with `42501` before RLS ran.
+
+**Closed** by migration `platform_001_role_grants` (2026-09-18). No production privilege changed — the function-ACL fingerprint is identical before and after, and all 27 deliberately-withheld EXECUTE grants remain withheld. A pristine replay now holds all 96 grant pairs and matches production's effective function privileges function by function. Detail in `APP_011_IMPLEMENTATION_REPORT.md` §3.4.
+
+**A hazard remains open:** two `create_review` overloads make 9-arg PostgREST calls fail with `PGRST203`. Not a live bug (the app passes all 15 args), but the trap APP 009 removed for itself under F-2 and APP 006 did not. See report §5.
 
 ## 9. Permanent non-goals
 

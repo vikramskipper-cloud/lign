@@ -119,6 +119,9 @@ table *privileges*, and privileges differ: production grants full DML to `anon`,
 `authenticated` and `service_role` on all 32 tables; a pristine replay grants
 none of it. Those GRANTs are Supabase platform state, not migration output, so
 the migration set alone cannot currently rebuild a working system.
-`ops/schema_inventory.sql` now emits `GRANT` rows so this is caught in future.
-Open decision — add a grants migration, or document platform grants as
-out-of-band — recorded in `docs/APP_011_IMPLEMENTATION_REPORT.md` §3.4.
+**Closed 2026-09-18** by migration `platform_001_role_grants`. A pristine replay
+now produces a working database: all 96 grant pairs present, effective function
+privileges matching production function by function, and the end-to-end probe
+passing with no harness grants. Production was unaffected — identical
+function-ACL fingerprint before and after. `ops/schema_inventory.sql` also emits
+`GRANT` rows now so this class of drift cannot pass silently again.
