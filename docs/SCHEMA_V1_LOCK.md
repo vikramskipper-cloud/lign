@@ -62,7 +62,7 @@ Enforced by triggers and composite FKs; MUST remain intact in any future migrati
 16. `design_assets.current_version_id` references a Version OF the same asset (composite FK). Never auto-set by publish, approval, or release.
 17. `release_item.version_id` belongs to `release_item.project_id` and its parent release has the same project.
 18. Files dedup is workspace-scoped only (`UNIQUE (workspace_id, checksum_sha256)`).
-19. Comments' 7-way and Decisions' 5-way target XOR checks.
+19. Comments' **8-way** and Decisions' 5-way target XOR checks. (Comments shipped 7-way in Migration 005; APP 008 added `target_requirement_id` as the eighth arm under an approved re-freeze. Live constraint verified 2026-09-18.)
 20. Roster XOR (workspace_member_id | stakeholder_id) on `project_participants`, `review_participants`, `approval_request_approvers`.
 
 ## Locked deviations from `DATABASE_SCHEMA.md v0.3`

@@ -35,7 +35,7 @@ This document is purely navigational. It records the current frozen state of eve
 - **Extension points intentionally left:** Milestone/Phase; DesignAsset-to-DesignAsset dependency; Templates; Version comparison/diff; Notification; AI Suggestion/Run; Collaborative locks; per-project custom fields.
 - **Explicitly deferred work:** Milestone, Dependency, Template, Comparison, Notification, AI, Locks, Custom fields — all deliberately not modeled in v0.
 - **Public contracts future APPs must respect:**
-  - 7-way XOR target on `comments` (version, review, annotation, change, decision, design_asset, approval_request).
+  - **8-way** XOR target on `comments` (version, review, annotation, change, decision, design_asset, approval_request, **requirement**). Originally 7-way in APP 005; APP 008 widened `comments_target_xor_check` with `target_requirement_id` as the eighth arm (`APP_008_BACKEND_PROPOSAL.md` §355). The predicate shape (`= 1`) is unchanged. Verified against the live constraint 2026-09-18.
   - Three independent refs on `design_assets` (`current_version_id`, plus reserved approved/released concepts).
   - Version immutability after publish; a correction is a new version.
   - Files are content-addressed with workspace-scoped dedup; never global.
@@ -213,7 +213,7 @@ APP 005  (Comments & Annotations)
 - **APP 005 → APP 004.** Depends on `ImageViewer.overlay` and `VideoViewer.belowStrip` render slots for annotation surfaces; on `Viewer` forwarding those props; on `RightPanel`'s extensible tab strip; on `AssetCardThumb` being unchanged.
 - **APP 005 → APP 003.** Uses the DesignWorkspaceScreen as the mount point for hotkeys and authoring state.
 - **APP 005 → APP 002.** Extends `DeepLinkResolver` additively with `comment` / `annotation` kinds; extends `router` with two new `/deep/*` entries.
-- **APP 005 → APP 001.** Implements the Comment 7-way XOR target discipline (using only the `version` and `annotation` targets in this slice), the annotation immutability rule, and the Notification-through-events principle (by deliberately emitting nothing).
+- **APP 005 → APP 001.** Implements the Comment XOR target discipline (7-way as shipped by APP 005; widened to 8-way by APP 008) (using only the `version` and `annotation` targets in this slice), the annotation immutability rule, and the Notification-through-events principle (by deliberately emitting nothing).
 
 ---
 

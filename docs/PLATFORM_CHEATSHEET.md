@@ -38,7 +38,7 @@ Dependencies flow one way only. Later slices never modify earlier slices.
 | APP 002 | App shell, router, `qk` registry, `CAPABILITY_KEYS`, `DeepLinkResolver`, `NavRail` | Feature UI |
 | APP 003 | Projects, disciplines, Design Workspace, RightPanel | Feature domains |
 | APP 004 | Files, viewer, version pipeline, storage integration | Discussion, review |
-| APP 005 | Comments (7-way XOR + `target_requirement_id`), annotations | Persistence of upstream discussion |
+| APP 005 | Comments (8-way XOR; 7 arms from APP 005 + `target_requirement_id` from APP 008), annotations | Persistence of upstream discussion |
 | APP 006 | Reviews (7-state, rounds, roster, dashboards) | Approvals, requirements |
 | APP 007 | Approvals (8-state, chain, roster, veto, supersede) | Reviews, requirements |
 | APP 008 | Requirements (draft/active/superseded/archived, assessments) | Approvals, releases |
