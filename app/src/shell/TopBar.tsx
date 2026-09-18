@@ -3,6 +3,7 @@ import { Button } from '@/ui/button'
 import { Breadcrumb } from '@/shell/Breadcrumb'
 import { UserMenu } from '@/shell/UserMenu'
 import { NotificationBell } from '@/features/notifications/NotificationBell'
+import { RealtimeIndicator } from '@/features/realtime/RealtimeIndicator'
 
 interface Props {
   onOpenNav?: () => void
@@ -28,6 +29,7 @@ export function TopBar({ onOpenNav }: Props) {
       <div className="min-w-0 flex-1">
         <Breadcrumb />
       </div>
+      <RealtimeIndicator />
       <NotificationBell />
       <UserMenu />
     </header>

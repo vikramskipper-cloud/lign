@@ -108,7 +108,11 @@ Rationale:
 
 ### 5.2 Lifecycle
 
-Mounted once, high in the tree, beside `SessionProvider`. Subscribe when a session **and** an active workspace both exist; unsubscribe on workspace change and on `SIGNED_OUT`.
+Mounted in `RootLayout`. **Corrected during implementation:** §5.2 originally said "beside `SessionProvider`", but the active workspace comes from `useParams`, which only resolves inside the router — and `SessionProvider` is a sibling of `RouterProvider`, not an ancestor of any route. `RootLayout` wraps every authenticated route, so the lifetime is equivalent and params resolve correctly (the same mechanism `NotificationBell` already relies on).
+
+Subscribe when a session **and** an active workspace both exist; unsubscribe on workspace change and on `SIGNED_OUT`.
+
+Reconnect detection is scoped to the **channel instance**, not the provider: supabase-js rejoins automatically and re-fires the callback with `SUBSCRIBED`, which is a true reconnect, whereas a workspace switch builds a new channel and must not trigger the §7.2 sweep.
 
 `SessionProvider` already calls `queryClient.clear()` on `SIGNED_OUT` — APP 011 must tear the channel down **before** that clear so no in-flight event repopulates a cleared cache.
 
