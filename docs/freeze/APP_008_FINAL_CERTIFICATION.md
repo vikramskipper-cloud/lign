@@ -314,3 +314,18 @@ Additional empirical smoke:
 APP 008 has completed the full governance cycle. Every clause of the frozen backend contract is deployed as written. Every HIGH, MEDIUM, and LOW finding from the Re-freeze Review is applied. Every empirical spot check passes. Every prior slice is preserved byte-identical. There are no open blockers.
 
 **APP 008 is frozen.**
+
+---
+
+## Amendment — 2026-09-18 — migration artifact reconciliation
+
+This certification's claims about the **deployed database** are unchanged and
+remain accurate. Separately, this slice's `.sql` files in
+`supabase/migrations/` were replaced with the exact statements that were applied
+to `hsfporioghapwghrvvzd`, because they had drifted from it (in some slices they
+were missing entirely). No deployed object, policy, RPC, trigger, grant or row
+was altered.
+
+See [`MIGRATION_ARTIFACT_AMENDMENT.md`](MIGRATION_ARTIFACT_AMENDMENT.md) and
+[`../../supabase/migrations/RECONCILIATION.md`](../../supabase/migrations/RECONCILIATION.md).
+Rule 20 is now enforced by `ops/verify_migrations.sh`.

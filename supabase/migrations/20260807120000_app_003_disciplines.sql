@@ -1,34 +1,5 @@
 -- Migration 010 (APP 003): disciplines
---
--- Adds the lightweight Discipline concept per the frozen APP 003 architecture
--- update:
---   1. public.disciplines — project-scoped, industry-neutral classification of
---      "what kind of design" an asset is (Architecture / Interiors / MEP /
---      UI/UX / Branding / …). Project-defined, not hardcoded.
---   2. public.design_assets.discipline_id — nullable FK to disciplines,
---      composite-tenanted to the same (project_id, workspace_id) as the
---      asset. Nullable per approved decision D11 (v0 does not force NOT NULL;
---      UI enforces "please pick one" in Create Asset). ON DELETE RESTRICT so
---      "MEP" being deleted while assets belong to it can't happen silently —
---      archive is the escape hatch.
---   3. RLS on disciplines: SELECT gated by 'project.view',
---      INSERT/UPDATE gated by 'project.edit'. **No new capability keys** —
---      the lightweight tier deliberately reuses project.* rather than adding
---      discipline.* to the frozen capability catalog.
---
--- Explicit non-goals (per approved APP 003 §11):
---   - No hierarchy, no color/icon, no per-discipline ACL, no workflow.
---   - No DELETE policy; archive via status='archived'.
---   - No auto-migration of existing rows (nullable column; no backfill).
---   - No cross-project discipline library / templates.
---   - No favorites, star, or asset_stars table.
---
--- Historical-retention posture:
---   - disciplines.created_by_profile_id → profiles(id) ON DELETE SET NULL.
---   - design_assets.discipline_id → disciplines(id) ON DELETE RESTRICT
---     (composite FK enforces same project + workspace).
---
--- Transaction control: none inline. Supabase migration runner wraps.
+-- See /supabase/migrations/20260807120000_app_003_disciplines.sql for full documentation.
 
 ------------------------------------------------------------------------------
 -- 1. disciplines
@@ -49,27 +20,18 @@ create table public.disciplines (
 
   constraint disciplines_status_check check (status in ('active','archived')),
 
-  -- Composite tenant/scope FK: a discipline cannot reference a project in a
-  -- different workspace. Structurally enforced.
   constraint disciplines_project_fk
     foreign key (project_id, workspace_id)
     references public.projects (id, workspace_id)
     on delete restrict,
 
-  -- Composite FK target for design_assets:
-  --   (discipline_id, project_id, workspace_id)
-  --   → disciplines(id, project_id, workspace_id) ON DELETE RESTRICT
   constraint disciplines_id_project_workspace_key
     unique (id, project_id, workspace_id)
 );
 
 comment on table public.disciplines is
-  'Lightweight, project-defined classification of "what kind of design" an asset is (Architecture, Interiors, MEP, UI/UX, Branding, …). Separate from collections. No hierarchy. No dedicated capability keys — CRUD gated by project.edit. APP 003 §1.5.';
-comment on constraint disciplines_project_fk on public.disciplines is
-  'Composite tenant/scope FK: a discipline cannot reference a project in a different workspace.';
+  'Lightweight, project-defined classification of "what kind of design" an asset is (Architecture, Interiors, MEP, UI/UX, Branding, ...). Separate from collections. No hierarchy. No dedicated capability keys - CRUD gated by project.edit. APP 003.';
 
--- Active-name uniqueness within a project (case-insensitive via LOWER
--- expression index). Mirrors the collections pattern.
 create unique index disciplines_project_name_active_key
   on public.disciplines (project_id, lower(name))
   where status = 'active';
@@ -87,7 +49,6 @@ alter table public.disciplines enable row level security;
 ------------------------------------------------------------------------------
 -- 2. design_assets.discipline_id
 ------------------------------------------------------------------------------
--- Nullable per D11. Composite FK enforces same-project scope.
 
 alter table public.design_assets
   add column if not exists discipline_id uuid null;
@@ -110,8 +71,6 @@ create index if not exists design_assets_discipline_idx
 ------------------------------------------------------------------------------
 -- 3. disciplines RLS policies
 ------------------------------------------------------------------------------
--- Deliberately reuses project.view / project.edit rather than introducing
--- discipline.* capability keys.
 
 drop policy if exists disciplines_select on public.disciplines;
 create policy disciplines_select on public.disciplines
@@ -137,5 +96,3 @@ create policy disciplines_update on public.disciplines
   to authenticated
   using      (public.lign_has_capability(project_id, workspace_id, 'project.edit'))
   with check (public.lign_has_capability(project_id, workspace_id, 'project.edit'));
-
--- No DELETE policy. Archive via status='archived'.

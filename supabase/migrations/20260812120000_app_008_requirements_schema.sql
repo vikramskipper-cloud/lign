@@ -11,7 +11,7 @@
 --   * 4 NULL-permissive CHECK constraints on requirements
 --   * 2 composite FKs (owner_profile_id → workspace_members(user_id, workspace_id);
 --                     comments.target_requirement_id → requirements(id, workspace_id))
---   * 7 additive indexes (I-1 … I-7) + 2 covering composite FK indexes
+--   * 7 additive indexes (I-1 … I-7)
 --   * 1 optional convenience trigger (requirements_default_owner_on_insert)
 --
 -- All additions are additive-only per APP 008 §24 backwards-compat guarantees.
@@ -115,18 +115,10 @@ create index if not exists requirements_due_at_partial_idx
   where due_at is not null and status in ('draft','active');
 
 -- I-6 GIN trigram on title + description for ?search= (Freeze Index §13.1).
--- Extension installed in the `extensions` schema (project convention);
--- operator classes are qualified accordingly to keep public.requirements clean.
-create extension if not exists pg_trgm with schema extensions;
+create extension if not exists pg_trgm;
 create index if not exists requirements_title_desc_trgm_idx
   on public.requirements
-  using gin (title extensions.gin_trgm_ops, description extensions.gin_trgm_ops);
-
--- Covering composite index so the unindexed_foreign_keys linter recognizes
--- requirements_owner_workspace_fk. Partial (nullable leading column) to stay small.
-create index if not exists requirements_owner_workspace_covering_idx
-  on public.requirements (owner_profile_id, workspace_id)
-  where owner_profile_id is not null;
+  using gin (title gin_trgm_ops, description gin_trgm_ops);
 
 ------------------------------------------------------------------------------
 -- 5. comments: additive nullable column + composite FK
@@ -168,16 +160,10 @@ alter table public.comments
   ) = 1);
 
 ------------------------------------------------------------------------------
--- 7. comments: partial + covering indexes on the new target column (I-7)
+-- 7. comments: partial covering index on the new target column (I-7)
 ------------------------------------------------------------------------------
 create index if not exists comments_target_requirement_partial_idx
   on public.comments (target_requirement_id)
-  where target_requirement_id is not null;
-
--- Covering composite index so the unindexed_foreign_keys linter recognizes
--- comments_target_requirement_workspace_fk.
-create index if not exists comments_target_requirement_workspace_covering_idx
-  on public.comments (target_requirement_id, workspace_id)
   where target_requirement_id is not null;
 
 ------------------------------------------------------------------------------

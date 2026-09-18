@@ -1,50 +1,10 @@
 -- Migration 002: workspaces_identity
---
--- Adds the identity/tenancy foundation on top of Migration 001:
---   1. Hardens public.set_updated_at() by pinning its search_path
---      (Migration 001 follow-up; resolves the function_search_path_mutable
---      advisor warning).
---   2. Creates public.workspaces (tenant boundary).
---   3. Creates public.workspace_members (organizational membership) +
---      user_id immutability DB-boundary trigger.
---   4. Creates public.stakeholders (workspace-scoped external identity).
---   5. Creates public.invitations (workspace-member and stakeholder invites,
---      hashed tokens only).
---   6. Enables RLS on all four new tables with NO policies. Policies land in
---      the dedicated authorization migration stage.
---
--- Explicit non-goals:
---   - No projects / participants / collections / assets / etc.
---   - No workspace-owner minimum enforcement.
---   - No accept_invitation / claim_stakeholder_invitation logic.
---   - No capability functions or business RPCs.
---   - No activity_events emission or notification wiring.
---   - No storage buckets, no pg_cron, no pg_net.
---
--- MVP decision applied (deliberate, documented deviation from
--- DATABASE_SCHEMA.md v0.3 §3.3):
---   Workspace roles in MVP are owner, admin, member. The 'guest' value from
---   the frozen DATABASE_SCHEMA vocabulary is intentionally NOT included in
---   workspace_members.role CHECK, per PERMISSIONS.md §3.1 (final freeze) and
---   the explicit Migration 002 instruction. External / project-limited
---   participation is represented through stakeholders, not through a
---   workspace role.
---
--- Historical-retention notes (from DOMAIN_MODEL.md §0):
---   - workspace_members / stakeholders reference profiles(id) with
---     ON DELETE RESTRICT (no cascade through history).
---   - invitations.workspace_id uses ON DELETE CASCADE — the one CASCADE
---     FK in the identity foundation, per DATABASE_SCHEMA.md v0.3 §3.5
---     ("invitations are not history").
---   - invited_by_profile_id uses ON DELETE SET NULL.
---
--- Transaction control: none inline. Supabase migration runner wraps.
+-- Identity/tenancy foundation. See supabase/migrations/20260728220000_workspaces_identity.sql
+-- for full documentation and rationale.
 
 ------------------------------------------------------------------------------
 -- 1. Migration 001 hardening: pin set_updated_at search_path
 ------------------------------------------------------------------------------
--- Resolves the function_search_path_mutable Supabase advisor warning
--- introduced by Migration 001 without altering function behavior.
 
 alter function public.set_updated_at() set search_path = '';
 
@@ -96,14 +56,10 @@ create table public.workspace_members (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
 
-  -- MVP role vocabulary (guest deliberately excluded — see header note).
   constraint workspace_members_role_check   check (role in ('owner','admin','member')),
   constraint workspace_members_status_check check (status in ('invited','active','suspended','removed')),
 
-  -- One membership per (workspace, user).
   constraint workspace_members_workspace_user_key unique (workspace_id, user_id),
-  -- Composite FK target for downstream tables (project_participants,
-  -- review_participants, approval_request_approvers).
   constraint workspace_members_id_workspace_key   unique (id, workspace_id)
 );
 
@@ -120,9 +76,6 @@ create trigger workspace_members_set_updated_at
   before update on public.workspace_members
   for each row execute function public.set_updated_at();
 
--- user_id immutability (DB-boundary invariant per DATABASE_SCHEMA.md v0.3
--- §3.3 and PERMISSIONS.md §13 rule 9). Rejects any UPDATE that changes
--- user_id. Role and status may still be updated freely.
 create or replace function public.enforce_workspace_members_user_id_immutable()
 returns trigger
 language plpgsql
@@ -165,15 +118,10 @@ create table public.stakeholders (
 
   constraint stakeholders_status_check         check (status in ('invited','active','revoked')),
 
-  -- Identity dedup within workspace (citext handles case).
   constraint stakeholders_workspace_email_key  unique (workspace_id, email),
-  -- Composite FK target for downstream tables (project_participants,
-  -- review_participants, approval_request_approvers).
   constraint stakeholders_id_workspace_key     unique (id, workspace_id)
 );
 
--- One stakeholder per user per workspace (partial unique; nullable user_id
--- means we need CREATE UNIQUE INDEX rather than a table-level constraint).
 create unique index stakeholders_workspace_user_key
   on public.stakeholders (workspace_id, user_id)
   where user_id is not null;
@@ -217,13 +165,12 @@ create table public.invitations (
 );
 
 comment on table public.invitations is
-  'Pending email invites to become a workspace_members row or a stakeholders row. workspace_id CASCADE: invitations are not history. Tokens are stored as hashes only. DATABASE_SCHEMA.md v0.3 §3.5.';
+  'Pending email invites to become a workspace_members row or a stakeholders row. workspace_id CASCADE: invitations are not history. Tokens stored as hashes only. DATABASE_SCHEMA.md v0.3 §3.5.';
 comment on column public.invitations.token_hash is
   'Opaque hash of the invitation token. The plaintext token is never stored in the database.';
 comment on column public.invitations.role is
   'Workspace role for workspace_member invites; expected null for stakeholder invites. No CHECK constraint per DATABASE_SCHEMA.md — enforced at application layer.';
 
--- Only one active invite per (workspace, email, kind).
 create unique index invitations_active_key
   on public.invitations (workspace_id, email, kind)
   where status = 'sent';

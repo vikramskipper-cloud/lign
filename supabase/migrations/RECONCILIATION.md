@@ -99,39 +99,90 @@ database, produces a **different security surface** than production.
 
 ---
 
-## 3. Open decision — NOT resolved here
+## 3. Resolution — option 1 adopted (2026-09-18)
 
-The 24 non-equivalent files were **left untouched**. Rewriting them to match the
-database would modify artifacts that `docs/freeze/` certifies as permanently
-frozen, which `PLATFORM_CHEATSHEET.md` rule 19 says requires an explicit
-re-freeze. That is an architectural decision, not a bookkeeping one.
+**Decision: the database is canonical.** Every file in `supabase/migrations/`
+was replaced with the exact SQL statement that was applied to
+`hsfporioghapwghrvvzd`, taken from `_applied_snapshot/`.
 
-Options, in rough order of preference:
+- **38 files replaced** — every pre-existing file, across all four drift
+  classes: 24 structurally divergent, 11 differing only in `COMMENT ON` text and
+  Unicode punctuation, 2 consolidated supersets, 1 documentation stub. The 11
+  were replaced too: differing comment text still produces different object
+  comments in the database, so leaving them would have kept the directory
+  unverifiable as a whole.
+- **29 files unchanged** — the reconstructed ones were already byte-exact.
+- **Result: 67 of 67 files byte-identical to the applied statements**, in an
+  order that matches the apply order exactly.
 
-1. **Adopt the database as canonical.** Replace each divergent local file with
-   its `_applied_snapshot/` body, and record a re-freeze note in each affected
-   APP's freeze report. Makes `supabase db reset` reproduce production exactly.
-   Loses the richer prose comments in some local files.
-2. **Merge per file.** Keep local prose, graft in the applied statements the
-   local file is missing. Highest fidelity, slowest, and every merge needs
-   review against the freeze report for that slice.
-3. **Leave as-is and treat `_applied_snapshot/` as canonical** for replay, with
-   `migrations/` demoted to design-intent documentation. Cheapest, but it means
-   the migrations directory is decorative and will keep drifting.
+### Why this form
 
-Until one is chosen, **`_applied_snapshot/` is the only faithful record of the
-deployed schema**, and `supabase/migrations/` must not be assumed replayable.
+Byte-identity is what makes `PLATFORM_CHEATSHEET.md` rule 20 mechanically
+checkable. Prepending preserved header comments would have kept the files
+*semantically* equivalent but broken the md5 check, so prose was not grafted
+back on. Nothing is lost: the prior content of every replaced file is in git
+history — commits `a33f981` (initial import) and `764b068` (reconciliation).
+Recover any of it with:
+
+```bash
+git show 764b068:supabase/migrations/<filename> > /tmp/prior.sql
+```
+
+The richest casualty is the old `app_010_notifications_authz_and_rpcs` file:
+4.5 KB of design commentary with no executable SQL. It is preserved at that
+commit and is worth mining into `docs/APP_010_FREEZE_INDEX.md` rather than
+being carried in a migration.
+
+### Two hazards this closed
+
+1. **Double-apply.** `app_006_reviews_authz_and_rpcs` and
+   `app_009_releases_authz_and_rpcs` were consolidated supersets — they held
+   their base migration *plus* the follow-ups that were applied separately and
+   now exist as their own files. Replaying the directory would have applied
+   those statements twice. Both are now just their base body.
+2. **Silent security divergence.** Several applied bodies carried RLS policy and
+   grant statements the local files lacked. A fresh replay would have produced a
+   weaker security surface than production. No longer possible.
+
+### What did NOT change
+
+**No deployed object was touched.** This was a repo-hygiene change only: files
+were edited to match a database that was already correct. Schema, RLS, RPCs,
+triggers, grants and data on `hsfporioghapwghrvvzd` are untouched, and every
+`docs/freeze/` certification remains accurate about the deployed state. See
+`docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md` for the governance record.
+
+### Out-of-band objects
+
+Before adopting, 25 of the highest-risk production objects were traced back to
+an applied migration — the newer tables (`user_bookmarks`, `user_saved_views`,
+`notifications`, `requirement_design_assets`,
+`version_requirement_assessments`, `disciplines`), triggers and functions from
+the divergent slices, indexes suggesting later extensions
+(`comments_target_requirement_*`, `requirements_title_desc_trgm_idx`,
+`notifications_dedup_uniq_idx`), and a sample of RLS policies. **All 25 traced
+to a migration; no orphans.** That is a spot-check across roughly 500 objects,
+not an exhaustive sweep. A shadow-database diff (`supabase db diff`, needs
+Docker and a CLI login on the IWillBuild org) would settle it rigorously, and
+is worth running before the migration set is first relied on for real — when
+standing up staging, or onboarding a second developer.
 
 ---
 
-## 4. Verification commands
+## 4. Staying in sync
+
+`ops/verify_migrations.sh` enforces this. It compares every local file against
+the md5 of the applied statement and fails on drift, on a migration applied with
+no local file, and on a local file never applied:
 
 ```bash
-# applied md5s
-#   select md5(statements[1]) || '  ' || name from supabase_migrations.schema_migrations;
-# local md5
-md5 -q supabase/_applied_snapshot/<name>.sql
+psql "$SUPABASE_DB_URL" -At -f ops/migration_manifest.sql > /tmp/manifest
+ops/verify_migrations.sh /tmp/manifest
 ```
 
-Every file in `_applied_snapshot/` matched its database md5 at the time of
-writing (67/67).
+Verified PASS at 67/67 on 2026-09-18, and confirmed to fail on a deliberately
+tampered file. Wire it into CI when CI exists.
+
+**Rule going forward:** apply migrations from the file, never by pasting SQL
+into `execute_sql` or the dashboard. Every ad-hoc statement is drift this
+script will catch but cannot fix.

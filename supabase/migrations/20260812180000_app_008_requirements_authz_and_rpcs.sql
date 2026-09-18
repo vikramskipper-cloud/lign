@@ -194,6 +194,7 @@ begin
   if p_title is null or length(trim(p_title))=0 then raise exception 'create_requirement: title required' using errcode='22004'; end if;
   if p_status not in ('draft','active') then raise exception 'create_requirement: initial status must be draft or active (got %)', p_status using errcode='22023'; end if;
 
+  -- Validate the additive tail params against the same CHECKs applied to the columns.
   if p_priority is not null and p_priority not in ('critical','high','medium','low','informational') then
     raise exception 'create_requirement: invalid priority %', p_priority using errcode='22023';
   end if;
@@ -250,6 +251,7 @@ begin
      p_verification_method, p_due_at)
   returning id into v_new_id;
 
+  -- Build the subject_snapshot with the frozen 4 keys plus additive keys.
   v_snap := jsonb_build_object(
     'code', v_code,
     'title', p_title,
@@ -295,9 +297,9 @@ grant execute on function public.create_requirement(
 ------------------------------------------------------------------------------
 -- 3. edit_requirement — extended (Option A additive tail params).
 ------------------------------------------------------------------------------
--- Frozen 7-arg overload (REQUIREMENTS 004 L120–L128) is preserved BYTE-IDENTICAL.
--- This 13-arg overload adds NULL-defaulted tail params for the six additive
--- columns; NULL keeps the column unchanged (coalesce).
+-- Frozen 7-arg overload (REQUIREMENTS 004 L120–L128) is preserved
+-- BYTE-IDENTICAL. This 13-arg overload adds NULL-defaulted tail params for
+-- the six additive columns; NULL keeps the column unchanged (coalesce).
 
 create or replace function public.edit_requirement(
   p_requirement_id       uuid,
@@ -381,6 +383,7 @@ begin
     raise exception 'edit_requirement: invalid verification_method %', p_verification_method using errcode='22023';
   end if;
 
+  -- Diff computation. NULL means "leave unchanged" so it can't be a change.
   if p_title              is not null and p_title              is distinct from v_cur_title  then v_changed := array_append(v_changed, 'title');              end if;
   if p_description        is not null and p_description        is distinct from v_cur_desc   then v_changed := array_append(v_changed, 'description');        end if;
   if p_category           is not null and p_category           is distinct from v_cur_cat    then v_changed := array_append(v_changed, 'category');           end if;
@@ -558,6 +561,7 @@ begin
   return query select v_id, v_action;
 end $$;
 
+-- Preserve frozen REVOKE / GRANT (idempotent).
 revoke all on function public.assess_version_requirement(uuid, uuid, text, text) from public;
 revoke all on function public.assess_version_requirement(uuid, uuid, text, text) from anon;
 grant execute on function public.assess_version_requirement(uuid, uuid, text, text) to authenticated, service_role;
@@ -589,7 +593,7 @@ begin
     from public.requirements where id = p_requirement_id;
   if v_ws is null then return null; end if;
   if not public.lign_has_capability(v_pj, v_ws, 'requirement.view') then
-    return null;
+    return null; -- fail-closed: don't leak existence
   end if;
 
   select to_jsonb(r) into v_row
@@ -609,18 +613,20 @@ begin
     'asset_ids',       to_jsonb(v_asset_ids)
   );
 
+  -- Assessment summary: count applicable latest-versions and how many are assessed.
   with applicable_versions as (
     select av.id as version_id, av.design_asset_id
       from public.asset_versions av
      where av.project_id = v_pj
        and (
-         v_asset_count = 0
+         v_asset_count = 0  -- project-wide
          or av.design_asset_id = any (v_asset_ids)
        )
   ),
   latest_per_asset as (
     select distinct on (design_asset_id) version_id, design_asset_id
       from applicable_versions
+      -- Every asset_version has a created_at; choose latest.
      order by design_asset_id, version_id desc
   ),
   joined as (
@@ -640,6 +646,7 @@ begin
     into v_assess_summary
     from joined;
 
+  -- Days-since-last-assessment; days-until-due.
   select jsonb_build_object(
            'coverage_pct',
              case
@@ -662,6 +669,7 @@ begin
          )
     into v_metrics;
 
+  -- Chain position: forward + backward pointers.
   select jsonb_build_object(
            'supersedes',
              (select id from public.requirements
@@ -709,7 +717,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'get_requirement_by_code: authentication required' using errcode='42501'; end if;
   if not public.lign_has_capability(p_project_id, p_workspace_id, 'requirement.view') then
-    return null;
+    return null; -- fail-closed
   end if;
   select * into v_row from public.requirements
    where project_id = p_project_id and workspace_id = p_workspace_id and code = p_code;
@@ -747,6 +755,7 @@ begin
   end if;
 
   with recursive
+    -- Walk forward via superseded_by_requirement_id.
     forward as (
       select id, code, title, status, superseded_by_requirement_id, 0 as pos
         from public.requirements where id = p_requirement_id
@@ -756,6 +765,7 @@ begin
         join forward f on r.id = f.superseded_by_requirement_id
        where f.pos < 32
     ),
+    -- Walk backward: find rows whose superseded_by points at any row already in the chain.
     backward as (
       select id, code, title, status, superseded_by_requirement_id, 0 as pos
         from public.requirements where superseded_by_requirement_id = p_requirement_id
@@ -940,7 +950,7 @@ create or replace function public.list_requirements_dashboard(
   p_priority_filter       text[]      default null,
   p_source_filter         text[]      default null,
   p_category_filter       text[]      default null,
-  p_scope_filter          text        default null,
+  p_scope_filter          text        default null,   -- 'project_wide' | 'asset_scoped' | null
   p_owner_ids             uuid[]      default null,
   p_search                text        default null,
   p_cursor_updated_at     timestamptz default null,
@@ -968,6 +978,7 @@ begin
   if v_caller is null then raise exception 'list_requirements_dashboard: authentication required' using errcode='42501'; end if;
   if p_ws_id is null then raise exception 'list_requirements_dashboard: workspace id required' using errcode='22004'; end if;
 
+  -- Resolve saved view (if any) — override the filter set.
   if p_saved_view_id is not null then
     select payload into v_saved_payload
       from public.user_saved_views
@@ -987,6 +998,7 @@ begin
     end if;
   end if;
 
+  -- Interpret magic view names.
   if v_effective_view = 'assigned_to_me' then
     v_owner_ids := array[v_caller];
   end if;
@@ -998,6 +1010,8 @@ begin
     v_priority_filter := array['critical'];
   end if;
 
+  -- Authorization: at workspace scope, filter to projects the caller can view.
+  -- At project scope, gate at RPC entry.
   if p_proj_id is not null then
     if not public.lign_has_capability(p_proj_id, p_ws_id, 'requirement.view') then
       raise exception 'list_requirements_dashboard: forbidden (requirement.view)' using errcode='42501';
@@ -1027,6 +1041,7 @@ begin
             or r.code        ilike '%' || v_search || '%'
             or r.title       ilike '%' || v_search || '%'
             or coalesce(r.description, '') ilike '%' || v_search || '%')
+       -- Default view: only non-terminal unless user asked otherwise.
        and (
          v_effective_view in ('all','archived','superseded')
          or v_status_filter is not null
@@ -1117,6 +1132,7 @@ begin
     into v_rows
     from paged;
 
+  -- next_cursor: if the filtered set held more than v_limit, return the last-row cursor.
   select case when count(*) > v_limit then
            jsonb_build_object(
              'updated_at', (select updated_at from filtered offset v_limit - 1 limit 1),

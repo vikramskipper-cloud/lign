@@ -1,13 +1,3 @@
--- AUTH 004 addendum: fix set_current_version event vocabulary
---
--- Changes only the event_type literal emitted by public.set_current_version
--- from the non-canonical 'asset.current_version.changed' (dotted) to the
--- EVENT_MODEL.md §4.4 canonical 'asset.current_version_changed' (underscored).
---
--- Signature, authorization, behavior, grants, SECURITY DEFINER config,
--- search_path, current-version validation, transaction GUC, and event payload
--- are preserved exactly.
-
 create or replace function public.set_current_version(p_design_asset_id uuid, p_version_id uuid)
 returns uuid language plpgsql security definer set search_path = ''
 as $$

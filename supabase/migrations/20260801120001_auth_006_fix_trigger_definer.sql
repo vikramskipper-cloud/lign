@@ -1,10 +1,6 @@
--- AUTH 006 addendum: elevate event-emitting trigger functions to
--- SECURITY DEFINER so their INSERTs into public.activity_events do not hit
--- the caller's RLS (activity_events has RLS enabled with no INSERT policy
--- for authenticated — writes are intentionally trigger-only). auth.uid()
--- still resolves to the calling user inside a SECURITY DEFINER function.
---
--- No signature change, no behavioral change beyond the security context.
+-- Elevate the two event-emitting triggers to SECURITY DEFINER so they can
+-- insert into activity_events (which has RLS enabled + no INSERT policy for
+-- authenticated). auth.uid() still resolves to the calling user.
 
 create or replace function public.emit_change_lifecycle_event()
 returns trigger language plpgsql
@@ -36,6 +32,7 @@ begin
 end $$;
 revoke all on function public.emit_change_lifecycle_event() from public;
 revoke all on function public.emit_change_lifecycle_event() from anon;
+-- Trigger functions are invoked by the trigger, not called directly; no grants needed.
 
 create or replace function public.emit_decision_recorded_event()
 returns trigger language plpgsql

@@ -287,8 +287,11 @@ Each future APP must consult this index and the referenced freeze reports before
   deferred. That is still true: `comment.mentioned` is consumed by the APP 010
   router but emitted by nothing, so mention notifications never fire. The APP
   010 certification reads as though the path is live; it is not.
-- `supabase/migrations/` is not a faithful replay of the deployed database.
-  See `supabase/migrations/RECONCILIATION.md`.
+- ~~`supabase/migrations/` is not a faithful replay of the deployed database.~~
+  **Resolved 2026-09-18.** All 67 files are now byte-identical to the applied
+  statements and rule 20 is enforced by `ops/verify_migrations.sh`. See
+  `supabase/migrations/RECONCILIATION.md` §3 and
+  `docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md`.
 
 ---
 

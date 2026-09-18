@@ -66,10 +66,13 @@ tables, 69 RLS policies, 160 public functions, 0 security advisor ERRORs).
 
 ### Known gaps as of 2026-09-18
 
-- `supabase/migrations/` is **not** a faithful replay of the deployed database.
-  24 of the 38 pre-2026-09-18 files differ structurally from what was applied,
-  and `app_010_notifications_authz_and_rpcs` holds no executable SQL at all.
-  See `supabase/migrations/RECONCILIATION.md` §3 for the open decision.
+- ~~`supabase/migrations/` is not a faithful replay of the deployed database.~~
+  **Resolved 2026-09-18.** The database was adopted as canonical: all 67 files
+  are byte-identical to the applied statements, in apply order, verified by
+  `ops/verify_migrations.sh` (67/67 PASS). See
+  `supabase/migrations/RECONCILIATION.md` §3 and
+  `docs/freeze/MIGRATION_ARTIFACT_AMENDMENT.md`. **Standing rule:** apply
+  migrations from the file, never by pasting SQL into `execute_sql`.
 - `comment.mentioned` is consumed by the APP 010 notification router but is
   emitted by nothing, so mention notifications never fire. Consistent with
   `FREEZE_INDEX.md`'s "Mentions - not persisted, notification emission

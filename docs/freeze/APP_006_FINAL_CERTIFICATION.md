@@ -167,3 +167,18 @@ Future application slices (APP 007+) must extend APP 006 rather than modify it.
 No architectural contracts, backend contracts, event vocabulary, capability model, routing grammar, query architecture, ownership boundaries, or schema surface may change without an approved APP 006 amendment and re-freeze.
 
 This document is the final certification record for APP 006 Reviews v1.0.
+
+---
+
+## Amendment — 2026-09-18 — migration artifact reconciliation
+
+This certification's claims about the **deployed database** are unchanged and
+remain accurate. Separately, this slice's `.sql` files in
+`supabase/migrations/` were replaced with the exact statements that were applied
+to `hsfporioghapwghrvvzd`, because they had drifted from it (in some slices they
+were missing entirely). No deployed object, policy, RPC, trigger, grant or row
+was altered.
+
+See [`MIGRATION_ARTIFACT_AMENDMENT.md`](MIGRATION_ARTIFACT_AMENDMENT.md) and
+[`../../supabase/migrations/RECONCILIATION.md`](../../supabase/migrations/RECONCILIATION.md).
+Rule 20 is now enforced by `ops/verify_migrations.sh`.

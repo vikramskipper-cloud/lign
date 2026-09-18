@@ -3,36 +3,6 @@
 -- Authorization helper functions + profile identity protection + three
 -- SECURITY DEFINER bootstrap/identity RPCs. No RLS policies in this
 -- migration; those land in AUTH 002+.
---
--- Contents:
---   1. lign_current_profile_id()              — SECURITY INVOKER
---   2. lign_is_workspace_member(uuid)         — SECURITY DEFINER
---   3. lign_is_workspace_admin(uuid)          — SECURITY DEFINER
---   4. lign_is_active_stakeholder(uuid)       — SECURITY DEFINER
---   5. lign_project_role(uuid)                — SECURITY DEFINER
---   6. lign_has_capability(uuid, uuid, text)  — SECURITY DEFINER, central resolver
---   7. lign_can_see_profile(uuid)             — SECURITY DEFINER
---   8. profiles identity-immutability trigger — blocks id/email mutations
---   9. create_workspace(text, text)           — SECURITY DEFINER bootstrap
---  10. accept_invitation(text)                — SECURITY DEFINER
---  11. claim_stakeholder_invitation(text)     — SECURITY DEFINER
---
--- Every SECURITY DEFINER function:
---   - SET search_path = ''
---   - fully-qualified references
---   - REVOKE ALL FROM PUBLIC, anon
---   - GRANT EXECUTE TO authenticated, service_role
---   - never trusts caller-supplied identity (uses auth.uid()/auth.users)
---
--- Token hashing uses extensions.digest(token::bytea, 'sha256') encoded as
--- hex; the invite RPCs (not implemented here) must use the same convention.
--- pgcrypto is installed in schema extensions.
---
--- Explicit non-goals:
---   - No RLS policies (deferred to AUTH 002+).
---   - No RPCs beyond the three bootstrap paths (create_workspace,
---     accept_invitation, claim_stakeholder_invitation).
---   - No storage, cron, realtime, notification changes.
 
 ------------------------------------------------------------------------------
 -- 1. lign_current_profile_id — INVOKER wrapper on auth.uid()
@@ -143,10 +113,6 @@ grant execute on function public.lign_is_active_stakeholder(uuid) to authenticat
 ------------------------------------------------------------------------------
 -- 5. lign_project_role — DEFINER
 ------------------------------------------------------------------------------
--- Returns the caller's active project role for p_project_id, or NULL.
--- Rank tie-break: lead > contributor > approver > reviewer > observer.
--- Defensive — normal operation returns exactly one row because the
--- dual-path invariant (PERMISSIONS.md §6.3 D1) is RPC-enforced.
 
 create or replace function public.lign_project_role(p_project_id uuid)
 returns text
@@ -189,12 +155,6 @@ grant execute on function public.lign_project_role(uuid) to authenticated, servi
 ------------------------------------------------------------------------------
 -- 6. lign_has_capability — DEFINER, central resolver
 ------------------------------------------------------------------------------
--- First validates project_id belongs to workspace_id. Then evaluates:
---   admin override → workspace admin gets .view + management capabilities
---   role-based grant → per-role capability set for the caller's project role
---
--- Encodes the frozen role → capability matrix from PERMISSIONS.md §3.2.
--- Editing the matrix means editing this function body only; no schema change.
 
 create or replace function public.lign_has_capability(
   p_project_id     uuid,
@@ -212,7 +172,6 @@ declare
   v_project_ok boolean;
   v_role       text;
 begin
-  -- Step 1: validate project_id belongs to workspace_id.
   select exists (
     select 1
       from public.projects
@@ -224,8 +183,6 @@ begin
     return false;
   end if;
 
-  -- Step 2: administrative override (workspace admin can perform admin-set
-  -- capabilities on any project in their workspace).
   if p_capability_key = any (array[
     'project.view','project.edit','project.manage_access','project.archive',
     'collection.view','collection.archive',
@@ -239,13 +196,11 @@ begin
     end if;
   end if;
 
-  -- Step 3: caller's project role.
   v_role := public.lign_project_role(p_project_id);
   if v_role is null then
     return false;
   end if;
 
-  -- Step 4: role-based grants (frozen matrix from PERMISSIONS.md §3.2).
   return case v_role
     when 'lead' then p_capability_key = any (array[
       'project.view','project.edit','project.manage_access','project.archive',
@@ -335,9 +290,7 @@ security definer
 set search_path = ''
 as $$
   select
-    -- own row
     p_target_profile_id = auth.uid()
-    -- shared workspace membership
     or exists (
       select 1
         from public.workspace_members me
@@ -348,7 +301,6 @@ as $$
          and them.user_id = p_target_profile_id
          and them.status in ('active','invited','suspended')
     )
-    -- shared project via any identity path (them = target, me = caller)
     or exists (
       select 1
         from public.project_participants pp_them
@@ -388,9 +340,6 @@ grant execute on function public.lign_can_see_profile(uuid) to authenticated, se
 ------------------------------------------------------------------------------
 -- 8. Profile identity immutability trigger
 ------------------------------------------------------------------------------
--- Blocks user-visible mutation of profiles.id and profiles.email. Any change
--- to email must go through the auth-sync trigger (SECURITY DEFINER surface),
--- not through direct UPDATE on public.profiles.
 
 create or replace function public.enforce_profile_identity_immutable()
 returns trigger
@@ -421,14 +370,6 @@ create trigger profiles_identity_immutable
 ------------------------------------------------------------------------------
 -- 9. create_workspace — SECURITY DEFINER bootstrap RPC
 ------------------------------------------------------------------------------
--- Atomically:
---   - validates authenticated caller
---   - creates workspaces row
---   - creates active owner workspace_members row for auth.uid()
---   - emits workspace.created activity_event
--- Fails atomically on any error (single transaction).
---
--- Never trusts caller-supplied identity — the owner row is always auth.uid().
 
 create or replace function public.create_workspace(
   p_name text,
@@ -459,7 +400,6 @@ begin
       using errcode = '22004';
   end if;
 
-  -- Ensure the caller has a profile row (should exist via handle_new_auth_user).
   if not exists (
     select 1 from public.profiles where id = v_caller_profile_id
   ) then
@@ -467,12 +407,10 @@ begin
       using errcode = '23503';
   end if;
 
-  -- Create the workspace.
   insert into public.workspaces (name, slug, status)
   values (p_name, p_slug::extensions.citext, 'active')
   returning id into v_workspace_id;
 
-  -- Create the owner workspace_members row (active from creation).
   insert into public.workspace_members (
     workspace_id, user_id, role, status, invited_at, activated_at
   )
@@ -480,7 +418,6 @@ begin
     v_workspace_id, v_caller_profile_id, 'owner', 'active', now(), now()
   );
 
-  -- Emit workspace.created event.
   insert into public.activity_events (
     workspace_id, project_id, occurred_at, event_type,
     actor_profile_id, actor_kind,
@@ -508,18 +445,6 @@ grant execute on function public.create_workspace(text, text) to authenticated, 
 ------------------------------------------------------------------------------
 -- 10. accept_invitation — SECURITY DEFINER
 ------------------------------------------------------------------------------
--- Accepts a workspace_member invitation by token. Validates:
---   - authenticated caller
---   - token hash matches an active workspace_member invitation
---   - invitation not expired
---   - invitation email matches auth.users.email of caller (case-insensitive
---     via citext)
--- Then: creates/activates the workspace_members row (idempotent), marks the
--- invitation accepted, emits workspace.member.activated.
---
--- Replay-safe: re-running with the same token after acceptance finds the
--- invitation status != 'sent' and returns an error, but the caller's
--- membership is already active — no side effects.
 
 create or replace function public.accept_invitation(p_token text)
 returns uuid
@@ -545,7 +470,6 @@ begin
       using errcode = '22004';
   end if;
 
-  -- Authoritative caller email from auth.users (not caller-supplied).
   select email::extensions.citext into v_caller_email
     from auth.users
    where id = v_caller_profile_id;
@@ -555,10 +479,8 @@ begin
       using errcode = '23503';
   end if;
 
-  -- Hash the token (matches the invite-side hashing convention).
   v_token_hash := encode(extensions.digest(p_token::bytea, 'sha256'), 'hex');
 
-  -- Find matching workspace_member invitation.
   select * into v_invitation
     from public.invitations
    where token_hash = v_token_hash
@@ -572,13 +494,11 @@ begin
       using errcode = '42501';
   end if;
 
-  -- Email binding check.
   if v_invitation.email is distinct from v_caller_email then
     raise exception 'accept_invitation: invitation email does not match caller'
       using errcode = '42501';
   end if;
 
-  -- Create or activate the workspace_members row.
   select id into v_member_id
     from public.workspace_members
    where workspace_id = v_invitation.workspace_id
@@ -606,13 +526,11 @@ begin
        and status in ('invited','suspended');
   end if;
 
-  -- Mark the invitation accepted (only this one).
   update public.invitations
      set status      = 'accepted',
          accepted_at = now()
    where id = v_invitation.id;
 
-  -- Emit workspace.member.activated.
   insert into public.activity_events (
     workspace_id, project_id, occurred_at, event_type,
     actor_profile_id, actor_kind,
@@ -643,19 +561,6 @@ grant execute on function public.accept_invitation(text) to authenticated, servi
 ------------------------------------------------------------------------------
 -- 11. claim_stakeholder_invitation — SECURITY DEFINER
 ------------------------------------------------------------------------------
--- Claims a stakeholder invitation by token. Validates:
---   - authenticated caller
---   - token hash matches an active stakeholder invitation
---   - invitation not expired
---   - invitation email matches auth.users.email of caller
--- Then: finds the stakeholders row keyed by (workspace_id, email), links it
--- to the caller's profile (user_id = auth.uid()), activates status; marks
--- only that invitation accepted; emits stakeholder.claimed.
---
--- Does NOT reactivate soft-removed project_participants rows. Related
--- participation is expected to be created 'active' by the invite RPC at
--- invitation time (per PERMISSIONS.md §6.2 + STATE_MACHINES.md v1 §4).
--- Access via the stakeholder path becomes possible once user_id is claimed.
 
 create or replace function public.claim_stakeholder_invitation(p_token text)
 returns uuid
@@ -711,8 +616,6 @@ begin
       using errcode = '42501';
   end if;
 
-  -- Locate the stakeholder row for this workspace+email pair (single per
-  -- workspace by UNIQUE (workspace_id, email)).
   select id, user_id
     into v_stakeholder_id, v_existing_user_id
     from public.stakeholders
@@ -726,25 +629,21 @@ begin
       using errcode = '23503';
   end if;
 
-  -- Guard: if already claimed by a different profile, refuse.
   if v_existing_user_id is not null and v_existing_user_id <> v_caller_profile_id then
     raise exception 'claim_stakeholder_invitation: stakeholder is already claimed by a different profile'
       using errcode = '42501';
   end if;
 
-  -- Link + activate. Idempotent when re-run by the same profile.
   update public.stakeholders
      set user_id = v_caller_profile_id,
          status  = 'active'
    where id = v_stakeholder_id;
 
-  -- Mark only this invitation accepted.
   update public.invitations
      set status      = 'accepted',
          accepted_at = now()
    where id = v_invitation.id;
 
-  -- Emit stakeholder.claimed.
   insert into public.activity_events (
     workspace_id, project_id, occurred_at, event_type,
     actor_profile_id, actor_kind,

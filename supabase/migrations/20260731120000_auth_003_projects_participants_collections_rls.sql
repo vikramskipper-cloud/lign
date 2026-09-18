@@ -1,36 +1,4 @@
--- AUTH 003: projects_participants_collections_rls
---
--- RLS policies for §7 Group D:
---   projects, project_participants, collections.
---
--- Plus the two SECURITY DEFINER workflow RPCs that AUTH 003 needs to
--- function correctly:
---   create_project(p_workspace_id, p_name, p_slug, p_description)
---   add_project_participant(p_project_id, p_workspace_member_id,
---                           p_stakeholder_id, p_role)
---
--- Rationale for RPCs (not new authorization design):
---   - projects has no INSERT policy — a direct RLS INSERT can't atomically
---     create the required first project_participants (lead) row, which would
---     leave a project with no participants and break RLS-based access. The
---     create_project RPC guarantees the atomic pair.
---   - project_participants is RPC-only for all writes per §7 Group D +
---     decision #2. add_project_participant enforces the dual-path
---     participation invariant (PERMISSIONS.md §6.3 D1) that cannot be
---     structurally encoded in a schema constraint.
---
--- Deferred to AUTH 003b or later: change_project_participant_role,
--- remove_project_participant. Not required for MVP AUTH 003 correctness.
---
--- No new authorization helper — lign_has_capability already wraps
--- lign_project_role under DEFINER, and lign_is_workspace_admin is DEFINER
--- too. No RLS recursion introduced.
---
--- No structural schema change; V1 lock intact.
-
-------------------------------------------------------------------------------
--- 1. create_project — SECURITY DEFINER bootstrap RPC
-------------------------------------------------------------------------------
+-- AUTH 003
 
 create or replace function public.create_project(
   p_workspace_id uuid,
@@ -63,8 +31,6 @@ begin
     raise exception 'create_project: slug required' using errcode = '22004';
   end if;
 
-  -- Caller must be an active workspace_member of the target workspace.
-  -- (owner/admin/member — guest was removed at V1 lock.)
   select id into v_member_id
     from public.workspace_members
    where workspace_id = p_workspace_id
@@ -83,7 +49,6 @@ begin
   )
   returning id into v_project_id;
 
-  -- Atomic first participant: caller becomes project lead (via member path).
   insert into public.project_participants (
     workspace_id, project_id, workspace_member_id, stakeholder_id,
     role, status, added_at
@@ -111,25 +76,11 @@ end;
 $$;
 
 comment on function public.create_project(uuid, text, text, text) is
-  'Bootstrap RPC: creates a project + first project_participants row (caller as lead) + project.created activity event, atomically. Caller must be an active workspace_member. Created_by is auth.uid(); caller-supplied identity is not accepted. SECURITY DEFINER, search_path pinned.';
+  'Bootstrap RPC: creates a project + first project_participants row (caller as lead) + project.created activity event, atomically. Caller must be an active workspace_member. SECURITY DEFINER, search_path pinned.';
 
 revoke all on function public.create_project(uuid, text, text, text) from public;
 revoke all on function public.create_project(uuid, text, text, text) from anon;
 grant execute on function public.create_project(uuid, text, text, text) to authenticated, service_role;
-
-------------------------------------------------------------------------------
--- 2. add_project_participant — SECURITY DEFINER RPC
-------------------------------------------------------------------------------
--- Enforces:
---   - authenticated caller
---   - XOR on (workspace_member_id, stakeholder_id)
---   - role in the frozen project-role vocabulary
---   - authorization: workspace admin OR project.manage_access on the project
---   - the added identity belongs to the project's workspace
---   - dual-path participation invariant (PERMISSIONS.md §6.3 D1):
---     if the added identity is claimed (has user_id), refuse when the same
---     user is already active in the project via the OTHER identity path.
--- Emits project.participant.added.
 
 create or replace function public.add_project_participant(
   p_project_id          uuid,
@@ -176,7 +127,6 @@ begin
       using errcode = '23503';
   end if;
 
-  -- Authorization: workspace admin OR project.manage_access on the project.
   if not (
     public.lign_is_workspace_admin(v_workspace_id)
     or public.lign_has_capability(p_project_id, v_workspace_id, 'project.manage_access')
@@ -185,7 +135,6 @@ begin
       using errcode = '42501';
   end if;
 
-  -- Resolve the added identity's user_id (may be null for unclaimed stakeholder).
   if p_workspace_member_id is not null then
     select user_id into v_new_user_id
       from public.workspace_members
@@ -212,7 +161,6 @@ begin
     v_subject_label := 'sh:' || p_stakeholder_id::text;
   end if;
 
-  -- Dual-path invariant enforcement.
   if v_new_user_id is not null then
     if p_workspace_member_id is not null then
       if exists (
@@ -223,7 +171,7 @@ begin
            and pp.status     = 'active'
            and s.user_id     = v_new_user_id
       ) then
-        raise exception 'add_project_participant: dual-path violation — user is already active in project via stakeholder path'
+        raise exception 'add_project_participant: dual-path violation - user already active in project via stakeholder path'
           using errcode = '23514';
       end if;
     else
@@ -235,7 +183,7 @@ begin
            and pp.status     = 'active'
            and wm.user_id    = v_new_user_id
       ) then
-        raise exception 'add_project_participant: dual-path violation — user is already active in project via workspace_member path'
+        raise exception 'add_project_participant: dual-path violation - user already active in project via workspace_member path'
           using errcode = '23514';
       end if;
     end if;
@@ -273,15 +221,11 @@ end;
 $$;
 
 comment on function public.add_project_participant(uuid, uuid, uuid, text) is
-  'SECURITY DEFINER RPC: adds a project_participant (via workspace_member XOR stakeholder). Authorization: workspace admin OR project.manage_access. Enforces the dual-path participation invariant (PERMISSIONS.md §6.3 D1) inside the same transaction — no admin can create a dual-path condition.';
+  'SECURITY DEFINER RPC: adds a project_participant. Authorization: workspace admin OR project.manage_access. Enforces the dual-path participation invariant inside the same transaction.';
 
 revoke all on function public.add_project_participant(uuid, uuid, uuid, text) from public;
 revoke all on function public.add_project_participant(uuid, uuid, uuid, text) from anon;
 grant execute on function public.add_project_participant(uuid, uuid, uuid, text) to authenticated, service_role;
-
-------------------------------------------------------------------------------
--- 3. projects policies
-------------------------------------------------------------------------------
 
 drop policy if exists projects_select on public.projects;
 create policy projects_select on public.projects
@@ -293,8 +237,6 @@ create policy projects_select on public.projects
     or public.lign_has_capability(id, workspace_id, 'project.view')
   );
 
--- No INSERT policy → create_project RPC only.
-
 drop policy if exists projects_update on public.projects;
 create policy projects_update on public.projects
   as permissive
@@ -302,12 +244,6 @@ create policy projects_update on public.projects
   to authenticated
   using      (public.lign_has_capability(id, workspace_id, 'project.edit'))
   with check (public.lign_has_capability(id, workspace_id, 'project.edit'));
-
--- No DELETE policy.
-
-------------------------------------------------------------------------------
--- 4. project_participants policy — SELECT only; writes RPC-only
-------------------------------------------------------------------------------
 
 drop policy if exists project_participants_select on public.project_participants;
 create policy project_participants_select on public.project_participants
@@ -318,12 +254,6 @@ create policy project_participants_select on public.project_participants
     public.lign_is_workspace_admin(workspace_id)
     or public.lign_has_capability(project_id, workspace_id, 'project.view')
   );
-
--- No INSERT/UPDATE/DELETE policies → RPC-only per §7 Group D + decision #2.
-
-------------------------------------------------------------------------------
--- 5. collections policies
-------------------------------------------------------------------------------
 
 drop policy if exists collections_select on public.collections;
 create policy collections_select on public.collections
@@ -349,5 +279,3 @@ create policy collections_update on public.collections
   to authenticated
   using      (public.lign_has_capability(project_id, workspace_id, 'collection.edit'))
   with check (public.lign_has_capability(project_id, workspace_id, 'collection.edit'));
-
--- No DELETE policy → archive via status/archived_at (out of AUTH 003 scope).
