@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(echo \"EXIT: $?\")",
+      "mcp__claude_ai_Supabase__list_migrations"
+    ]
+  }
+}

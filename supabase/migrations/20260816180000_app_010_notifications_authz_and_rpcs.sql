@@ -1,0 +1,75 @@
+-- APP 010: Notifications authz + router + RPCs (Migration B).
+--
+-- Applied to remote (Supabase project hsfporioghapwghrvvzd) as migration
+-- versions:
+--   20260805154603 (app_010_notifications_authz_and_rpcs) — initial apply
+--   20260805154843 (app_010_router_fix_partial_index_inference) — router body
+--     hotfix: ON CONFLICT infers the partial unique index by (cols) + WHERE
+--     rather than by (constraint name), because a partial UNIQUE INDEX is
+--     NOT a table constraint.
+--
+-- Filename here uses the freeze-index-mandated timestamp 20260816180000 for
+-- local ordering parity with APP 006/007/008/009 filename pattern.
+--
+-- Delivers per APP_010_BACKEND_PROPOSAL §9.1, §11.3, §15, §16:
+--
+--   * lign_has_capability reissued additively (F-3, C-2):
+--     - 2 wired notification.* keys (notification.view + notification.manage)
+--       granted to every authenticated user (personal capabilities).
+--     - 6 reserved keys registered name-only (notification.view_any /
+--       notification.announce / notification.ai_prioritize / .ai_summarize /
+--       .ai_digest / notification.preference) returning false for every caller.
+--     - Every prior slice's role map preserved byte-identically. Body content
+--       below the notification.* early-return is byte-identical to the frozen
+--       APP 009 lign_has_capability body (20260814180000 L39–161).
+--
+--   * Routing bridge trigger on activity_events (AFTER INSERT, boundary-additive):
+--     enforce_notification_router_bridge → resolve_notification_router_targets
+--     - SECURITY DEFINER, SET search_path = '', REVOKE public/anon/authenticated,
+--       NO GRANT (trigger context only).
+--     - F-2 explicit `notification.*` recursion guard as step 1a (PRIMARY
+--       loop-guard; routing-table absence of notification.* entries is the
+--       secondary defense).
+--     - Body wrapped in BEGIN … EXCEPTION WHEN OTHERS THEN RAISE WARNING …;
+--       RETURN NEW; END. Router failures NEVER roll back the parent workflow
+--       transaction (inviolable per §2.8, §9.1, §17.1, §20.8).
+--     - Routing table dispatches ~34 wired consumer paths across review.*,
+--       approval.*, comment.*, annotation.*, change.*, release.*, asset.*,
+--       project.*, workspace.*, stakeholder.*, invitation.* clusters.
+--     - Materializes rendering-ready payload jsonb (actor_display_name,
+--       deep_link{kind,id,workspace_id,project_id}, preview_snippet, occurred_at,
+--       source_event_type). Immutable per §9.2 trigger + Freeze Index G-57.
+--     - Self-exclusion enforced inline (skips actor_profile_id). Dedup via
+--       INSERT … ON CONFLICT (recipient_profile_id, source_event_id,
+--       notification_type) WHERE archived_at IS NULL DO NOTHING targeting
+--       the I-7 partial unique index.
+--
+--   * 5 read RPCs — each SECURITY DEFINER + SET search_path='' + REVOKE from
+--     public/anon/authenticated + GRANT EXECUTE to authenticated,service_role +
+--     inline notification.view capability check + recipient_profile_id = auth.uid()
+--     filter:
+--       - list_notifications_inbox(p_ws_id, p_tab, p_category_filter[],
+--           p_priority_filter[], p_source_filter[], p_date_from, p_date_to,
+--           p_cursor_created_at, p_cursor_id, p_limit) → jsonb
+--       - get_notification(p_notification_id) → jsonb
+--       - get_notification_badge_count(p_ws_id) → jsonb
+--           returning {total_unread int, by_category jsonb, has_critical bool}
+--       - get_notification_center(p_ws_id, p_limit) → jsonb
+--       - list_notifications_by_source(p_source_kind, p_source_id, p_limit)
+--           → setof jsonb
+--
+--   * 5 write RPCs — each SECURITY DEFINER + gate on notification.manage +
+--     set lign.allow_notification_rpc_write='true' transaction-local before
+--     UPDATE + enforce recipient_profile_id = auth.uid() in-body:
+--       - mark_notification_read(p_notification_id) → boolean
+--       - mark_notification_unread(p_notification_id) → boolean
+--       - mark_all_notifications_read(p_ws_id, p_category default null) → int
+--       - dismiss_notification(p_notification_id) → boolean
+--       - archive_notification(p_notification_id) → boolean
+--
+-- Zero writes to any workflow table. Zero modifications to frozen event
+-- vocabulary, frozen RPC signatures (other than the strictly-additive
+-- lign_has_capability reissue), frozen RLS policies, or frozen triggers.
+--
+-- See DB migrations for the full function bodies; this file documents the
+-- contract shape and is the on-disk companion to the applied SQL.
