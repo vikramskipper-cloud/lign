@@ -24,16 +24,16 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - name: Install
-        run: npm --prefix app ci
+        run: cd app && npm ci
 
       - name: Typecheck
-        run: npm --prefix app run typecheck
+        run: cd app && npm run typecheck
 
       - name: Unit tests
-        run: npm --prefix app test
+        run: cd app && npm test
 
       - name: Build
-        run: npm --prefix app run build
+        run: cd app && npm run build
 
       # APP 012 wave 1: the ratchet. Without this the bundle silently regrows.
       - name: Bundle budget
