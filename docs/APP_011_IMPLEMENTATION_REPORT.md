@@ -1,7 +1,8 @@
-# APP 011 — Implementation Report (wave 1A)
+# APP 011 — Implementation Report
 
 **Date:** 2026-09-18
-**Scope:** live cache invalidation. Frontend only; zero migrations.
+**Scope:** waves 1A (live invalidation), 1B (notifications publication), 2 (presence).
+**Superseded by:** `docs/freeze/APP_011_FINAL_CERTIFICATION.md`, which covers all three waves. This report remains the detailed record of wave 1A and of the grants finding in §3.
 **Predecessors:** `APP_011_FREEZE_INDEX.md`, `APP_011_BACKEND_DELTA.md`.
 
 ---

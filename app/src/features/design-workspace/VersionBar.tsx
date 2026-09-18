@@ -7,6 +7,7 @@ import { PublishDraftButton } from './PublishDraftButton'
 import { DiscardDraftButton } from './DiscardDraftButton'
 import type { AssetVersionRow } from './queries'
 import type { AssetNeighborRow } from '@/features/designs/queries'
+import { PresenceStack } from '@/features/realtime/PresenceStack'
 
 interface Props {
   workspaceId: string
@@ -69,6 +70,7 @@ export function VersionBar({
           scopeQuery={scopeQuery}
         />
       </div>
+      <PresenceStack versionId={activeVersion?.id ?? null} />
       {isDraftActive && activeVersion && (
         <div className="flex items-center gap-1">
           {canDiscardVersion && (

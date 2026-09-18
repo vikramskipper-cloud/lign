@@ -9,6 +9,7 @@ import {
   invalidateAssetsForProject,
   invalidateCommentsForVersion,
   invalidateNeighborsForAsset,
+  invalidateNotifications,
   invalidateReview,
   invalidateReviewInbox,
   invalidateReviewsLists,
@@ -158,6 +159,15 @@ export function handleRealtimeRow(
         invalidateApprovalsLists(qc, ctx.wsId, projId ?? undefined)
         invalidateApprovalInbox(qc, ctx.wsId)
       })
+    }
+
+    case 'notifications': {
+      // REALTIME 003 / wave 1B. The row is recipient-scoped by RLS, so anything
+      // that arrives here is already this user's. Coalesced per workspace: a
+      // burst from one workflow action fans out to several notifications and
+      // should still refresh the bell once.
+      return bump(ctx, `notifications:${ctx.wsId}`, () =>
+        invalidateNotifications(qc, ctx.wsId))
     }
 
     case 'approval_responses': {

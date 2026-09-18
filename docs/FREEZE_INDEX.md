@@ -267,16 +267,17 @@ Status verified against the live database and `docs/freeze/` on **2026-09-18**.
 | **APP 008 — Requirements** | Requirements list, applicability, assessments UI | **Frozen** | `APP_008_FREEZE_INDEX.md` · `freeze/APP_008_FINAL_CERTIFICATION.md` |
 | **APP 009 — Releases** | Release bundles, detail, item selection, publish/withdraw UI | **Frozen** | `APP_009_FREEZE_INDEX.md` · `freeze/APP_009_FINAL_CERTIFICATION.md` |
 | **APP 010 — Notifications** | Router trigger on `activity_events`, `notifications` table, inbox, bell | **Frozen** | `APP_010_FREEZE_INDEX.md` · `freeze/APP_010_FINAL_CERTIFICATION.md` |
-| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | **Freeze Index drafted** 2026-09-18, awaiting approval | `APP_011_FREEZE_INDEX.md` |
+| **APP 011 — Realtime** | Live cache invalidation via Supabase channels; presence signals | **Frozen** 2026-09-18 (behavioural sign-off deferred to UI/UX testing) | `APP_011_FREEZE_INDEX.md` · `freeze/APP_011_FINAL_CERTIFICATION.md` |
 | **APP 012 — Production Hardening** | Bundle splitting, prefetching, performance instrumentation, ops runbook | **Not started** | - |
 
 Backend layers, same date: **AUTH 001-009** frozen; **STORAGE 001-004** frozen;
-**REQUIREMENTS 001-005** frozen; **REALTIME 002** applied
+**REQUIREMENTS 001-005** frozen; **REALTIME 002 + 003** applied
 (`realtime_002_publication_scope` added 8 tables to the `supabase_realtime`
 publication - `comments`, `annotations`, `asset_versions`, `reviews`,
 `review_participants`, `approval_requests`, `approval_responses`,
-`design_assets`). No client-side channel subscription exists yet, so APP 011 is
-mostly frontend work against an already-prepared publication.
+`design_assets`; `realtime_003_notifications_publication` added `notifications`
+as a 9th under APP 011 wave 1B). APP 011 shipped the client-side subscription on
+2026-09-18.
 
 Each future APP must consult this index and the referenced freeze reports before adding architecture. New RPCs, capabilities, events, or tables require an explicit re-freeze note in the affected owner's section.
 

@@ -34,7 +34,17 @@ export const REALTIME_TABLES = [
   'approval_responses',
 ] as const
 
-export type RealtimeTable = (typeof REALTIME_TABLES)[number]
+/**
+ * REALTIME 003 (APP 011 wave 1B). Deliberately NOT in REALTIME_TABLES: every
+ * table there is narrowed by `workspace_id`, but a notification is scoped to a
+ * recipient. It gets its own binding with `recipient_profile_id=eq.<id>`,
+ * which is also the tighter filter — a user receives only their own rows.
+ */
+export const NOTIFICATION_TABLE = 'notifications' as const
+
+export type RealtimeTable =
+  | (typeof REALTIME_TABLES)[number]
+  | typeof NOTIFICATION_TABLE
 
 /**
  * APP 011 F-4: no DELETE policy exists on any of the 8 tables, so authenticated

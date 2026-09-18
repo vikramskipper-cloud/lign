@@ -4,7 +4,7 @@ import { useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useSession } from '@/auth/SessionProvider'
-import { REALTIME_EVENTS, REALTIME_TABLES, wsChannel } from './channels'
+import { NOTIFICATION_TABLE, REALTIME_EVENTS, REALTIME_TABLES, wsChannel } from './channels'
 import type { RealtimeTable } from './channels'
 import { createCoalescer } from './coalesce'
 import { handleRealtimeRow } from './handlers'
@@ -78,6 +78,31 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
             if (disposed) return
             const row = (payload.new ?? null) as Record<string, unknown> | null
             handleRealtimeRow(ctx, table, row)
+          },
+        )
+      }
+    }
+
+    // REALTIME 003 (wave 1B): notifications ride the same channel but under a
+    // recipient filter, not a workspace filter — that is both the correct scope
+    // and the tighter one. RLS already restricts these rows to
+    // recipient_profile_id = auth.uid(); the filter just avoids shipping frames
+    // the client would discard.
+    const profileId = session.user?.id
+    if (profileId) {
+      for (const event of REALTIME_EVENTS) {
+        channel.on(
+          'postgres_changes',
+          {
+            event,
+            schema: 'public',
+            table: NOTIFICATION_TABLE,
+            filter: `recipient_profile_id=eq.${profileId}`,
+          },
+          (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+            if (disposed) return
+            const row = (payload.new ?? null) as Record<string, unknown> | null
+            handleRealtimeRow(ctx, NOTIFICATION_TABLE, row)
           },
         )
       }

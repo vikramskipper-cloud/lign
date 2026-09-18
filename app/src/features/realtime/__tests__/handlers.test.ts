@@ -180,6 +180,43 @@ describe('per-table mapping', () => {
   })
 })
 
+describe('notifications (REALTIME 003 / wave 1B)', () => {
+  it('invalidates the notification surfaces for the workspace', () => {
+    seed(qk.notificationBadgeCount(WS))
+    seed(qk.notificationCenter(WS))
+    seed(qk.notificationsUnread(WS))
+    handleRealtimeRow(ctx, 'notifications', {
+      id: 'n1', workspace_id: WS, recipient_profile_id: 'me', notification_type: 'review.assigned_to_you',
+    })
+    expect(invalidated(qk.notificationBadgeCount(WS))).toBe(true)
+    expect(invalidated(qk.notificationCenter(WS))).toBe(true)
+    expect(invalidated(qk.notificationsUnread(WS))).toBe(true)
+  })
+
+  it('does not touch another workspace\'s bell', () => {
+    seed(qk.notificationBadgeCount('other-ws'))
+    handleRealtimeRow(ctx, 'notifications', {
+      id: 'n1', workspace_id: WS, recipient_profile_id: 'me',
+    })
+    expect(invalidated(qk.notificationBadgeCount('other-ws'))).toBe(false)
+  })
+
+  it('a burst collapses to one refresh of the bell', () => {
+    vi.useFakeTimers()
+    const real = createCoalescer(250)
+    const spy = vi.spyOn(qc, 'invalidateQueries')
+    const c: HandlerCtx = { qc, wsId: WS, coalescer: real }
+    for (let i = 0; i < 8; i++) {
+      handleRealtimeRow(c, 'notifications', {
+        id: `n${i}`, workspace_id: WS, recipient_profile_id: 'me',
+      })
+    }
+    vi.advanceTimersByTime(250)
+    expect(spy).toHaveBeenCalledTimes(1)   // eight notifications -> one invalidation
+    vi.useRealTimers()
+  })
+})
+
 describe('safety invariants', () => {
   it('a null row is ignored', () => {
     expect(() => handleRealtimeRow(ctx, 'comments', null)).not.toThrow()
