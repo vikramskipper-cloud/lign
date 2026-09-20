@@ -80,7 +80,34 @@ has read queries and no mutations.
 
 APP 013 is **not** a frontend slice. It is roughly 60% backend.
 
-### Wave 1 — Backend: capability vocabulary + write RPCs
+### Wave 1 — Backend: capability vocabulary + write RPCs  ✅ SHIPPED 2026-09-20
+
+Migrations `app_013_capability_keys` and `app_013_people_access_rpcs`.
+`verify_migrations.sh`: 71/71 byte-identical.
+
+**Capability extension verified non-regressive.** A behavioural fingerprint of
+`lign_has_capability` was taken across **58 keys × 7 fixture users = 406 cells**
+before and after: identical (`8a11b2b3…`, 200 allowed). The six new keys resolve
+true only for the workspace admin and false for lead, reviewer, member-of-nothing
+and stakeholder.
+
+**Invariants exercised against the live database** (all inside a rolled-back
+transaction):
+
+| Attempt | Result |
+|---|---|
+| Admin changes their own role | blocked (I-2) |
+| Admin removes themselves | blocked (I-2) |
+| Admin (not owner) grants the owner role | blocked (I-3) |
+| Project lead invites a member | blocked — lacks `member.invite` |
+| Admin invites a member | succeeds |
+| Duplicate pending invite | blocked |
+| Invite someone already a member | blocked |
+
+**Round trip proven:** invite → 64-char token, only its sha256 stored → wrong
+user blocked on email mismatch → invitee accepts → membership 1 → 2 → token
+replay blocked → `workspace.member.invited` + `workspace.member.activated`
+emitted.
 
 **New capability keys** (wired, not reserved):
 `member.invite`, `member.remove`, `member.change_role`,
@@ -130,6 +157,7 @@ See G-1. Wave 2 ships copy-link; wave 3 is email, if wanted.
 | **G-3** | Token generation and hashing. `invitations.token_hash` exists; nothing writes it. | RPC generates a random token, stores only its hash, returns the plaintext **once**. Never store or re-display it. |
 | **G-4** | Does removing a member cascade to their project participations? | **Yes** — set them `removed` in the same transaction. A member removed from the workspace who still holds project roles is a security hole. |
 | **G-5** | Owner transfer in Wave 2 Settings, or later? | Wave 2. It is the only escape from a single-owner workspace, and G-1's invariant makes that state permanent otherwise. |
+| **G-7** | **No workspace has an owner.** Both fixtures were inserted directly rather than through `create_workspace`, so every member is `admin` or `member`. Since only an owner may grant the owner role (I-3), the role can now never be granted in either workspace — and `DOMAIN_MODEL` §1.1's "always has at least one member with owner role" is violated in live data. | Add a **bootstrap escape** to `change_workspace_member_role`: when a workspace has **zero** active owners, allow an admin to grant the first one. Without it, an owner-less workspace is unrecoverable, and owner transfer (G-5) cannot be built or tested. Not patched silently — it changes RPC semantics. |
 | **G-6** | Does this need a re-freeze? | **Yes** — new capability keys extend `lign_has_capability`, and new RLS-adjacent RPCs touch AUTH 002/003 surfaces. Additive only, single-function `CREATE OR REPLACE` with the default-tail pattern (rule 9). |
 
 ---
