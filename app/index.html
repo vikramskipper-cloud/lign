@@ -8,7 +8,51 @@
     <title>Lign</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      The fallback below is replaced the moment React mounts. It exists because
+      anything that throws while the module graph evaluates - a missing
+      VITE_ env var being the usual one - happens BEFORE any React error
+      boundary can run, leaving a blank white page and nothing but a console
+      entry. A blank page is the least diagnosable failure a deploy can have.
+    -->
+    <div id="root">
+      <div id="boot-fallback" style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 34rem; margin: 15vh auto; padding: 0 1.5rem; color: #0a0a0a;">
+        <div style="font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;">Lign</div>
+        <p id="boot-msg" style="margin-top: 0.75rem; color: #6b7280;">Loading…</p>
+        <pre id="boot-detail" style="display: none; margin-top: 1rem; padding: 0.75rem 1rem; background: #f4f4f5; border: 1px solid #e4e4e7; border-radius: 6px; font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; color: #b91c1c;"></pre>
+        <p id="boot-hint" style="display: none; margin-top: 1rem; font-size: 0.875rem; color: #6b7280;"></p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        var shown = false;
+        function report(message) {
+          if (shown) return;
+          var fallback = document.getElementById('boot-fallback');
+          if (!fallback || !fallback.isConnected) return; // React mounted; not our problem
+          shown = true;
+          document.getElementById('boot-msg').textContent = 'This build could not start.';
+          var detail = document.getElementById('boot-detail');
+          detail.style.display = 'block';
+          detail.textContent = String(message);
+          if (/env var|import\.meta\.env|supabase/i.test(String(message))) {
+            var hint = document.getElementById('boot-hint');
+            hint.style.display = 'block';
+            hint.textContent =
+              'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are compiled into the bundle at build time, ' +
+              'so setting them in the host is not enough — the app must be rebuilt afterwards.';
+          }
+        }
+        window.addEventListener('error', function (e) {
+          report((e && e.message) || 'Unknown script error');
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          report((e && e.reason && (e.reason.message || e.reason)) || 'Unhandled promise rejection');
+        });
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
