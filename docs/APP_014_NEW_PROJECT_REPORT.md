@@ -200,3 +200,38 @@ Esc/scrim discard confirmation, focus trap, autofocus, `aria-*` wiring, the
 live region on added rows, the 640px sheet, and the four widths.
 
 Not testable: post-commit email failure (§5).
+
+
+---
+
+## 9. Testing shortcut: shared-password logins for invited clients
+
+`ops/provision_test_logins.sql` gives every stakeholder without a login a
+working account on the project's existing fixture password
+(`LignTest!2026`, the same one `tests/realtime/harness.mjs` uses for the seven
+`p_*` accounts). Re-run it after adding more emails; it is idempotent.
+
+It imitates `claim_stakeholder_invitation()` rather than replacing it —
+`stakeholders.user_id` set, `status` to `active`, the invitation marked
+`accepted`, and the same `stakeholder.claimed` event — so the end state is
+indistinguishable from someone having opened the invite link.
+
+**It is not product code and must never become product code.** Provisioning a
+pre-confirmed account on a known shared password is a complete authentication
+bypass for anyone who can guess the address. The script refuses to run if any
+unprovisioned stakeholder is on a domain other than `.test` (reserved by
+RFC 2606, can never receive mail or belong to a real person) — one real
+address aborts the whole run rather than handing out that person's account.
+
+Provisioned and verified: `client.a@lign.test`, `client.b@lign.test` on the
+project `Northgate Flagship` (`NGF`). Signed in as `client.a`, RLS scopes them
+correctly:
+
+| check | result |
+|---|---|
+| workspaces visible | WS One |
+| projects visible | Northgate Flagship |
+| participation | approver |
+| `project.view` | true |
+| `approval.respond` | true |
+| `version.upload` | **false** |
