@@ -173,9 +173,9 @@ export function useProjectAccess(projId: string | undefined) {
         .from('project_participants')
         .select(
           `id, role, status, workspace_member_id, stakeholder_id,
-           workspace_member:workspace_members!project_participants_workspace_member_id_fkey(
+           workspace_member:workspace_members!project_participants_workspace_member_fk(
              id, profile:profiles!workspace_members_user_id_fkey(display_name, email)),
-           stakeholder:stakeholders!project_participants_stakeholder_id_fkey(
+           stakeholder:stakeholders!project_participants_stakeholder_fk(
              id, display_name, email, user_id)`,
         )
         .eq('project_id', projId as string)

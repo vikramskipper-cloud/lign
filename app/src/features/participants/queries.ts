@@ -38,11 +38,11 @@ interface RawRow {
 
 const SELECT = `
   id, role, status, workspace_member_id, stakeholder_id,
-  workspace_member:workspace_members!project_participants_workspace_member_id_fkey (
+  workspace_member:workspace_members!project_participants_workspace_member_fk (
     id, user_id,
     profile:profiles!workspace_members_user_id_fkey ( id, display_name, email, avatar_url )
   ),
-  stakeholder:stakeholders!project_participants_stakeholder_id_fkey (
+  stakeholder:stakeholders!project_participants_stakeholder_fk (
     id, display_name, email, user_id,
     profile:profiles!stakeholders_user_id_fkey ( id, display_name, email, avatar_url )
   )
@@ -50,7 +50,15 @@ const SELECT = `
 
 /**
  * Active project participants for a project, flattened for @-mention and
- * comment-author decoration. Unclaimed stakeholders keep their invite email
+ * comment-author decoration.
+ *
+ * DEFECT FIXED 2026-09-22 (APP 005 amendment): the two embed hints named
+ * `project_participants_workspace_member_id_fkey` and
+ * `project_participants_stakeholder_id_fkey`. Neither constraint exists — the
+ * real names are `..._workspace_member_fk` and `..._stakeholder_fk`. PostgREST
+ * rejected the whole select with PGRST200, so this hook returned an error on
+ * every call and @-mentions never populated. It typechecked and built cleanly
+ * the entire time, which is why APP 005 certified around it. Unclaimed stakeholders keep their invite email
  * as fallback display.
  */
 export function useProjectParticipants(projectId: string | undefined) {

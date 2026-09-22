@@ -114,3 +114,26 @@ Collaborative editing, CRDTs, operational transforms, cursor sharing, typing ind
 ## 10. Verdict
 
 **APP 011 is frozen.** Waves 1A, 1B and 2 are complete and unit-verified. Behavioural sign-off is deferred to the UI/UX testing phase per §7. Future changes require an amendment and re-freeze.
+
+---
+
+## Amendment — 2026-09-22 — APP 005 embed-hint defect
+
+Unrelated to APP 011, but found while verifying APP 013 and recorded here
+because `features/participants/queries.ts` is consumed by the comment and
+mention surfaces this slice invalidates.
+
+`useProjectParticipants` embedded `workspace_members` and `stakeholders` using
+the hints `project_participants_workspace_member_id_fkey` and
+`project_participants_stakeholder_id_fkey`. **Neither constraint exists** — the
+real names are `project_participants_workspace_member_fk` and
+`project_participants_stakeholder_fk`. PostgREST rejected the entire select
+with `PGRST200`, so the hook returned an error on every call and @-mentions
+never populated.
+
+It typechecked and built cleanly for the whole of APP 005–011, which is why
+every certification passed over it: no static check can see a string that only
+PostgREST resolves.
+
+Fixed 2026-09-22. All nine FK hints in the frontend were then audited against
+`pg_constraint`; the other seven were correct.
