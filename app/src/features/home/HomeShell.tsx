@@ -71,15 +71,8 @@ export function HomeShell({ workspaceId, projectCount, pinned, children }: Props
     </Link>
   )
 
-  const sidebar = (
-    <nav
-      aria-label="Main"
-      style={{
-        width: 216, flex: '0 0 216px', background: 'var(--panel)',
-        borderRight: '1px solid var(--panel-border)', padding: 12,
-        display: 'flex', flexDirection: 'column', gap: 2,
-      }}
-    >
+  const sidebar = (variant: 'home-sidebar' | 'home-drawer-nav') => (
+    <nav className={`home-nav ${variant}`} aria-label="Main">
       {navItem('/dashboard', 'Home', <Home size={15} />, true)}
       {navItem('/projects', 'Projects', <Folder size={15} />, false,
         <span className="auth-mono" style={{ fontSize: 11.5, color: 'var(--faint)' }}>{projectCount}</span>)}
@@ -226,10 +219,13 @@ export function HomeShell({ workspaceId, projectCount, pinned, children }: Props
       </header>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <div className="home-sidebar">{sidebar}</div>
+        {sidebar('home-sidebar')}
         {navOpen && (
+          // Backdrop closes; the rail inside it does not.
           <div className="home-drawer" onClick={() => setNavOpen(false)}>
-            <div onClick={(e) => e.stopPropagation()} style={{ height: '100%' }}>{sidebar}</div>
+            <div onClick={(e) => e.stopPropagation()} style={{ display: 'contents' }}>
+              {sidebar('home-drawer-nav')}
+            </div>
           </div>
         )}
         <main style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{children}</main>

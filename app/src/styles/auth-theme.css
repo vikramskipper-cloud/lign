@@ -226,7 +226,26 @@
   .home-grid { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 48px; }
 }
 
-.home-sidebar { display: block; }
+ /* The nav itself is the flex item and the painted surface. It used to be
+    wrapped in a plain div: the div stretched, the nav sized to its content,
+    and the panel stopped partway down the page — the same defect the sign-in
+    brand panel had. Anything that paints a full-height background must be the
+    element that stretches. */
+.home-nav {
+  flex-direction: column;
+  gap: 2px;
+  width: 216px;
+  flex: 0 0 216px;
+  padding: 12px;
+  background: var(--panel);
+  border-right: 1px solid var(--panel-border);
+  /* Pins can overflow a short viewport; scroll the rail, not the page. */
+  overflow-y: auto;
+}
+/* display lives on the modifiers, never on .home-nav: an inline display would
+   win over the max-width rule below and the rail would refuse to hide. */
+.home-sidebar { display: flex; }
+.home-drawer-nav { display: flex; height: 100%; }
 .home-nav-toggle { display: none; }
 @media (max-width: 1023px) {
   .home-sidebar { display: none; }
