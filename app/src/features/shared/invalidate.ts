@@ -229,3 +229,29 @@ export function invalidateAllNeighbors(qc: QueryClient) {
     },
   })
 }
+
+/**
+ * APP 013: bump every access surface for a workspace. Deliberately broad —
+ * these lists are small, rarely open, and a stale roster after a role change
+ * is worse than an extra round trip.
+ */
+export function invalidateAccess(qc: QueryClient, wsId?: string, projId?: string) {
+  qc.invalidateQueries({
+    predicate: (q) => {
+      const k = q.queryKey as QueryKey
+      if (!Array.isArray(k) || k[0] !== 'access') return false
+      if (wsId && (k[2] === wsId || k[3] === wsId)) return true
+      if (projId && k[2] === projId) return true
+      return !wsId && !projId
+    },
+  })
+  // A membership or role change alters what the user may do, so the capability
+  // map every screen gates on has to be refetched too.
+  qc.invalidateQueries({
+    predicate: (q) => {
+      const k = q.queryKey as QueryKey
+      return Array.isArray(k) && k[0] === 'project' && k[2] === 'capabilities'
+    },
+  })
+  if (projId) qc.invalidateQueries({ queryKey: ['project', projId, 'participants'] })
+}

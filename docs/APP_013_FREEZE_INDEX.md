@@ -133,7 +133,29 @@ check, one past-tense event, per cheatsheet rules 2/4/5/11.
 5. **A stakeholder never becomes a member.** Claiming links `user_id`; it does
    not promote.
 
-### Wave 2 — Frontend: three screens
+### Wave 2 — Frontend  ✅ SHIPPED 2026-09-22
+
+`src/features/access/` — queries, mutations, `InviteDialog`,
+`WorkspacePeopleScreen`, `ProjectPeopleScreen`, `WorkspaceSettingsScreen`.
+All three stubs replaced and their dead exports removed.
+
+**G-2 closed.** `SignUpScreen` at `/signup`, linked from sign-in and from the
+invite screen. And `InviteClaimScreen` — which was a placeholder that displayed
+the token and called nothing — now actually claims: it tries
+`accept_invitation`, falls back to `claim_stakeholder_invitation`, and both
+verify the hash, expiry and email match, so a wrong guess fails safely. Without
+that change the whole invite flow was still non-functional regardless of the
+new screens.
+
+**Not shipped:** owner transfer. It needs G-7 first — neither workspace has an
+owner and only an owner may grant that role, so a transfer control could never
+succeed. The Workspace People screen surfaces the owner-less state instead of
+hiding it.
+
+Typecheck, 30/30 tests, build all pass. Bundle 1,012.18 → 1,038.56 kB
+(+26.38 kB raw, +6.79 kB gzip), inside the APP 012 budget.
+
+#### Original scope
 
 - **Workspace People** — members and stakeholders, role editing, invite, remove, pending invitations with copy-link and revoke.
 - **Project People** — participants with project roles, add from workspace members or stakeholders, change role, remove.

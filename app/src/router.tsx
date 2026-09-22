@@ -1,6 +1,10 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 import { AuthGate } from '@/auth/AuthGate'
 import { SignInScreen } from '@/auth/SignInScreen'
+import { SignUpScreen } from '@/auth/SignUpScreen'
+import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
+import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
+import { ProjectPeopleScreen } from '@/features/access/ProjectPeopleScreen'
 import { InviteClaimScreen } from '@/auth/InviteClaimScreen'
 import { DeepLinkResolver } from '@/auth/DeepLinkResolver'
 import { RootLayout } from '@/shell/RootLayout'
@@ -10,9 +14,7 @@ import { NotFound } from '@/shell/NotFound'
 import { RootRedirect } from '@/routes/RootRedirect'
 import { WorkspacePicker } from '@/routes/WorkspacePicker'
 import {
-  ProjectPeopleStub,
-  WorkspacePeopleStub,
-  WorkspaceSettingsStub,
+
 } from '@/routes/stubs'
 import {
   ProjectListScreen,
@@ -115,6 +117,7 @@ function Gated() {
 
 export const router = createBrowserRouter([
   { path: '/signin', element: <SignInScreen /> },
+  { path: '/signup', element: <SignUpScreen /> },
   { path: '/invite/:token', element: <InviteClaimScreen /> },
   {
     element: <Gated />,
@@ -145,8 +148,8 @@ export const router = createBrowserRouter([
               { path: 'requirements', element: <WorkspaceRequirementsScreen />, handle: WorkspaceRequirementsHandle },
               { path: 'releases', element: <WorkspaceReleasesScreen />, handle: WorkspaceReleasesHandle },
               { path: 'inbox', element: <InboxScreen />, handle: InboxHandle },
-              { path: 'people', element: <WorkspacePeopleStub />, handle: WorkspacePeopleStub.handle },
-              { path: 'settings', element: <WorkspaceSettingsStub />, handle: WorkspaceSettingsStub.handle },
+              { path: 'people', element: <WorkspacePeopleScreen />, handle: WorkspacePeopleScreen.handle },
+              { path: 'settings', element: <WorkspaceSettingsScreen />, handle: WorkspaceSettingsScreen.handle },
               {
                 path: 'project/:proj_id',
                 element: <ProjectLayout />,
@@ -167,7 +170,7 @@ export const router = createBrowserRouter([
                   { path: 'asset/:asset_id/v/:v_id/file/:file_id', element: <DesignWorkspaceScreen />, handle: DesignWorkspaceHandle },
                   { path: 'releases', element: <ProjectReleasesScreen />, handle: ProjectReleasesHandle },
                   { path: 'release/:release_id', element: <ReleaseDetailScreen />, handle: ReleaseDetailHandle },
-                  { path: 'people', element: <ProjectPeopleStub />, handle: ProjectPeopleStub.handle },
+                  { path: 'people', element: <ProjectPeopleScreen />, handle: ProjectPeopleScreen.handle },
                 ],
               },
             ],

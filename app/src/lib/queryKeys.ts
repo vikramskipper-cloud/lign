@@ -184,4 +184,12 @@ export const qk = {
     ['notification', 'subject', subjectKind, subjectId] as const,
   notificationInboxFacets: (wsId: string) =>
     ['notification', 'inbox-facets', wsId] as const,
+
+  // APP 013 — People & Access
+  workspaceAccess: (wsId: string) => ['access', 'capabilities', wsId] as const,
+  workspacePeople: (wsId: string) => ['access', 'people', wsId] as const,
+  workspaceInvitations: (wsId: string) => ['access', 'invitations', wsId] as const,
+  projectAccess: (projId: string) => ['access', 'project', projId] as const,
+  assignableMembers: (wsId: string, projId: string) =>
+    ['access', 'assignable', wsId, projId] as const,
 } as const

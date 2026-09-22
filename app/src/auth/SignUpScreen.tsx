@@ -11,16 +11,32 @@ import { supabase } from '@/lib/supabase'
 
 const SAFE_REDIRECT_RE = /^\/[^/].*$/
 
-export function SignInScreen() {
+/**
+ * APP 013 G-2.
+ *
+ * Until this existed, an invite link sent to someone without an account was a
+ * dead end: sign-in was password-only and there was no way to create an
+ * account. That made "onboard your second user" impossible regardless of how
+ * good the People screens were.
+ *
+ * The email entered here must match the invitation's, because both
+ * accept_invitation and claim_stakeholder_invitation compare the invitation
+ * email against auth.users.email and reject a mismatch. Signing up under a
+ * different address produces a valid account that cannot accept the invite, so
+ * the form says so before it happens rather than after.
+ */
+export function SignUpScreen() {
   const { session, isLoading } = useSession()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [email, setEmail] = React.useState('')
+  const [email, setEmail] = React.useState(searchParams.get('email') ?? '')
+  const [displayName, setDisplayName] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [submitting, setSubmitting] = React.useState(false)
 
   const rawReturnTo = searchParams.get('returnTo') ?? ''
   const returnTo = SAFE_REDIRECT_RE.test(rawReturnTo) ? rawReturnTo : '/'
+  const invited = returnTo.startsWith('/invite/')
 
   if (isLoading) return <LoadingPage label="Loading…" />
   if (session) return <Navigate to={returnTo} replace />
@@ -29,10 +45,23 @@ export function SignInScreen() {
     e.preventDefault()
     if (submitting) return
     setSubmitting(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { display_name: displayName.trim() || email.trim().split('@')[0] } },
+    })
     setSubmitting(false)
+
     if (error) {
-      toast.error(error.message || 'Sign-in failed')
+      toast.error(error.message || 'Could not create the account')
+      return
+    }
+    // With email confirmation enabled Supabase returns a user but no session;
+    // there is nowhere to navigate to yet, so say so instead of silently
+    // landing on a redirect that bounces back to sign-in.
+    if (!data.session) {
+      toast.success('Account created — check your email to confirm, then sign in.')
+      navigate(`/signin?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
       return
     }
     navigate(returnTo, { replace: true })
@@ -46,9 +75,13 @@ export function SignInScreen() {
             <div className="grid h-8 w-8 place-items-center rounded-[--radius-md] bg-[--color-text] text-[--color-brand-fg]">
               <span className="font-bold">L</span>
             </div>
-            <CardTitle>Sign in to Lign</CardTitle>
+            <CardTitle>Create your account</CardTitle>
           </div>
-          <CardDescription>Design collaboration and version control.</CardDescription>
+          <CardDescription>
+            {invited
+              ? 'Use the same email address the invitation was sent to — the invite will not accept a different one.'
+              : 'Design collaboration and version control.'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -66,32 +99,41 @@ export function SignInScreen() {
               />
             </div>
             <div className="space-y-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                autoComplete="name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                disabled={submitting}
+                placeholder="How your name appears on comments"
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete="new-password"
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={submitting}
               />
             </div>
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? 'Signing in…' : 'Sign in'}
+              {submitting ? 'Creating…' : 'Create account'}
             </Button>
-            <p className="text-center text-xs text-[--color-text-muted]">
-              Access is invite-only during MVP.
-            </p>
           </form>
 
           <p className="mt-4 text-center text-sm text-[--color-text-muted]">
-            Invited to a workspace?{' '}
+            Already have an account?{' '}
             <Link
               className="text-[--color-brand] underline-offset-2 hover:underline"
-              to={`/signup?returnTo=${encodeURIComponent(returnTo)}`}
+              to={`/signin?returnTo=${encodeURIComponent(returnTo)}`}
             >
-              Create an account
+              Sign in
             </Link>
           </p>
         </CardContent>

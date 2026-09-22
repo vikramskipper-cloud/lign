@@ -29,17 +29,7 @@ export const ProjectListStub = makeStub(
 )
 ProjectListStub.handle = { crumb: 'Projects' }
 
-export const WorkspacePeopleStub = makeStub(
-  'People',
-  'Workspace members and stakeholders admin — lands with the People slice.',
-)
-WorkspacePeopleStub.handle = { crumb: 'People' }
 
-export const WorkspaceSettingsStub = makeStub(
-  'Settings',
-  'Workspace name, branding, retention — lands with the Settings slice.',
-)
-WorkspaceSettingsStub.handle = { crumb: 'Settings' }
 
 // Project-level stubs (project-mode nav)
 export const ProjectOverviewStub = makeStub(
@@ -78,8 +68,3 @@ export const ReleaseDetailStub = makeStub(
 )
 ReleaseDetailStub.handle = { crumb: 'Release' }
 
-export const ProjectPeopleStub = makeStub(
-  'People',
-  'Project participants roster — lands with the People slice.',
-)
-ProjectPeopleStub.handle = { crumb: 'People' }

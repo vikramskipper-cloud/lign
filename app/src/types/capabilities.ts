@@ -75,6 +75,17 @@ export const CAPABILITY_KEYS = [
   // Notifications (APP 010) — personal (implicit for every authenticated user)
   'notification.view',
   'notification.manage',
+  // People & Access (APP 013) — workspace-scoped. lign_has_capability answers
+  // these BEFORE its project-scope validation, so they resolve correctly
+  // whether project_id is a real project or null. That means they come back
+  // correctly in the per-project map below, and useWorkspaceAccess() can also
+  // fetch them alone on screens that have no project in scope.
+  'member.invite',
+  'member.remove',
+  'member.change_role',
+  'stakeholder.invite',
+  'stakeholder.revoke',
+  'workspace.manage',
 ] as const
 
 export type CapabilityKey = (typeof CAPABILITY_KEYS)[number]
