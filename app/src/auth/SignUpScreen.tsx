@@ -61,7 +61,7 @@ export function SignUpScreen() {
     // landing on a redirect that bounces back to sign-in.
     if (!data.session) {
       toast.success('Account created — check your email to confirm, then sign in.')
-      navigate(`/signin?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
+      navigate(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`, { replace: true })
       return
     }
     navigate(returnTo, { replace: true })
@@ -131,7 +131,7 @@ export function SignUpScreen() {
             Already have an account?{' '}
             <Link
               className="text-[--color-brand] underline-offset-2 hover:underline"
-              to={`/signin?returnTo=${encodeURIComponent(returnTo)}`}
+              to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`}
             >
               Sign in
             </Link>

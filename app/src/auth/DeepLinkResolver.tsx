@@ -374,7 +374,7 @@ function NotFound({ label }: { label: string }) {
         description="It may have been deleted or you may not have access to it."
         action={
           <Button asChild size="sm" variant="secondary">
-            <Link to="/">Return home</Link>
+            <Link to="/dashboard">Return home</Link>
           </Button>
         }
       />

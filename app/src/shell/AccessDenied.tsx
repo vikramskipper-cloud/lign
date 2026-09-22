@@ -16,7 +16,7 @@ export function AccessDeniedPage({ capability }: { capability?: string }) {
         }
         action={
           <Button asChild variant="secondary" size="sm">
-            <Link to="/">Return home</Link>
+            <Link to="/dashboard">Return home</Link>
           </Button>
         }
       />

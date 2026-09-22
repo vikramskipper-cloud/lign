@@ -124,7 +124,7 @@ export function HomeScreen() {
   const respond = useRespondToApproval()
 
   if (isLoading) return <LoadingPage />
-  if (!session) return <Navigate to="/signin" replace />
+  if (!session) return <Navigate to="/sign-in" replace />
   // Guard: an account with nothing to open never belongs on Home.
   if (accessCheck.data && !accessCheck.data.hasAccess) return <Navigate to="/no-access" replace />
   if (workspaces.isLoading) return <LoadingPage />

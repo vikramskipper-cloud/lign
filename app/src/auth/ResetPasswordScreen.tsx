@@ -49,7 +49,7 @@ export function ResetPasswordScreen() {
     setSubmitting(true)
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${window.location.origin}/signin`,
+        redirectTo: `${window.location.origin}/sign-in`,
       })
       if (resetError && (resetError.status === 429 || /rate limit/i.test(resetError.message))) {
         setError('Too many attempts. Wait a few minutes and try again.')
@@ -85,7 +85,7 @@ export function ResetPasswordScreen() {
               If an account exists for that email, we&apos;ve sent a reset link.
             </p>
             <p style={{ margin: '20px 0 0', fontSize: 13.5 }}>
-              <Link to="/signin" className="auth-link">
+              <Link to="/sign-in" className="auth-link">
                 Back to sign in
               </Link>
             </p>
@@ -145,7 +145,7 @@ export function ResetPasswordScreen() {
             </button>
 
             <p style={{ margin: '18px 0 0', fontSize: 13.5 }}>
-              <Link to="/signin" className="auth-link">
+              <Link to="/sign-in" className="auth-link">
                 Back to sign in
               </Link>
             </p>

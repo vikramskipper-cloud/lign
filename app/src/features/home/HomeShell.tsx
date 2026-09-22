@@ -80,7 +80,7 @@ export function HomeShell({ workspaceId, projectCount, pinned, children }: Props
         display: 'flex', flexDirection: 'column', gap: 2,
       }}
     >
-      {navItem('/', 'Home', <Home size={15} />, true)}
+      {navItem('/dashboard', 'Home', <Home size={15} />, true)}
       {navItem('/projects', 'Projects', <Folder size={15} />, false,
         <span className="auth-mono" style={{ fontSize: 11.5, color: 'var(--faint)' }}>{projectCount}</span>)}
       {canSeePeople && navItem(`/workspace/${workspaceId}/people`, 'People', <Users size={15} />)}
@@ -160,7 +160,7 @@ export function HomeShell({ workspaceId, projectCount, pinned, children }: Props
                     // Persisted as last-used by the same helper the rest of the
                     // app reads, so Home and WorkspaceSwitcher agree.
                     try { window.localStorage.setItem('lign.lastWorkspaceId', w.id) } catch { /* ignore */ }
-                    navigate(`/?ws=${w.id}`, { replace: true })
+                    navigate(`/dashboard?ws=${w.id}`, { replace: true })
                   }}
                   style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: w.id === workspaceId ? 'var(--panel)' : 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
                 >
@@ -215,7 +215,7 @@ export function HomeShell({ workspaceId, projectCount, pinned, children }: Props
               <p style={{ margin: 0, padding: '8px 10px', fontSize: 12.5, color: 'var(--muted)', wordBreak: 'break-all' }}>{user?.email}</p>
               <button
                 role="menuitem"
-                onClick={async () => { await signOut(); navigate('/signin', { replace: true }) }}
+                onClick={async () => { await signOut(); navigate('/sign-in', { replace: true }) }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, color: 'var(--text)', minHeight: 40 }}
               >
                 Sign out

@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from 'react-router'
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router'
 import { AuthGate } from '@/auth/AuthGate'
 import { SignInScreen } from '@/auth/SignInScreen'
 import { SignUpScreen } from '@/auth/SignUpScreen'
@@ -117,25 +117,44 @@ function Gated() {
   )
 }
 
+/**
+ * Redirect that carries the query string and hash across.
+ *
+ * `<Navigate to="/x">` drops them, which here would silently discard the
+ * ?returnTo= on the legacy /signin alias — turning a deep link into a landing
+ * on the dashboard — and the ?ws= on /.
+ */
+function Alias({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
+
 export const router = createBrowserRouter([
-  { path: '/signin', element: <SignInScreen /> },
-  // Alias: the brief and any links written against it use /sign-in, while
-  // AuthGate, RootRedirect and the invite screens have always emitted /signin.
-  // Both resolve rather than breaking one set of links.
+  // Canonical auth paths are hyphenated. The unhyphenated spellings are kept
+  // as redirects, not duplicates: password-reset emails already in inboxes
+  // point at /signin, and one page served from two URLs is the thing this
+  // rename is undoing.
   { path: '/sign-in', element: <SignInScreen /> },
-  { path: '/signup', element: <SignUpScreen /> },
+  { path: '/signin', element: <Alias to="/sign-in" /> },
+  { path: '/sign-up', element: <SignUpScreen /> },
+  { path: '/signup', element: <Alias to="/sign-up" /> },
   { path: '/reset-password', element: <ResetPasswordScreen /> },
   { path: '/invite/:token', element: <InviteClaimScreen /> },
+  // The account home lives at /dashboard and "/" is its front door. This sits
+  // OUTSIDE Gated deliberately: a signed-out visit to "/" then bounces as
+  // /sign-in?returnTo=/dashboard, so the post-login destination is the real
+  // path rather than another redirect hop.
+  { path: '/', element: <Alias to="/dashboard" /> },
   {
     element: <Gated />,
     children: [
       // Signed in, but nothing to open. Deliberately OUTSIDE RootLayout: the
       // nav rail and workspace switcher would have nothing to show.
       { path: '/no-access', element: <NoAccessScreen /> },
-      // Home renders its own top bar and sidebar per the brief, so it is a
-      // sibling of RootLayout, not a child. Two shells coexist until the
+      // Dashboard renders its own top bar and sidebar per the brief, so it is
+      // a sibling of RootLayout, not a child. Two shells coexist until the
       // redesign reaches the rest of the app.
-      { path: '/', element: <HomeScreen /> },
+      { path: '/dashboard', element: <HomeScreen /> },
       {
         element: <RootLayout />,
         children: [

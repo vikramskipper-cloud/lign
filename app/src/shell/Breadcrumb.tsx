@@ -57,7 +57,7 @@ export function Breadcrumb() {
       )}
       {/* Ensure the breadcrumb has a home link even without segments */}
       {!ws_id && (
-        <Link to="/" className="text-sm font-medium text-[--color-text]">
+        <Link to="/dashboard" className="text-sm font-medium text-[--color-text]">
           Lign
         </Link>
       )}

@@ -86,10 +86,10 @@ export function InviteClaimScreen() {
           {!session && token && (
             <div className="flex gap-2">
               <Button asChild className="flex-1">
-                <Link to={`/signup?returnTo=${encodeURIComponent(returnTo)}`}>Create account</Link>
+                <Link to={`/sign-up?returnTo=${encodeURIComponent(returnTo)}`}>Create account</Link>
               </Button>
               <Button asChild variant="secondary" className="flex-1">
-                <Link to={`/signin?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</Link>
+                <Link to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</Link>
               </Button>
             </div>
           )}
@@ -127,7 +127,7 @@ export function InviteClaimScreen() {
               <Button
                 className="w-full"
                 onClick={() =>
-                  navigate(state.workspaceId ? `/workspace/${state.workspaceId}` : '/', {
+                  navigate(state.workspaceId ? `/workspace/${state.workspaceId}` : '/dashboard', {
                     replace: true,
                   })
                 }

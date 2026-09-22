@@ -34,7 +34,7 @@ export function NoAccessScreen() {
           style={{ marginTop: 24 }}
           onClick={async () => {
             await signOut()
-            navigate('/signin', { replace: true })
+            navigate('/sign-in', { replace: true })
           }}
         >
           Sign out

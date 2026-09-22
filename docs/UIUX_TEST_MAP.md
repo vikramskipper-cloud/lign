@@ -35,7 +35,7 @@ general class is not.
 
 | Route | Expect | Watch for |
 |---|---|---|
-| `/signin` | Sign-in form, "Create an account" link | — |
+| `/sign-in` | Sign-in form, "Create an account" link | — |
 | `/signup` | **Never used by a human.** Creates an account | If email confirmation is on, no session comes back and it redirects to sign-in with a toast. Fake addresses dead-end here. |
 | `/invite/:token` | Rewritten 2026-09-22 — was a placeholder that displayed the token and called nothing | Signed out: two buttons. Signed in: "Accept invitation" |
 

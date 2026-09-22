@@ -17,7 +17,7 @@ export function WorkspaceLayout() {
   }, [ws_id, data])
 
   if (isLoading) return <LoadingPage />
-  if (isError || !data) return <Navigate to="/" replace />
+  if (isError || !data) return <Navigate to="/dashboard" replace />
 
   return <Outlet />
 }

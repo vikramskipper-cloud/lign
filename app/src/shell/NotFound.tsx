@@ -12,7 +12,7 @@ export function NotFound() {
         description="The route you tried to reach doesn't exist, or you don't have access to it."
         action={
           <Button asChild variant="secondary" size="sm">
-            <Link to="/">Return home</Link>
+            <Link to="/dashboard">Return home</Link>
           </Button>
         }
       />

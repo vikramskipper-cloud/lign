@@ -41,6 +41,8 @@ describe('isSafeRedirect', () => {
 })
 
 describe('resolveRedirect', () => {
+  // Home is /dashboard; "/" is only its front door, so nothing should ever
+  // *resolve* to "/" — that would cost an extra redirect hop after login.
   const at = (qs: string) => resolveRedirect(new URLSearchParams(qs))
 
   it('honours a safe next', () => {
@@ -48,8 +50,8 @@ describe('resolveRedirect', () => {
   })
 
   it('falls back to Home for a hostile next', () => {
-    expect(at('next=https://evil.com')).toBe('/')
-    expect(at('next=//evil.com')).toBe('/')
+    expect(at('next=https://evil.com')).toBe('/dashboard')
+    expect(at('next=//evil.com')).toBe('/dashboard')
   })
 
   it('accepts returnTo, which is what AuthGate emits', () => {
@@ -66,15 +68,15 @@ describe('resolveRedirect', () => {
 
   it('decodes percent-encoded values before judging them', () => {
     // %2F%2Fevil.com decodes to //evil.com and must still be rejected.
-    expect(at('next=%2F%2Fevil.com')).toBe('/')
+    expect(at('next=%2F%2Fevil.com')).toBe('/dashboard')
   })
 
   it('does not throw on malformed percent-encoding', () => {
     expect(() => at('next=%E0%A4%A')).not.toThrow()
-    expect(at('next=%E0%A4%A')).toBe('/')
+    expect(at('next=%E0%A4%A')).toBe('/dashboard')
   })
 
   it('returns Home when nothing is supplied', () => {
-    expect(at('')).toBe('/')
+    expect(at('')).toBe('/dashboard')
   })
 })

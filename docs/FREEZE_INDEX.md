@@ -57,7 +57,7 @@ This document is purely navigational. It records the current frozen state of eve
 - **RPCs owned:** None.
 - **Query keys introduced:** `session`, `profile(id)`, `workspaces`, `workspace(id)`, `workspaceMembers(wsId)`, `projects(wsId)`, `project(id)`, `projectCapabilities(projId, wsId)`, `projectParticipants(id)`.
 - **Routes introduced:**
-  - `/signin`
+  - `/sign-in`
   - `/invite/:token`
   - `/` (RootRedirect)
   - `/workspace-picker`

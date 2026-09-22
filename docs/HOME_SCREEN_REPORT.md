@@ -5,7 +5,8 @@ verified in a browser** — that belongs to the UI/UX testing phase.
 
 Code: `app/src/features/home/` (`queries.ts`, `mutations.ts`, `pins.ts`,
 `copy.ts`, `HomeShell.tsx`, `HomeScreen.tsx`, `RequestChangesDialog.tsx`).
-Route: `/` inside `Gated`, as a sibling of `RootLayout`.
+Route: `/dashboard` inside `Gated`, as a sibling of `RootLayout`; `/` is a
+front-door redirect to it, outside `Gated`.
 
 ---
 
@@ -157,6 +158,5 @@ offering one that the database would reject is worse than not offering it.
 - **Realtime is not subscribed.** Home polls via TanStack Query staleness.
   APP 011's channels exist and could drive invalidation; wiring them was not in
   scope.
-- `RootRedirect.tsx` is no longer routed (`/` renders Home). The file is left in
-  place — it is still the canonical "where should this user land" logic — but it
-  is currently dead code.
+- `RootRedirect.tsx` was deleted in the route cleanup: `/` now redirects to
+  `/dashboard`, so nothing routed to it any more.
