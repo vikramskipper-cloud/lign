@@ -79,9 +79,6 @@ function BrandPanel() {
         background: 'var(--panel)',
         borderRight: '1px solid var(--panel-border)',
         padding: '40px 56px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
       }}
     >
       <Wordmark />
@@ -147,9 +144,7 @@ function BrandPanel() {
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth-theme" style={{ display: 'flex', minHeight: '100dvh' }}>
-      <div className="auth-brand-wrap">
-        <BrandPanel />
-      </div>
+      <BrandPanel />
       <main
         style={{
           flex: 1,
