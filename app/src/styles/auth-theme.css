@@ -275,3 +275,40 @@
 @media (max-width: 639px) {
   .home-action { min-height: 44px; }
 }
+
+
+/* -----------------------------------------------------------------------------
+   New project dialog. Under 640px it stops being a centred dialog and becomes
+   a full-screen sheet: a 520px card on a 390px phone is a card with no room
+   for its own padding.
+----------------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  .np-dialog {
+    width: 100% !important;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0 !important;
+    border: 0 !important;
+  }
+  .np-dialog input,
+  .np-dialog select {
+    height: 48px !important;
+    /* 16px minimum stops iOS zooming the viewport on focus. */
+    font-size: 16px !important;
+  }
+  .np-footer {
+    flex-direction: column-reverse;
+    align-items: stretch !important;
+    border-radius: 0 !important;
+  }
+  .np-footer button {
+    width: 100%;
+    height: 46px !important;
+  }
+  /* Create sits on top of Cancel: column-reverse puts the last DOM child
+     first, and Create is last in source order. */
+  .np-footer p {
+    text-align: center;
+    order: 99;
+  }
+}

@@ -5,15 +5,21 @@ import { Button } from '@/ui/button'
 import { EmptyState } from '@/ui/empty-state'
 import { LoadingPage } from '@/ui/loading-page'
 import { useProjects } from '@/shell/queries'
+import { useWorkspaceAccess } from '@/lib/capabilities'
 import { ProjectCard } from './ProjectCard'
-import { CreateProjectDialog } from './CreateProjectDialog'
+import { NewProjectDialog } from './NewProjectDialog'
 
 export const ProjectListHandle = { crumb: 'Projects' }
 
 export function ProjectListScreen() {
   const { ws_id } = useParams<{ ws_id: string }>()
   const { data, isLoading, isError } = useProjects(ws_id)
+  const access = useWorkspaceAccess(ws_id)
   const [dialogOpen, setDialogOpen] = React.useState(false)
+
+  // Hidden, not disabled: a control you can see but never use reads as a
+  // broken feature. create_project_full enforces the same key server-side.
+  const canCreate = Boolean(access.data?.['workspace.manage'])
 
   if (isLoading) return <LoadingPage />
   if (isError || !ws_id) {
@@ -35,22 +41,30 @@ export function ProjectListScreen() {
             {projects.length} {projects.length === 1 ? 'project' : 'projects'}
           </p>
         </div>
-        <Button size="sm" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          New project
-        </Button>
+        {canCreate && (
+          <Button size="sm" onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            New project
+          </Button>
+        )}
       </div>
 
       {projects.length === 0 ? (
         <EmptyState
           icon={<FolderOpen className="h-8 w-8" />}
           title="No projects yet"
-          description="Create your first project to start organizing designs."
+          description={
+            canCreate
+              ? 'Create your first project to start organizing designs.'
+              : 'Nothing here yet. A workspace admin can create the first project.'
+          }
           action={
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" />
-              New project
-            </Button>
+            canCreate ? (
+              <Button size="sm" onClick={() => setDialogOpen(true)}>
+                <Plus className="mr-1 h-4 w-4" />
+                New project
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -61,7 +75,9 @@ export function ProjectListScreen() {
         </div>
       )}
 
-      <CreateProjectDialog workspaceId={ws_id} open={dialogOpen} onOpenChange={setDialogOpen} />
+      {canCreate && (
+        <NewProjectDialog workspaceId={ws_id} open={dialogOpen} onOpenChange={setDialogOpen} />
+      )}
     </div>
   )
 }
