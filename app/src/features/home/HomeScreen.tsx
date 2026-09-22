@@ -10,6 +10,7 @@ import { FullPageLoader } from '@/ui/full-page-loader'
 import { Skeleton } from '@/ui/skeleton'
 import { relative } from '@/lib/formatDate'
 import { RequestChangesDialog } from './RequestChangesDialog'
+import { NewProjectDialog } from '@/features/projects/NewProjectDialog'
 import { useRespondToApproval } from './mutations'
 import {
   ACTIVITY_CAP, NEEDS_YOU_CAP, PROJECTS_CAP, STALE_AFTER_DAYS, WAITING_CAP,
@@ -96,6 +97,7 @@ export function HomeScreen() {
   const workspace = useWorkspace(workspaceId)
 
   const [dialogFor, setDialogFor] = React.useState<ApprovalItem | null>(null)
+  const [newProjectOpen, setNewProjectOpen] = React.useState(false)
   const [optimistic, setOptimistic] = React.useState<Set<string>>(new Set())
 
   const wsAccess = useWorkspaceAccess(workspaceId)
@@ -159,9 +161,9 @@ export function HomeScreen() {
             </p>
           </div>
           {canCreateProject && (
-            <Link to={projectsHref} style={{ ...btn('primary'), display: 'grid', placeItems: 'center', textDecoration: 'none', height: 36 }}>
+            <button type="button" onClick={() => setNewProjectOpen(true)} style={{ ...btn('primary'), height: 36 }}>
               New project
-            </Link>
+            </button>
           )}
         </div>
 
@@ -191,9 +193,9 @@ export function HomeScreen() {
                     Projects you&apos;re added to will show up here.
                   </p>
                   {canCreateProject && (
-                    <Link to={projectsHref} style={{ ...btn('primary'), display: 'inline-grid', placeItems: 'center', textDecoration: 'none', marginTop: 14 }}>
+                    <button type="button" onClick={() => setNewProjectOpen(true)} style={{ ...btn('primary'), marginTop: 14 }}>
                       Create a project
-                    </Link>
+                    </button>
                   )}
                 </>
               )}
@@ -414,6 +416,14 @@ export function HomeScreen() {
           </Section>
         </div>
       </div>
+
+      {canCreateProject && workspaceId && (
+        <NewProjectDialog
+          workspaceId={workspaceId}
+          open={newProjectOpen}
+          onOpenChange={setNewProjectOpen}
+        />
+      )}
 
       <RequestChangesDialog
         item={dialogFor}
