@@ -1,0 +1,192 @@
+/* -----------------------------------------------------------------------------
+   Auth surface theme (sign-in, reset, no-access).
+
+   SCOPED ON PURPOSE. The rest of the app runs on APP 002's frozen zinc +
+   indigo tokens, which ten shipped slices depend on. Defining this warm palette
+   globally would silently restyle every screen, so it lives under
+   `.auth-theme` and reaches only the pages that opt in.
+
+   Dark mode is a token swap: redefine the same names under
+   `.auth-theme[data-theme="dark"]` and nothing below needs to change.
+----------------------------------------------------------------------------- */
+
+.auth-theme {
+  --bg: #FBF9F6;
+  --panel: #F3EEE7;
+  --panel-border: #E3DBD1;
+  --surface: #FFFFFF;
+  --border: #DCD3C8;
+  --border-soft: #E5DDD3;
+
+  --ink: #171310;
+  --text: #3A332D;
+  --muted: #5E554D;
+  --faint: #8A8079;
+
+  --accent: #D9622B;
+  --accent-hover: #C0531F;
+  --link: #B44E1C;
+  --link-hover: #8A3A13;
+
+  /* Status — brand-panel strip only. Never the accent: orange means
+     "primary action", and reusing it for state would make the one
+     call-to-action on the page ambiguous. */
+  --status-approved: #3D8A62;
+  --status-approved-text: #2E6B4C;
+  --status-changes: #B5842C;
+  --status-changes-text: #8A6420;
+  --status-superseded: #A69C93;
+  --status-superseded-text: #857B73;
+
+  --error-bg: #FCF1EC;
+  --error-border: #E8C4B3;
+  --error-text: #963015;
+  --error-icon: #A8341A;
+  --error-field-border: #C97C5E;
+
+  --radius-field: 9px;
+  --radius-card: 10px;
+
+  --font-display: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* One focus treatment for every interactive element on these pages. */
+.auth-theme :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.auth-theme :focus:not(:focus-visible) {
+  outline: none;
+}
+
+.auth-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.auth-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}
+
+.auth-field {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-field);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px; /* 16px minimum stops iOS zooming the viewport on focus */
+  line-height: 1.4;
+  padding: 0 12px;
+  height: 46px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.auth-field::placeholder {
+  color: var(--faint);
+}
+.auth-field:hover:not(:disabled) {
+  border-color: #CFC5B8;
+}
+.auth-field[aria-invalid="true"] {
+  border-color: var(--error-field-border);
+}
+.auth-field:disabled {
+  background: #FAF8F5;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.auth-btn-primary {
+  width: 100%;
+  height: 48px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-field);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+.auth-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.auth-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-link {
+  color: var(--link);
+  text-decoration: none;
+  border-radius: 2px;
+}
+.auth-link:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The accent checkbox, without importing a component library for one control. */
+.auth-check {
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  cursor: pointer;
+  display: grid;
+  place-content: center;
+}
+.auth-check:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.auth-check:checked::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+@media (min-width: 1024px) {
+  .auth-field { height: 44px; font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-theme *,
+  .auth-theme *::before,
+  .auth-theme *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* The brand panel is desktop-only. Hidden, not stacked: a marketing column
+   above the form would push the login below the fold on a phone. */
+.auth-brand-wrap {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .auth-brand-wrap {
+    display: block;
+  }
+}

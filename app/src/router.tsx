@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router'
 import { AuthGate } from '@/auth/AuthGate'
 import { SignInScreen } from '@/auth/SignInScreen'
 import { SignUpScreen } from '@/auth/SignUpScreen'
+import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
+import { NoAccessScreen } from '@/auth/NoAccessScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
 import { ProjectPeopleScreen } from '@/features/access/ProjectPeopleScreen'
@@ -117,11 +119,19 @@ function Gated() {
 
 export const router = createBrowserRouter([
   { path: '/signin', element: <SignInScreen /> },
+  // Alias: the brief and any links written against it use /sign-in, while
+  // AuthGate, RootRedirect and the invite screens have always emitted /signin.
+  // Both resolve rather than breaking one set of links.
+  { path: '/sign-in', element: <SignInScreen /> },
   { path: '/signup', element: <SignUpScreen /> },
+  { path: '/reset-password', element: <ResetPasswordScreen /> },
   { path: '/invite/:token', element: <InviteClaimScreen /> },
   {
     element: <Gated />,
     children: [
+      // Signed in, but nothing to open. Deliberately OUTSIDE RootLayout: the
+      // nav rail and workspace switcher would have nothing to show.
+      { path: '/no-access', element: <NoAccessScreen /> },
       {
         element: <RootLayout />,
         children: [
