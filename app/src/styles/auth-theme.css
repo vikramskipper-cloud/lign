@@ -312,3 +312,12 @@
     order: 99;
   }
 }
+
+
+@keyframes lign-spin { to { transform: rotate(360deg); } }
+/* Held back 250ms by the element's animation-delay: a spinner that appears and
+   vanishes inside a quarter second is itself the flash it was meant to cover. */
+@keyframes lign-loader-in { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes lign-spin { to { transform: none; } }
+}

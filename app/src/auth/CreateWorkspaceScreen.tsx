@@ -6,7 +6,7 @@ import { qk } from '@/lib/queryKeys'
 import { useSession } from '@/auth/SessionProvider'
 import { useAccessCheck } from '@/auth/useAccessCheck'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
-import { LoadingPage } from '@/ui/loading-page'
+import { FullPageLoader } from '@/ui/full-page-loader'
 import { persistLastWorkspace } from '@/shell/WorkspaceSwitcher'
 import '@/styles/auth-theme.css'
 
@@ -63,9 +63,9 @@ export function CreateWorkspaceScreen() {
     },
   })
 
-  if (isLoading) return <LoadingPage />
+  if (isLoading) return <FullPageLoader label="Signing you in" />
   if (!session) return <Navigate to="/sign-in" replace />
-  if (access.isLoading) return <LoadingPage />
+  if (access.isLoading) return <FullPageLoader label="Signing you in" />
   // Already has somewhere to go — this screen is first-run only.
   if (access.data && !access.data.needsWorkspace) return <Navigate to="/dashboard" replace />
 
@@ -90,11 +90,16 @@ export function CreateWorkspaceScreen() {
     create.mutate(trimmed, {
       onSuccess: async (workspaceId) => {
         persistLastWorkspace(workspaceId)
-        // Both caches decided this account had nowhere to go. Neither is true
-        // any more, and Home reads them on arrival.
+        // refetchType 'all', and awaited, for a specific reason. Both of these
+        // queries are INACTIVE here — nothing on this screen subscribes to the
+        // workspace list — and a plain invalidate only marks inactive queries
+        // stale, so the await resolved instantly and we navigated with the
+        // caches still saying this account had nowhere to go. The result was a
+        // visible bounce: /dashboard read "no workspace", sent us back to
+        // /welcome, which read the now-fresh data and sent us forward again.
         await Promise.all([
-          qc.invalidateQueries({ queryKey: qk.workspaces() }),
-          qc.invalidateQueries({ queryKey: ['access-check'] }),
+          qc.invalidateQueries({ queryKey: qk.workspaces(), refetchType: 'all' }),
+          qc.invalidateQueries({ queryKey: ['access-check'], refetchType: 'all' }),
         ])
         navigate('/dashboard', { replace: true })
       },

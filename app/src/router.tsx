@@ -1,4 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router'
+import { useAccessCheck } from '@/auth/useAccessCheck'
+import { FullPageLoader } from '@/ui/full-page-loader'
 import { AuthGate } from '@/auth/AuthGate'
 import { SignInScreen } from '@/auth/SignInScreen'
 import { SignUpScreen } from '@/auth/SignUpScreen'
@@ -90,6 +92,23 @@ function NotificationDeepLink() {
   return <DeepLinkResolver kind="notification" />
 }
 
+/**
+ * Nothing renders the dashboard chrome until we know the account has a
+ * workspace to render it for.
+ *
+ * Without this, first run painted three layouts in a row: the warm sign-in
+ * page, then RootLayout's full header and rail with a spinner inside it, then
+ * the two-column /welcome page — because the needsWorkspace test lived inside
+ * HomeScreen, one level BELOW the chrome. Hoisting it above RootLayout means
+ * the chrome is never built for an account about to be sent elsewhere.
+ */
+function RequireWorkspace() {
+  const access = useAccessCheck()
+  if (access.isLoading) return <FullPageLoader label="Signing you in" />
+  if (access.data?.needsWorkspace) return <Navigate to="/welcome" replace />
+  return <Outlet />
+}
+
 function Gated() {
   return (
     <AuthGate>
@@ -136,59 +155,64 @@ export const router = createBrowserRouter([
       // there is no workspace yet, so the rail has nothing to show.
       { path: '/welcome', element: <CreateWorkspaceScreen /> },
       {
-        element: <RootLayout />,
+        element: <RequireWorkspace />,
         children: [
-          { path: '/dashboard', element: <HomeScreen /> },
-          { path: '/workspace-picker', element: <WorkspacePicker /> },
-          { path: '/deep/review/:id', element: <ReviewDeepLink /> },
-          { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },
-          { path: '/deep/approval/:id', element: <ApprovalDeepLink /> },
-          { path: '/deep/approver/:id', element: <ApproverDeepLink /> },
-          { path: '/deep/comment/:id', element: <CommentDeepLink /> },
-          { path: '/deep/annotation/:id', element: <AnnotationDeepLink /> },
-          { path: '/deep/requirement/:id', element: <RequirementDeepLink /> },
-          { path: '/deep/release/:id', element: <ReleaseDeepLink /> },
-          { path: '/deep/notification/:id', element: <NotificationDeepLink /> },
           {
-            path: '/workspace/:ws_id',
-            element: <WorkspaceLayout />,
-            handle: WorkspaceLayout.handle,
+            element: <RootLayout />,
             children: [
-              { index: true, element: <Navigate to="projects" replace /> },
-              { path: 'projects', element: <ProjectListScreen />, handle: ProjectListHandle },
-              { path: 'reviews', element: <WorkspaceReviewsScreen />, handle: WorkspaceReviewsHandle },
-              { path: 'approvals', element: <WorkspaceApprovalsScreen />, handle: WorkspaceApprovalsHandle },
-              { path: 'requirements', element: <WorkspaceRequirementsScreen />, handle: WorkspaceRequirementsHandle },
-              { path: 'releases', element: <WorkspaceReleasesScreen />, handle: WorkspaceReleasesHandle },
-              { path: 'inbox', element: <InboxScreen />, handle: InboxHandle },
-              { path: 'people', element: <WorkspacePeopleScreen />, handle: WorkspacePeopleScreen.handle },
-              { path: 'settings', element: <WorkspaceSettingsScreen />, handle: WorkspaceSettingsScreen.handle },
+              { path: '/dashboard', element: <HomeScreen /> },
+              { path: '/workspace-picker', element: <WorkspacePicker /> },
+              { path: '/deep/review/:id', element: <ReviewDeepLink /> },
+              { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },
+              { path: '/deep/approval/:id', element: <ApprovalDeepLink /> },
+              { path: '/deep/approver/:id', element: <ApproverDeepLink /> },
+              { path: '/deep/comment/:id', element: <CommentDeepLink /> },
+              { path: '/deep/annotation/:id', element: <AnnotationDeepLink /> },
+              { path: '/deep/requirement/:id', element: <RequirementDeepLink /> },
+              { path: '/deep/release/:id', element: <ReleaseDeepLink /> },
+              { path: '/deep/notification/:id', element: <NotificationDeepLink /> },
               {
-                path: 'project/:proj_id',
-                element: <ProjectLayout />,
-                handle: ProjectLayout.handle,
+                path: '/workspace/:ws_id',
+                element: <WorkspaceLayout />,
+                handle: WorkspaceLayout.handle,
                 children: [
-                  { index: true, element: <Navigate to="overview" replace /> },
-                  { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
-                  { path: 'designs', element: <DesignsScreen />, handle: DesignsHandle },
-                  { path: 'reviews', element: <ProjectReviewsScreen />, handle: ProjectReviewsHandle },
-                  { path: 'review/:review_id', lazy: () => import('@/features/reviews/review-detail.route') },
-                  { path: 'review/:review_id/round/:round_number', lazy: () => import('@/features/reviews/review-detail.route') },
-                  { path: 'approvals', element: <ProjectApprovalsScreen />, handle: ProjectApprovalsHandle },
-                  { path: 'approval/:approval_id', lazy: () => import('@/features/approvals/approval-detail.route') },
-                  { path: 'requirements', element: <ProjectRequirementsScreen />, handle: ProjectRequirementsHandle },
-                  { path: 'requirement/:requirement_id', lazy: () => import('@/features/requirements/requirement-detail.route') },
-                  { path: 'asset/:asset_id', lazy: () => import('@/features/design-workspace/route') },
-                  { path: 'asset/:asset_id/v/:v_id', lazy: () => import('@/features/design-workspace/route') },
-                  { path: 'asset/:asset_id/v/:v_id/file/:file_id', lazy: () => import('@/features/design-workspace/route') },
-                  { path: 'releases', element: <ProjectReleasesScreen />, handle: ProjectReleasesHandle },
-                  { path: 'release/:release_id', lazy: () => import('@/features/releases/release-detail.route') },
-                  { path: 'people', element: <ProjectPeopleScreen />, handle: ProjectPeopleScreen.handle },
+                  { index: true, element: <Navigate to="projects" replace /> },
+                  { path: 'projects', element: <ProjectListScreen />, handle: ProjectListHandle },
+                  { path: 'reviews', element: <WorkspaceReviewsScreen />, handle: WorkspaceReviewsHandle },
+                  { path: 'approvals', element: <WorkspaceApprovalsScreen />, handle: WorkspaceApprovalsHandle },
+                  { path: 'requirements', element: <WorkspaceRequirementsScreen />, handle: WorkspaceRequirementsHandle },
+                  { path: 'releases', element: <WorkspaceReleasesScreen />, handle: WorkspaceReleasesHandle },
+                  { path: 'inbox', element: <InboxScreen />, handle: InboxHandle },
+                  { path: 'people', element: <WorkspacePeopleScreen />, handle: WorkspacePeopleScreen.handle },
+                  { path: 'settings', element: <WorkspaceSettingsScreen />, handle: WorkspaceSettingsScreen.handle },
+                  {
+                    path: 'project/:proj_id',
+                    element: <ProjectLayout />,
+                    handle: ProjectLayout.handle,
+                    children: [
+                      { index: true, element: <Navigate to="overview" replace /> },
+                      { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
+                      { path: 'designs', element: <DesignsScreen />, handle: DesignsHandle },
+                      { path: 'reviews', element: <ProjectReviewsScreen />, handle: ProjectReviewsHandle },
+                      { path: 'review/:review_id', lazy: () => import('@/features/reviews/review-detail.route') },
+                      { path: 'review/:review_id/round/:round_number', lazy: () => import('@/features/reviews/review-detail.route') },
+                      { path: 'approvals', element: <ProjectApprovalsScreen />, handle: ProjectApprovalsHandle },
+                      { path: 'approval/:approval_id', lazy: () => import('@/features/approvals/approval-detail.route') },
+                      { path: 'requirements', element: <ProjectRequirementsScreen />, handle: ProjectRequirementsHandle },
+                      { path: 'requirement/:requirement_id', lazy: () => import('@/features/requirements/requirement-detail.route') },
+                      { path: 'asset/:asset_id', lazy: () => import('@/features/design-workspace/route') },
+                      { path: 'asset/:asset_id/v/:v_id', lazy: () => import('@/features/design-workspace/route') },
+                      { path: 'asset/:asset_id/v/:v_id/file/:file_id', lazy: () => import('@/features/design-workspace/route') },
+                      { path: 'releases', element: <ProjectReleasesScreen />, handle: ProjectReleasesHandle },
+                      { path: 'release/:release_id', lazy: () => import('@/features/releases/release-detail.route') },
+                      { path: 'people', element: <ProjectPeopleScreen />, handle: ProjectPeopleScreen.handle },
+                    ],
+                  },
                 ],
               },
+              { path: '*', element: <NotFound /> },
             ],
           },
-          { path: '*', element: <NotFound /> },
         ],
       },
     ],

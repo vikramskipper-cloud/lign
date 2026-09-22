@@ -6,7 +6,7 @@ import { useWorkspaceAccess } from '@/lib/capabilities'
 import { useAccessCheck } from '@/auth/useAccessCheck'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
 import { useWorkspace } from '@/shell/queries'
-import { LoadingPage } from '@/ui/loading-page'
+import { FullPageLoader } from '@/ui/full-page-loader'
 import { Skeleton } from '@/ui/skeleton'
 import { relative } from '@/lib/formatDate'
 import { RequestChangesDialog } from './RequestChangesDialog'
@@ -106,14 +106,14 @@ export function HomeScreen() {
   const activity = useRecentActivity(workspaceId, ACTIVITY_CAP)
   const respond = useRespondToApproval()
 
-  if (isLoading) return <LoadingPage />
+  if (isLoading) return <FullPageLoader />
   if (!session) return <Navigate to="/sign-in" replace />
   // Guard: an account with nothing to open never belongs on Home. Which way
   // it goes depends on whether anyone could fix it for them — no workspace at
   // all means there is nobody to wait for, so they make one.
   if (accessCheck.data?.needsWorkspace) return <Navigate to="/welcome" replace />
   if (accessCheck.data && !accessCheck.data.hasAccess) return <Navigate to="/no-access" replace />
-  if (wsLoading) return <LoadingPage />
+  if (wsLoading) return <FullPageLoader />
   if (!workspaceId) return <Navigate to="/welcome" replace />
 
   const participations = parts.data ?? []

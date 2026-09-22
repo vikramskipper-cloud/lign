@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Navigate, useLocation } from 'react-router'
 import { useSession } from '@/auth/SessionProvider'
-import { LoadingPage } from '@/ui/loading-page'
+import { FullPageLoader } from '@/ui/full-page-loader'
 
 /**
  * Redirects unauthenticated users to /sign-in with a ?returnTo=<current> query
@@ -12,7 +12,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, isLoading } = useSession()
   const location = useLocation()
 
-  if (isLoading) return <LoadingPage label="Signing you in…" />
+  if (isLoading) return <FullPageLoader label="Signing you in" />
   if (!session) {
     const returnTo = encodeURIComponent(location.pathname + location.search)
     return <Navigate to={`/sign-in?returnTo=${returnTo}`} replace />

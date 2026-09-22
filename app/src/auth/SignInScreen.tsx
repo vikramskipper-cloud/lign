@@ -4,7 +4,7 @@ import { useSession } from '@/auth/SessionProvider'
 import { supabase } from '@/lib/supabase'
 import { setSessionPersistence } from '@/lib/sessionPersistence'
 import { resolveRedirect } from '@/auth/redirect'
-import { LoadingPage } from '@/ui/loading-page'
+import { FullPageLoader } from '@/ui/full-page-loader'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
 import '@/styles/auth-theme.css'
 
@@ -71,7 +71,7 @@ export function SignInScreen() {
     if (error) errorRef.current?.focus()
   }, [error])
 
-  if (isLoading) return <LoadingPage label="Loading…" />
+  if (isLoading) return <FullPageLoader />
   // A signed-in visitor never sees this page.
   if (session) return <Navigate to={redirectTo} replace />
 
