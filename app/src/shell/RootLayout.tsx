@@ -1,92 +1,32 @@
-import * as React from 'react'
-import { Outlet, useMatches } from 'react-router'
-import { TopBar } from '@/shell/TopBar'
-import { NavRail } from '@/shell/NavRail'
+import { Outlet } from 'react-router'
+import { AppShell } from '@/shell/AppShell'
 import { AsyncBoundary } from '@/ui/async-boundary'
 import { ErrorBoundary } from '@/ui/error-boundary'
-import { cn } from '@/lib/cn'
 import { RealtimeProvider } from '@/features/realtime/RealtimeProvider'
 
 /**
- * Determine which nav mode to render based on which layout is active.
- * ProjectLayout tags its match with handle.navMode = 'project'.
- */
-function useNavMode(): 'workspace' | 'project' | 'none' {
-  const matches = useMatches()
-  for (let i = matches.length - 1; i >= 0; i--) {
-    const handle = matches[i]?.handle as { navMode?: 'workspace' | 'project' | 'none' } | undefined
-    if (handle?.navMode) return handle.navMode
-  }
-  return 'none'
-}
-
-/**
- * The outer chrome shared by every authenticated route:
- *   TopBar (breadcrumb + switcher + user menu)
- *   NavRail (workspace or project mode)
- *   <Outlet /> (route content)
+ * Everything an authenticated route sits inside: error boundary, realtime
+ * connection, the shared chrome, and a suspense boundary around the page.
  *
- * Responsive:
- *   - < 768px: NavRail becomes a drawer opened from the top bar.
- *   - 768–1024px: NavRail collapses to icon-only.
- *   - >=1024px: full labels.
+ * The nav-mode plumbing that used to live here is gone. It existed to tell
+ * NavRail whether to render workspace items or project items, and to hide the
+ * rail entirely on routes with no handle. AppShell needs none of that: the
+ * workspace rail is always present and the project section appears when there
+ * is a project in the URL.
+ *
+ * Note that /dashboard now routes through here too. It previously sat outside
+ * this layout with its own shell, which quietly meant Home had no error
+ * boundary and no realtime connection.
  */
 export function RootLayout() {
-  const navMode = useNavMode()
-  const [drawerOpen, setDrawerOpen] = React.useState(false)
-  const [collapsed, setCollapsed] = React.useState(() => window.innerWidth < 1024)
-
-  React.useEffect(() => {
-    const onResize = () => {
-      const w = window.innerWidth
-      setCollapsed(w >= 768 && w < 1024)
-      if (w >= 768) setDrawerOpen(false)
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-
   return (
     <ErrorBoundary>
       <RealtimeProvider>
-        <div className="flex h-full min-h-screen flex-col bg-[--color-bg]">
-          <TopBar onOpenNav={navMode !== 'none' ? () => setDrawerOpen(true) : undefined} />
-          <div className="flex flex-1 overflow-hidden">
-            {navMode !== 'none' && (
-              <>
-                {/* Desktop / tablet rail */}
-                <aside className="hidden md:block">
-                  <NavRail mode={navMode} collapsed={collapsed} />
-                </aside>
-                {/* Mobile drawer */}
-                {drawerOpen && (
-                  <div
-                    className="fixed inset-0 z-40 md:hidden"
-                    onClick={() => setDrawerOpen(false)}
-                  >
-                    <div className="absolute inset-0 bg-black/40" />
-                    <div
-                      className="relative h-full w-64 shadow-[--shadow-md]"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <NavRail mode={navMode} onNavigate={() => setDrawerOpen(false)} />
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            <main
-              className={cn(
-                'flex-1 overflow-auto',
-                navMode === 'none' && 'w-full',
-              )}
-            >
-              <AsyncBoundary>
-                <Outlet />
-              </AsyncBoundary>
-            </main>
-          </div>
-        </div>
+        <AppShell>
+          <AsyncBoundary>
+            <Outlet />
+          </AsyncBoundary>
+        </AppShell>
       </RealtimeProvider>
     </ErrorBoundary>
   )

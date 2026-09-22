@@ -151,13 +151,10 @@ export const router = createBrowserRouter([
       // Signed in, but nothing to open. Deliberately OUTSIDE RootLayout: the
       // nav rail and workspace switcher would have nothing to show.
       { path: '/no-access', element: <NoAccessScreen /> },
-      // Dashboard renders its own top bar and sidebar per the brief, so it is
-      // a sibling of RootLayout, not a child. Two shells coexist until the
-      // redesign reaches the rest of the app.
-      { path: '/dashboard', element: <HomeScreen /> },
       {
         element: <RootLayout />,
         children: [
+          { path: '/dashboard', element: <HomeScreen /> },
           { path: '/workspace-picker', element: <WorkspacePicker /> },
           { path: '/deep/review/:id', element: <ReviewDeepLink /> },
           { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },

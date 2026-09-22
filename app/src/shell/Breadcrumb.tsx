@@ -16,7 +16,7 @@ interface RouteHandle {
  * The page-name segment is contributed by the last matched route via its
  * handle.crumb (React Router v7 handle pattern). Missing handles are skipped.
  */
-export function Breadcrumb() {
+export function Breadcrumb({ compact = false }: { compact?: boolean } = {}) {
   const { ws_id, proj_id } = useParams()
   const matches = useMatches()
 
@@ -34,7 +34,7 @@ export function Breadcrumb() {
 
   return (
     <div className="flex items-center gap-1 text-sm text-[--color-text-muted]">
-      {ws_id && (
+      {ws_id && !compact && (
         <>
           <WorkspaceSwitcher currentWorkspaceId={ws_id} currentName={workspace.data?.name} />
           {proj_id && <BreadcrumbSep />}
@@ -56,7 +56,7 @@ export function Breadcrumb() {
         </span>
       )}
       {/* Ensure the breadcrumb has a home link even without segments */}
-      {!ws_id && (
+      {!ws_id && !compact && (
         <Link to="/dashboard" className="text-sm font-medium text-[--color-text]">
           Lign
         </Link>

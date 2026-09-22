@@ -150,9 +150,10 @@ offering one that the database would reject is worse than not offering it.
 
 ## 7. Other things I flagged rather than silently did
 
-- **Home has its own shell.** The brief's top bar and sidebar differ from APP
-  002's `TopBar`/`NavRail`, so Home is routed outside `RootLayout`. Two
-  navigation systems now coexist until the redesign reaches the rest of the app.
+- ~~**Home has its own shell.**~~ Resolved: the shell was generalised into
+  `shell/AppShell.tsx` and now wraps every authenticated route via
+  `RootLayout`. `TopBar`, `NavRail` and `NavItem` are deleted. One navigation
+  system.
 - **Search renders but is inert** — there is no search surface to wire it to.
   Marked TODO rather than removed, since the brief specifies it.
 - **Realtime is not subscribed.** Home polls via TanStack Query staleness.

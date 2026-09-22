@@ -231,7 +231,7 @@
     and the panel stopped partway down the page — the same defect the sign-in
     brand panel had. Anything that paints a full-height background must be the
     element that stretches. */
-.home-nav {
+.app-nav {
   flex-direction: column;
   gap: 2px;
   width: 216px;
@@ -242,15 +242,15 @@
   /* Pins can overflow a short viewport; scroll the rail, not the page. */
   overflow-y: auto;
 }
-/* display lives on the modifiers, never on .home-nav: an inline display would
+/* display lives on the modifiers, never on .app-nav: an inline display would
    win over the max-width rule below and the rail would refuse to hide. */
-.home-sidebar { display: flex; }
-.home-drawer-nav { display: flex; height: 100%; }
-.home-nav-toggle { display: none; }
+.app-sidebar { display: flex; }
+.app-drawer-nav { display: flex; height: 100%; }
+.app-nav-toggle { display: none; }
 @media (max-width: 1023px) {
-  .home-sidebar { display: none; }
-  .home-nav-toggle { display: grid; place-items: center; }
-  .home-drawer {
+  .app-sidebar { display: none; }
+  .app-nav-toggle { display: grid; place-items: center; }
+  .app-drawer {
     position: fixed;
     inset: 56px 0 0 0;
     background: rgba(23, 19, 16, 0.35);
@@ -258,7 +258,7 @@
   }
 }
 @media (max-width: 860px) {
-  .home-search { display: none; }
+  .app-search { display: none; }
 }
 
 .home-card {

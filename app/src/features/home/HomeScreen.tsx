@@ -1,16 +1,15 @@
 import * as React from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router'
+import { Link, Navigate } from 'react-router'
 import { Check } from 'lucide-react'
 import { useSession } from '@/auth/SessionProvider'
-import { useWorkspaces } from '@/shell/queries'
 import { useWorkspaceAccess } from '@/lib/capabilities'
 import { useAccessCheck } from '@/auth/useAccessCheck'
+import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
+import { useWorkspace } from '@/shell/queries'
 import { LoadingPage } from '@/ui/loading-page'
 import { Skeleton } from '@/ui/skeleton'
 import { relative } from '@/lib/formatDate'
-import { HomeShell } from './HomeShell'
 import { RequestChangesDialog } from './RequestChangesDialog'
-import { usePinnedProjectIds } from './pins'
 import { useRespondToApproval } from './mutations'
 import {
   ACTIVITY_CAP, NEEDS_YOU_CAP, PROJECTS_CAP, STALE_AFTER_DAYS, WAITING_CAP,
@@ -90,29 +89,14 @@ const btn = (kind: 'primary' | 'secondary'): React.CSSProperties => ({
 
 export function HomeScreen() {
   const { session, user, isLoading } = useSession()
-  const [params] = useSearchParams()
-  const workspaces = useWorkspaces()
   const accessCheck = useAccessCheck()
+  // Same resolution AppShell uses, so the rail and this page cannot disagree
+  // about which workspace is in scope.
+  const { workspaceId, isLoading: wsLoading } = useActiveWorkspaceId()
+  const workspace = useWorkspace(workspaceId)
 
   const [dialogFor, setDialogFor] = React.useState<ApprovalItem | null>(null)
   const [optimistic, setOptimistic] = React.useState<Set<string>>(new Set())
-
-  // Workspace scope: ?ws= wins, then last-used, then first membership.
-  const all = workspaces.data ?? []
-  const lastUsed = (() => {
-    try { return window.localStorage.getItem('lign.lastWorkspaceId') } catch { return null }
-  })()
-  const wsParam = params.get('ws')
-  const workspaceId =
-    (wsParam && all.some((w) => w.id === wsParam) && wsParam) ||
-    (lastUsed && all.some((w) => w.id === lastUsed) && lastUsed) ||
-    all[0]?.id
-
-  React.useEffect(() => {
-    if (workspaceId) {
-      try { window.localStorage.setItem('lign.lastWorkspaceId', workspaceId) } catch { /* ignore */ }
-    }
-  }, [workspaceId])
 
   const wsAccess = useWorkspaceAccess(workspaceId)
   const parts = useMyParticipations(workspaceId)
@@ -120,14 +104,13 @@ export function HomeScreen() {
   const reviews = useReviewsForMe(workspaceId, parts.data)
   const waiting = useWaitingOnOthers(workspaceId, parts.data, user?.id)
   const activity = useRecentActivity(workspaceId, ACTIVITY_CAP)
-  const pins = usePinnedProjectIds(workspaceId)
   const respond = useRespondToApproval()
 
   if (isLoading) return <LoadingPage />
   if (!session) return <Navigate to="/sign-in" replace />
   // Guard: an account with nothing to open never belongs on Home.
   if (accessCheck.data && !accessCheck.data.hasAccess) return <Navigate to="/no-access" replace />
-  if (workspaces.isLoading) return <LoadingPage />
+  if (wsLoading) return <LoadingPage />
   if (!workspaceId) return <Navigate to="/no-access" replace />
 
   const participations = parts.data ?? []
@@ -144,14 +127,7 @@ export function HomeScreen() {
   const hour = new Date().getHours()
   const partOfDay = hour < 12 ? 'morning' : hour < 18 ? 'afternoon' : 'evening'
 
-  const pinnedProjects = (pins.data ?? [])
-    .map((id) => participations.find((p) => p.projectId === id))
-    .filter(Boolean)
-    .map((p) => ({ id: p!.projectId, name: p!.projectName, dot: 'var(--status-approved)' }))
-  // No pins yet → fall back to the projects the user actually participates in.
-  const pinnedFallback = pinnedProjects.length > 0
-    ? pinnedProjects
-    : participations.slice(0, 5).map((p) => ({ id: p.projectId, name: p.projectName, dot: 'var(--status-superseded)' }))
+  const projectsHref = `/workspace/${workspaceId}/projects`
 
   const doRespond = (item: ApprovalItem, decision: 'approved' | 'changes_requested', comment?: string) => {
     setOptimistic((s) => new Set(s).add(item.slotId))
@@ -165,7 +141,7 @@ export function HomeScreen() {
   }
 
   return (
-    <HomeShell workspaceId={workspaceId} projectCount={participations.length} pinned={pinnedFallback}>
+    <>
       <div className="home-grid">
         {/* header ------------------------------------------------------- */}
         <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 4 }}>
@@ -180,7 +156,7 @@ export function HomeScreen() {
             </p>
           </div>
           {canCreateProject && (
-            <Link to="/projects" style={{ ...btn('primary'), display: 'grid', placeItems: 'center', textDecoration: 'none', height: 36 }}>
+            <Link to={projectsHref} style={{ ...btn('primary'), display: 'grid', placeItems: 'center', textDecoration: 'none', height: 36 }}>
               New project
             </Link>
           )}
@@ -200,19 +176,19 @@ export function HomeScreen() {
                     participant on any. You&apos;ll only see items to action here once you&apos;re added to a project.
                   </p>
                   <p style={{ margin: '12px 0 0', fontSize: 13.5 }}>
-                    <Link to="/projects" className="auth-link">Browse projects</Link>
+                    <Link to={projectsHref} className="auth-link">Browse projects</Link>
                   </p>
                 </>
               ) : (
                 <>
                   <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--ink)' }}>
-                    You&apos;re in {all.find((w) => w.id === workspaceId)?.name ?? 'this workspace'}
+                    You&apos;re in {workspace.data?.name ?? 'this workspace'}
                   </h2>
                   <p style={{ margin: '8px 0 0', fontSize: 13.5, lineHeight: 1.6, color: 'var(--muted)' }}>
                     Projects you&apos;re added to will show up here.
                   </p>
                   {canCreateProject && (
-                    <Link to="/projects" style={{ ...btn('primary'), display: 'inline-grid', placeItems: 'center', textDecoration: 'none', marginTop: 14 }}>
+                    <Link to={projectsHref} style={{ ...btn('primary'), display: 'inline-grid', placeItems: 'center', textDecoration: 'none', marginTop: 14 }}>
                       Create a project
                     </Link>
                   )}
@@ -223,7 +199,7 @@ export function HomeScreen() {
             <>
               <Section
                 title="Needs you"
-                action={needsCount > NEEDS_YOU_CAP ? <Link to="/projects" className="auth-link" style={{ fontSize: 12.5 }}>View all ({needsCount})</Link> : undefined}
+                action={needsCount > NEEDS_YOU_CAP ? <Link to={projectsHref} className="auth-link" style={{ fontSize: 12.5 }}>View all ({needsCount})</Link> : undefined}
               >
                 {approvals.isError || reviews.isError ? (
                   <SectionError onRetry={() => { approvals.refetch(); reviews.refetch() }} />
@@ -353,7 +329,7 @@ export function HomeScreen() {
         <div style={{ minWidth: 0 }}>
           <Section
             title="Your projects"
-            action={cards.length > PROJECTS_CAP ? <Link to="/projects" className="auth-link" style={{ fontSize: 12.5 }}>View all</Link> : undefined}
+            action={cards.length > PROJECTS_CAP ? <Link to={projectsHref} className="auth-link" style={{ fontSize: 12.5 }}>View all</Link> : undefined}
           >
             {parts.isError ? (
               <SectionError onRetry={() => parts.refetch()} />
@@ -362,7 +338,7 @@ export function HomeScreen() {
             ) : cards.length === 0 ? (
               <div className="home-card" style={{ padding: 16, fontSize: 13, lineHeight: 1.6, color: 'var(--muted)' }}>
                 {accessCheck.data?.isAdminSomewhere
-                  ? <>You&apos;re a workspace admin, so you can view every project, but you&apos;re not a participant on any. You&apos;ll only see items to action here once you&apos;re added to a project. <Link to="/projects" className="auth-link">Projects</Link></>
+                  ? <>You&apos;re a workspace admin, so you can view every project, but you&apos;re not a participant on any. You&apos;ll only see items to action here once you&apos;re added to a project. <Link to={projectsHref} className="auth-link">Projects</Link></>
                   : <>Projects you&apos;re added to will appear here.</>}
               </div>
             ) : (
@@ -444,6 +420,6 @@ export function HomeScreen() {
           setDialogFor(null)
         }}
       />
-    </HomeShell>
+    </>
   )
 }
