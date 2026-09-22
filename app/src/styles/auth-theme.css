@@ -1,5 +1,10 @@
 /* -----------------------------------------------------------------------------
-   Auth surface theme (sign-in, reset, no-access).
+   Warm surface theme — sign-in, reset, no-access, and Home.
+
+   `.lign-warm` is the token source; `.auth-theme` is kept as an alias so the
+   auth screens are untouched. Home opts in with `.lign-warm`, which is what
+   "match the sign-in page exactly" has to mean in practice: one definition,
+   not two that drift.
 
    SCOPED ON PURPOSE. The rest of the app runs on APP 002's frozen zinc +
    indigo tokens, which ten shipped slices depend on. Defining this warm palette
@@ -10,6 +15,7 @@
    `.auth-theme[data-theme="dark"]` and nothing below needs to change.
 ----------------------------------------------------------------------------- */
 
+.lign-warm,
 .auth-theme {
   --bg: #FBF9F6;
   --panel: #F3EEE7;
@@ -17,6 +23,7 @@
   --surface: #FFFFFF;
   --border: #DCD3C8;
   --border-soft: #E5DDD3;
+  --row-divider: #EFE8DF;
 
   --ink: #171310;
   --text: #3A332D;
@@ -59,11 +66,13 @@
 }
 
 /* One focus treatment for every interactive element on these pages. */
+.lign-warm :focus-visible,
 .auth-theme :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 4px;
 }
+.lign-warm :focus:not(:focus-visible),
 .auth-theme :focus:not(:focus-visible) {
   outline: none;
 }
@@ -171,9 +180,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .auth-theme *,
-  .auth-theme *::before,
-  .auth-theme *::after {
+  .lign-warm *, .lign-warm *::before, .lign-warm *::after,
+  .auth-theme *, .auth-theme *::before, .auth-theme *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
@@ -194,4 +202,57 @@
     flex-direction: column;
     justify-content: space-between;
   }
+}
+
+/* -----------------------------------------------------------------------------
+   Home layout. Breakpoints per the brief: two columns >=1280, narrower rail
+   1024-1279, single column below 1024 with the sidebar behind a menu button.
+----------------------------------------------------------------------------- */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 28px;
+  align-items: start;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 28px 32px 56px;
+}
+@media (max-width: 1279px) {
+  .home-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; padding: 24px; }
+}
+@media (max-width: 1023px) {
+  /* Single column. Source order already puts Needs you -> Waiting on others ->
+     Your projects -> Recent activity, so no reordering is needed. */
+  .home-grid { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 48px; }
+}
+
+.home-sidebar { display: block; }
+.home-nav-toggle { display: none; }
+@media (max-width: 1023px) {
+  .home-sidebar { display: none; }
+  .home-nav-toggle { display: grid; place-items: center; }
+  .home-drawer {
+    position: fixed;
+    inset: 56px 0 0 0;
+    background: rgba(23, 19, 16, 0.35);
+    z-index: 30;
+  }
+}
+@media (max-width: 860px) {
+  .home-search { display: none; }
+}
+
+.home-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+}
+.home-row + .home-row {
+  border-top: 1px solid var(--row-divider);
+}
+
+/* Touch targets stay >=44px on the mobile quick-view: approvers do act from a
+   phone, so the inline actions have to remain usable there. */
+@media (max-width: 639px) {
+  .home-action { min-height: 44px; }
 }

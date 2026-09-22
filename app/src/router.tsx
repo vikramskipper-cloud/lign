@@ -4,6 +4,7 @@ import { SignInScreen } from '@/auth/SignInScreen'
 import { SignUpScreen } from '@/auth/SignUpScreen'
 import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
+import { HomeScreen } from '@/features/home/HomeScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
 import { ProjectPeopleScreen } from '@/features/access/ProjectPeopleScreen'
@@ -13,7 +14,6 @@ import { RootLayout } from '@/shell/RootLayout'
 import { WorkspaceLayout } from '@/shell/WorkspaceLayout'
 import { ProjectLayout } from '@/shell/ProjectLayout'
 import { NotFound } from '@/shell/NotFound'
-import { RootRedirect } from '@/routes/RootRedirect'
 import { WorkspacePicker } from '@/routes/WorkspacePicker'
 import {
 
@@ -132,10 +132,13 @@ export const router = createBrowserRouter([
       // Signed in, but nothing to open. Deliberately OUTSIDE RootLayout: the
       // nav rail and workspace switcher would have nothing to show.
       { path: '/no-access', element: <NoAccessScreen /> },
+      // Home renders its own top bar and sidebar per the brief, so it is a
+      // sibling of RootLayout, not a child. Two shells coexist until the
+      // redesign reaches the rest of the app.
+      { path: '/', element: <HomeScreen /> },
       {
         element: <RootLayout />,
         children: [
-          { path: '/', element: <RootRedirect /> },
           { path: '/workspace-picker', element: <WorkspacePicker /> },
           { path: '/deep/review/:id', element: <ReviewDeepLink /> },
           { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },
