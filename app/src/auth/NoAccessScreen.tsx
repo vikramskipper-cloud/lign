@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router'
+import { Navigate, useNavigate } from 'react-router'
 import { useSession } from '@/auth/SessionProvider'
+import { useAccessCheck } from '@/auth/useAccessCheck'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
 import '@/styles/auth-theme.css'
 
@@ -8,10 +9,17 @@ import '@/styles/auth-theme.css'
  * projects they can open, and no admin role anywhere. Landing them on an empty
  * workspace looks like the product is broken; this says what happened and who
  * can fix it.
+ *
+ * "Ask your project lead" only makes sense if there IS one. An account with no
+ * workspace at all has nobody to ask, so it belongs on /welcome instead — this
+ * guard catches anyone who reaches this URL directly.
  */
 export function NoAccessScreen() {
   const { signOut } = useSession()
   const navigate = useNavigate()
+  const access = useAccessCheck()
+
+  if (access.data?.needsWorkspace) return <Navigate to="/welcome" replace />
 
   return (
     <AuthShell>

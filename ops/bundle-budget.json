@@ -1,5 +1,5 @@
 {
-  "_comment": "APP 012 wave 1 baseline. Measured 2026-09-18 at 1012.18 KB raw / 277.85 KB gzip in a single chunk, with ~9% headroom so the gate catches regression without blocking today's work. LOWER THESE after wave 2 splits the bundle — the budget is a ratchet, and leaving it loose wastes the win.",
-  "maxInitialRawKb": 1100,
-  "maxInitialGzipKb": 300
+  "_comment": "Lowered 2026-09-22 after route-level lazy() split the five heaviest project-detail screens (design workspace, review/approval/requirement/release detail) out of the entry chunk: 1094.38 -> 920.46 KB raw, 300.19 -> 262.38 KB gzip, with 58.66 KB gzip now deferred to navigation. ~5% headroom so the gate catches regression without blocking ordinary work. Previous baseline was 1100/300 from APP 012 wave 1. Still a ratchet: lower again after the next real reduction. The remaining 920 KB entry chunk is the obvious next target - the workspace-level list screens and the auth screens are still in it.",
+  "maxInitialRawKb": 970,
+  "maxInitialGzipKb": 276
 }

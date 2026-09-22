@@ -108,10 +108,13 @@ export function HomeScreen() {
 
   if (isLoading) return <LoadingPage />
   if (!session) return <Navigate to="/sign-in" replace />
-  // Guard: an account with nothing to open never belongs on Home.
+  // Guard: an account with nothing to open never belongs on Home. Which way
+  // it goes depends on whether anyone could fix it for them — no workspace at
+  // all means there is nobody to wait for, so they make one.
+  if (accessCheck.data?.needsWorkspace) return <Navigate to="/welcome" replace />
   if (accessCheck.data && !accessCheck.data.hasAccess) return <Navigate to="/no-access" replace />
   if (wsLoading) return <LoadingPage />
-  if (!workspaceId) return <Navigate to="/no-access" replace />
+  if (!workspaceId) return <Navigate to="/welcome" replace />
 
   const participations = parts.data ?? []
   const isParticipant = participations.length > 0

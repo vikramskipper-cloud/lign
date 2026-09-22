@@ -29,6 +29,16 @@ export interface AccessState {
   hasAccess: boolean
   visibleProjects: number
   isAdminSomewhere: boolean
+  /**
+   * First run: nowhere to go AND nobody to wait for, so the answer is to
+   * create a workspace rather than to sit on /no-access.
+   *
+   * Requires BOTH counts to be zero. A stakeholder has no workspace_members
+   * row at all — p_stake was the fixture for exactly this — so "no membership"
+   * alone would send an external client to the first-run screen and offer them
+   * a workspace of their own. Their visible projects are what place them.
+   */
+  needsWorkspace: boolean
 }
 
 export function useAccessCheck() {
@@ -56,17 +66,24 @@ export function useAccessCheck() {
       // A failed read is not evidence of "no access". Let the user through
       // rather than locking out a valid account on a transient error.
       if (projects.error || roles.error) {
-        return { hasAccess: true, visibleProjects: -1, isAdminSomewhere: false }
+        return {
+          hasAccess: true, visibleProjects: -1, isAdminSomewhere: false,
+          // Never onboard on a failed read: that would offer a workspace to
+          // someone who already has one and just hit a flaky network.
+          needsWorkspace: false,
+        }
       }
 
       const visibleProjects = projects.data?.length ?? 0
       const isAdminSomewhere = (roles.data ?? []).some(
         (r) => r.role === 'owner' || r.role === 'admin',
       )
+      const memberships = roles.data?.length ?? 0
       return {
         hasAccess: visibleProjects > 0 || isAdminSomewhere,
         visibleProjects,
         isAdminSomewhere,
+        needsWorkspace: memberships === 0 && visibleProjects === 0,
       }
     },
   })

@@ -32,26 +32,57 @@ if (js.length === 0) {
 }
 
 // "Initial" = everything the browser must fetch to render the first paint.
-// Web workers are excluded: they are fetched on demand, not on the critical path.
+//
+// This used to mean "every chunk except workers", which was right while the
+// build emitted a single chunk and wrong the moment it did not: route-level
+// lazy() chunks are fetched on navigation, and counting them as initial makes
+// a successful split look like a regression.
+//
+// The authority is the built index.html. Vite puts the entry script there plus
+// a <link rel="modulepreload"> for every chunk statically reachable from it —
+// which is the definition of the critical path. Anything else is deferred.
+const htmlFile = join(dist, 'index.html')
+if (!existsSync(htmlFile)) {
+  console.error(`error: ${htmlFile} not found — cannot tell initial chunks from lazy ones`)
+  process.exit(2)
+}
+const html = readFileSync(htmlFile, 'utf8')
+const referenced = new Set(
+  [...html.matchAll(/(?:src|href)="[^"]*?\/assets\/([^"]+?\.js)"/g)].map((m) => m[1]),
+)
+if (referenced.size === 0) {
+  console.error('error: index.html references no JS assets — unexpected build output')
+  process.exit(2)
+}
+
 const isWorker = (f) => /worker/i.test(f)
 const entries = js.map((f) => {
   const bytes = readFileSync(join(assets, f))
-  return { file: f, raw: bytes.length, gzip: gzipSync(bytes).length, worker: isWorker(f) }
+  return {
+    file: f,
+    raw: bytes.length,
+    gzip: gzipSync(bytes).length,
+    worker: isWorker(f),
+    initial: referenced.has(f) && !isWorker(f),
+  }
 })
 
-const initial = entries.filter((e) => !e.worker)
+const initial = entries.filter((e) => e.initial)
 const rawKb = initial.reduce((n, e) => n + e.raw, 0) / 1000
 const gzipKb = initial.reduce((n, e) => n + e.gzip, 0) / 1000
 
 const fmt = (n) => n.toFixed(2).padStart(9)
 console.log('chunk                                          raw KB   gzip KB')
 for (const e of entries.sort((a, b) => b.raw - a.raw)) {
-  console.log(`${(e.file + (e.worker ? ' (worker, excluded)' : '')).padEnd(44)}${fmt(e.raw / 1000)}${fmt(e.gzip / 1000)}`)
+  const tag = e.worker ? ' (worker)' : e.initial ? '' : ' (lazy)'
+  console.log(`${(e.file + tag).padEnd(44)}${fmt(e.raw / 1000)}${fmt(e.gzip / 1000)}`)
 }
 console.log('-'.repeat(64))
 console.log(`initial total${''.padEnd(31)}${fmt(rawKb)}${fmt(gzipKb)}`)
 console.log(`budget       ${''.padEnd(31)}${fmt(budget.maxInitialRawKb)}${fmt(budget.maxInitialGzipKb)}`)
 console.log(`chunks: ${initial.length} initial, ${entries.length - initial.length} deferred`)
+const deferredGzip = entries.filter((e) => !e.initial).reduce((n, e) => n + e.gzip, 0) / 1000
+console.log(`deferred (not counted, fetched on navigation): ${deferredGzip.toFixed(2)} KB gzip`)
 
 const over = []
 if (rawKb > budget.maxInitialRawKb) over.push(`raw ${rawKb.toFixed(2)} > ${budget.maxInitialRawKb} KB`)

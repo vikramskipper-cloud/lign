@@ -4,6 +4,7 @@ import { SignInScreen } from '@/auth/SignInScreen'
 import { SignUpScreen } from '@/auth/SignUpScreen'
 import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
+import { CreateWorkspaceScreen } from '@/auth/CreateWorkspaceScreen'
 import { HomeScreen } from '@/features/home/HomeScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
@@ -28,10 +29,6 @@ import {
 } from '@/features/projects/ProjectOverviewScreen'
 import { DesignsScreen, DesignsHandle } from '@/features/designs/DesignsScreen'
 import {
-  DesignWorkspaceScreen,
-  DesignWorkspaceHandle,
-} from '@/features/design-workspace/DesignWorkspaceScreen'
-import {
   WorkspaceReviewsScreen,
   WorkspaceReviewsHandle,
 } from '@/features/reviews/WorkspaceReviewsScreen'
@@ -39,10 +36,6 @@ import {
   ProjectReviewsScreen,
   ProjectReviewsHandle,
 } from '@/features/reviews/ProjectReviewsScreen'
-import {
-  ReviewDetailScreen,
-  ReviewDetailHandle,
-} from '@/features/reviews/ReviewDetailScreen'
 import {
   WorkspaceApprovalsScreen,
   WorkspaceApprovalsHandle,
@@ -52,10 +45,6 @@ import {
   ProjectApprovalsHandle,
 } from '@/features/approvals/ProjectApprovalsScreen'
 import {
-  ApprovalDetailScreen,
-  ApprovalDetailHandle,
-} from '@/features/approvals/ApprovalDetailScreen'
-import {
   WorkspaceRequirementsScreen,
   WorkspaceRequirementsHandle,
 } from '@/features/requirements/WorkspaceRequirementsScreen'
@@ -63,10 +52,6 @@ import {
   ProjectRequirementsScreen,
   ProjectRequirementsHandle,
 } from '@/features/requirements/ProjectRequirementsScreen'
-import {
-  RequirementDetailScreen,
-  RequirementDetailHandle,
-} from '@/features/requirements/RequirementDetailScreen'
 import {
   WorkspaceReleasesScreen,
   WorkspaceReleasesHandle,
@@ -76,10 +61,6 @@ import {
   ProjectReleasesScreen,
   ProjectReleasesHandle,
 } from '@/features/releases/ProjectReleasesScreen'
-import {
-  ReleaseDetailScreen,
-  ReleaseDetailHandle,
-} from '@/features/releases/ReleaseDetailScreen'
 
 function ReviewDeepLink() {
   return <DeepLinkResolver kind="review" />
@@ -151,6 +132,9 @@ export const router = createBrowserRouter([
       // Signed in, but nothing to open. Deliberately OUTSIDE RootLayout: the
       // nav rail and workspace switcher would have nothing to show.
       { path: '/no-access', element: <NoAccessScreen /> },
+      // First run. Outside RootLayout for the same reason /no-access is:
+      // there is no workspace yet, so the rail has nothing to show.
+      { path: '/welcome', element: <CreateWorkspaceScreen /> },
       {
         element: <RootLayout />,
         children: [
@@ -188,17 +172,17 @@ export const router = createBrowserRouter([
                   { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
                   { path: 'designs', element: <DesignsScreen />, handle: DesignsHandle },
                   { path: 'reviews', element: <ProjectReviewsScreen />, handle: ProjectReviewsHandle },
-                  { path: 'review/:review_id', element: <ReviewDetailScreen />, handle: ReviewDetailHandle },
-                  { path: 'review/:review_id/round/:round_number', element: <ReviewDetailScreen />, handle: ReviewDetailHandle },
+                  { path: 'review/:review_id', lazy: () => import('@/features/reviews/review-detail.route') },
+                  { path: 'review/:review_id/round/:round_number', lazy: () => import('@/features/reviews/review-detail.route') },
                   { path: 'approvals', element: <ProjectApprovalsScreen />, handle: ProjectApprovalsHandle },
-                  { path: 'approval/:approval_id', element: <ApprovalDetailScreen />, handle: ApprovalDetailHandle },
+                  { path: 'approval/:approval_id', lazy: () => import('@/features/approvals/approval-detail.route') },
                   { path: 'requirements', element: <ProjectRequirementsScreen />, handle: ProjectRequirementsHandle },
-                  { path: 'requirement/:requirement_id', element: <RequirementDetailScreen />, handle: RequirementDetailHandle },
-                  { path: 'asset/:asset_id', element: <DesignWorkspaceScreen />, handle: DesignWorkspaceHandle },
-                  { path: 'asset/:asset_id/v/:v_id', element: <DesignWorkspaceScreen />, handle: DesignWorkspaceHandle },
-                  { path: 'asset/:asset_id/v/:v_id/file/:file_id', element: <DesignWorkspaceScreen />, handle: DesignWorkspaceHandle },
+                  { path: 'requirement/:requirement_id', lazy: () => import('@/features/requirements/requirement-detail.route') },
+                  { path: 'asset/:asset_id', lazy: () => import('@/features/design-workspace/route') },
+                  { path: 'asset/:asset_id/v/:v_id', lazy: () => import('@/features/design-workspace/route') },
+                  { path: 'asset/:asset_id/v/:v_id/file/:file_id', lazy: () => import('@/features/design-workspace/route') },
                   { path: 'releases', element: <ProjectReleasesScreen />, handle: ProjectReleasesHandle },
-                  { path: 'release/:release_id', element: <ReleaseDetailScreen />, handle: ReleaseDetailHandle },
+                  { path: 'release/:release_id', lazy: () => import('@/features/releases/release-detail.route') },
                   { path: 'people', element: <ProjectPeopleScreen />, handle: ProjectPeopleScreen.handle },
                 ],
               },
