@@ -8,6 +8,7 @@ import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
 import { CreateWorkspaceScreen } from '@/auth/CreateWorkspaceScreen'
 import { HomeScreen } from '@/features/home/HomeScreen'
+import { OrgPeopleScreen, OrgPeopleHandle } from '@/features/workspaces/OrgPeopleScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
 import { ProjectPeopleScreen } from '@/features/access/ProjectPeopleScreen'
@@ -161,6 +162,7 @@ export const router = createBrowserRouter([
             element: <RootLayout />,
             children: [
               { path: '/dashboard', element: <HomeScreen /> },
+              { path: '/org/:org_id/people', element: <OrgPeopleScreen />, handle: OrgPeopleHandle },
               { path: '/workspace-picker', element: <WorkspacePicker /> },
               { path: '/deep/review/:id', element: <ReviewDeepLink /> },
               { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },

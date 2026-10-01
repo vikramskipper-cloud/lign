@@ -137,3 +137,55 @@ its owner.
 Typecheck clean, 68 tests, build passes, bundle within budget. **No browser
 pass** — the switcher's new menu, both `/welcome` branches and the dialog have
 not been clicked through.
+
+
+---
+
+## 10. Gap status after APP 016 (2026-10-01)
+
+Worked through as a split, one part at a time.
+
+| § | Gap | Status |
+|---|---|---|
+| 6.6 | hot-path cost unmeasured | **CLOSED — 016a.** And the report was wrong about it: see below. |
+| 6.4 | workspace slug globally unique | **CLOSED — 016b.** Now `unique (organization_id, slug)`. |
+| — | org members' profiles invisible | **CLOSED — 016d.** Found while testing the people screen; was not on the original list. |
+| 6.3 | no org settings / people screen | **CLOSED** — `features/workspaces/OrgPeopleScreen.tsx` at `/org/:org_id/people`, no migration needed. |
+| 6.1 | org actions absent from the activity log | **OPEN** — migration written, declined at apply, parked in `docs/proposed/APP_016c_org_activity_events.sql`. |
+| 6.2 | no org invitations by email | **OPEN** — needs the same `invitations.workspace_id` loosening; parked with 016c. |
+| 6.5 | two meanings of "owner" | Standing documentation rule, not a defect. The people screen says "organisation roles span every workspace" rather than bare "owner". |
+
+### §6.6 was understated, not just unmeasured
+
+It said the widened helpers added "a second index probe". Measured:
+
+| | µs/call |
+|---|---|
+| membership-only (pre-APP 015) | 17.0 |
+| widened, membership clause **hits** | 17.7 (+4%) |
+| widened, membership clause **misses** | **246** (14×) |
+| after 016a, membership misses | 35 |
+
+The cost was not the probe but the nesting: a `SECURITY DEFINER` function
+cannot be inlined by the planner, so `lign_is_workspace_member` →
+`lign_org_of_workspace` → `lign_is_org_admin` paid three full invocations with
+their own snapshots. And it was not confined to org admins — RLS evaluates its
+policy per candidate row and the membership clause misses on every row you
+cannot see, so a user holding one of fifty workspaces took the slow path
+forty-nine times per list query.
+
+My first attempt at this measurement reported 315 µs and was wrong: it
+resolved the workspace id inside the timed loop, charging every iteration for
+an RLS-filtered read of `workspaces`.
+
+### What the people screen cannot do yet
+
+Adding is by **existing account**, not email, because `invitations.workspace_id`
+is still `NOT NULL` and an organisation invitation cannot be stored at all.
+Someone new has to arrive through a workspace or project invitation first. The
+screen states that rather than offering an email field that would fail.
+
+### Still unverified
+
+No browser pass on the people screen, the switcher's new "Organisation people"
+entry, or the role/remove controls.

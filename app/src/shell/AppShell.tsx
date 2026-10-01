@@ -1,9 +1,9 @@
 import * as React from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import {
-  Check, ChevronDown, ClipboardCheck, ClipboardList, FolderOpen, Home, Inbox,
-  Layers, LayoutDashboard, Menu, Plus, Rocket, Search, Settings2, Stamp,
-  UserRound, Users,
+  Building2, Check, ChevronDown, ClipboardCheck, ClipboardList, FolderOpen,
+  Home, Inbox, Layers, LayoutDashboard, Menu, Plus, Rocket, Search, Settings2,
+  Stamp, UserRound, Users,
 } from 'lucide-react'
 import { useWorkspaces, useProject } from '@/shell/queries'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
@@ -85,6 +85,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Gating on all.length > 1 alone hid "New workspace" from everyone with
   // exactly one, which is everyone on their first day.
   const canAddWorkspace = (adminOrgs.data ?? []).length > 0
+  // The org whose people page the menu links to: the one owning the workspace
+  // in scope, falling back to the first you administer.
+  const adminOrgId =
+    (adminOrgs.data ?? []).find((o) => o.id === current?.organization_id)?.id
+    ?? (adminOrgs.data ?? [])[0]?.id
+    ?? null
   const canSwitch = all.length > 1 || canAddWorkspace
   // The org that owns the workspace currently in scope, so the menu header
   // names the tenant you are actually inside rather than whichever org
@@ -308,6 +314,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <Plus size={14} aria-hidden="true" />
                     New workspace
                   </button>
+                  {adminOrgId && (
+                    <Link
+                      role="menuitem"
+                      to={`/org/${adminOrgId}/people`}
+                      onClick={() => setWsMenuOpen(false)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 7, textDecoration: 'none', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
+                    >
+                      <Building2 size={14} aria-hidden="true" />
+                      Organisation people
+                    </Link>
+                  )}
                 </>
               )}
             </div>
