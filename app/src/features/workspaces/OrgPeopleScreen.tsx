@@ -1,11 +1,13 @@
 import * as React from 'react'
 import { Navigate, useParams } from 'react-router'
 import { toast } from 'sonner'
-import { AlertCircle, Building2, Plus } from 'lucide-react'
+import { AlertCircle, Building2, Copy, Mail, Plus, X } from 'lucide-react'
 import { useSession } from '@/auth/SessionProvider'
 import {
-  useAddOrgMember, useAddableProfiles, useChangeOrgMemberRole, useMyOrganizations,
-  useOrgMembers, useRemoveOrgMember, type OrgMember, type OrgRole,
+  OrgInviteConflict, orgInviteUrl, useAddOrgMember, useAddableProfiles,
+  useChangeOrgMemberRole, useInviteOrgMember, useMyOrganizations, useOrgMembers,
+  useOrgInvitations, useRemoveOrgMember, useRevokeOrgInvitation,
+  type OrgMember, type OrgRole,
 } from '@/shell/orgQueries'
 import { FullPageLoader } from '@/ui/full-page-loader'
 import '@/styles/auth-theme.css'
@@ -19,12 +21,12 @@ export const OrgPeopleHandle = { crumb: 'Organisation people' }
  * so plainly rather than leaving someone to discover that making a person an
  * admin here just handed them every workspace the company owns.
  *
- * ADDING IS BY ACCOUNT, NOT EMAIL. invitations.workspace_id is still NOT NULL,
- * so an organisation invitation cannot be stored at all — the person has to
- * already have a LIGN account, reached through a workspace or project
- * invitation first. The migration that would fix it is parked unapplied in
- * docs/proposed/. The copy below states the limitation instead of offering an
- * email field that would fail.
+ * TWO WAYS IN, because they answer different questions. "Add" takes someone
+ * who already has an account you can see. "Invite" takes an email for someone
+ * who does not, and hands back a link — there is still no email
+ * infrastructure, so the link is copied and sent by hand, exactly as APP 013
+ * settled for workspaces. The UI says that outright rather than implying an
+ * email went out.
  *
  * Every rule here is enforced in the RPC, not on this screen: only an owner
  * may grant or revoke owner, nobody may change their own role, and the last
@@ -76,10 +78,17 @@ export function OrgPeopleScreen() {
   const changeRole = useChangeOrgMemberRole(org_id ?? '')
   const remove = useRemoveOrgMember(org_id ?? '')
 
+  const invitations = useOrgInvitations(org_id)
+  const invite = useInviteOrgMember(org_id ?? '')
+  const revoke = useRevokeOrgInvitation(org_id ?? '')
+
   const [addId, setAddId] = React.useState('')
   const [addRole, setAddRole] = React.useState<OrgRole>('member')
+  const [inviteEmail, setInviteEmail] = React.useState('')
+  const [inviteRole, setInviteRole] = React.useState<OrgRole>('member')
   const [error, setError] = React.useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = React.useState<OrgMember | null>(null)
+  const [lastLink, setLastLink] = React.useState<{ email: string; url: string } | null>(null)
 
   if (orgs.isLoading) return <FullPageLoader />
   // Not an org you belong to, or not one you administer: RLS would return an
@@ -111,6 +120,38 @@ export function OrgPeopleScreen() {
     add.mutate({ userId: addId, role: addRole }, {
       onSuccess: () => { setAddId(''); setAddRole('member'); toast.success('Added to the organisation') },
       onError: fail,
+    })
+  }
+
+  const onInvite = (e: React.FormEvent) => {
+    e.preventDefault()
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("That doesn't look like an email address.")
+      return
+    }
+    setError(null)
+    setLastLink(null)
+    invite.mutate({ email, role: inviteRole }, {
+      onSuccess: (res) => {
+        setInviteEmail('')
+        setInviteRole('member')
+        // Shown once and only once — the server keeps only its hash.
+        setLastLink({ email, url: orgInviteUrl(res.token) })
+        toast.success('Invitation created — copy the link')
+      },
+      onError: (err) => {
+        if (err instanceof OrgInviteConflict) {
+          setError(
+            err.kind === 'member'
+              ? `${err.email ?? email} is already in this organisation.`
+              : `${err.email ?? email} already has a pending invitation. Revoke it to send a new one.`,
+          )
+          return
+        }
+        fail(err)
+      },
     })
   }
 
@@ -218,9 +259,126 @@ export function OrgPeopleScreen() {
         </div>
       </section>
 
+      {/* pending invitations ------------------------------------------- */}
+      {(invitations.data ?? []).length > 0 && (
+        <section style={{ marginTop: 26 }}>
+          <h2 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: C.ink }}>
+            Pending invitations ({(invitations.data ?? []).length})
+          </h2>
+          <div className="home-card">
+            {(invitations.data ?? []).map((inv) => (
+              <div key={inv.id} className="home-row" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 14, color: C.ink }}>{inv.email}</span>
+                    <RoleChip role={inv.role} />
+                  </div>
+                  <p style={{ margin: '3px 0 0', fontSize: 12.5, color: C.helper }}>
+                    Invited · expires {new Date(inv.expiresAt).toLocaleDateString()} · the link
+                    was shown once when it was created
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null)
+                    revoke.mutate(inv.id, {
+                      onSuccess: () => toast.success('Invitation revoked'),
+                      onError: fail,
+                    })
+                  }}
+                  disabled={revoke.isPending}
+                  aria-label={`Revoke invitation for ${inv.email}`}
+                  style={{ height: 34, padding: '0 12px', borderRadius: 8, border: `1px solid ${C.border}`, background: '#fff', color: C.text, fontSize: 13, cursor: 'pointer', flex: '0 0 auto' }}
+                >
+                  Revoke
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* invite by email ------------------------------------------------- */}
       <section style={{ marginTop: 26 }}>
         <h2 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: C.ink }}>
-          Add someone
+          Invite by email
+        </h2>
+        <form onSubmit={onInvite} className="home-card" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+              <label htmlFor="org-invite" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 6 }}>
+                Email
+              </label>
+              <input
+                id="org-invite" type="email" value={inviteEmail}
+                onChange={(e) => { setInviteEmail(e.target.value); if (error) setError(null) }}
+                disabled={invite.isPending}
+                placeholder="name@company.com"
+                style={{ ...field, width: '100%' }}
+              />
+            </div>
+            <div style={{ flex: '0 0 150px' }}>
+              <label htmlFor="org-invite-role" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 6 }}>
+                Role
+              </label>
+              <select
+                id="org-invite-role" value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as OrgRole)}
+                disabled={invite.isPending}
+                style={{ ...field, width: '100%' }}
+              >
+                <option value="member">member</option>
+                <option value="admin">admin</option>
+                {iAmOwner && <option value="owner">owner</option>}
+              </select>
+            </div>
+            <button
+              type="submit" disabled={!inviteEmail.trim() || invite.isPending}
+              style={{ height: 40, padding: '0 14px', borderRadius: 9, border: 'none', display: 'flex', alignItems: 'center', gap: 6, background: inviteEmail.trim() && !invite.isPending ? C.accent : C.accentDisabled, color: '#fff', fontSize: 13.5, fontWeight: 500, cursor: inviteEmail.trim() && !invite.isPending ? 'pointer' : 'not-allowed' }}
+            >
+              <Mail size={14} aria-hidden="true" />
+              {invite.isPending ? 'Creating…' : 'Create invite'}
+            </button>
+          </div>
+          <p style={{ margin: '10px 0 0', fontSize: 12, color: C.helper, lineHeight: 1.5 }}>
+            No email is sent — LIGN has no mail infrastructure yet. You get a link to pass on,
+            shown once. Making someone an <strong>admin</strong> gives them every workspace in
+            this organisation the moment they accept.
+          </p>
+
+          {lastLink && (
+            <div style={{ marginTop: 12, background: '#FDFAF5', border: '1px solid #EBDCBB', borderRadius: 9, padding: '11px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                <p style={{ margin: 0, fontSize: 12.5, color: C.text }}>
+                  Link for <strong>{lastLink.email}</strong> — copy it now, it is not shown again.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { void navigator.clipboard?.writeText(lastLink.url); toast.success('Copied') }}
+                  style={{ height: 30, padding: '0 10px', borderRadius: 7, border: `1px solid ${C.border}`, background: '#fff', color: C.text, fontSize: 12.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, flex: '0 0 auto' }}
+                >
+                  <Copy size={13} aria-hidden="true" />
+                  Copy
+                </button>
+              </div>
+              <code className="auth-mono" style={{ display: 'block', marginTop: 7, fontSize: 11.5, color: C.helper, wordBreak: 'break-all' }}>
+                {lastLink.url}
+              </code>
+              <button
+                type="button" onClick={() => setLastLink(null)} aria-label="Dismiss link"
+                style={{ marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: C.helper, fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <X size={11} aria-hidden="true" /> Dismiss
+              </button>
+            </div>
+          )}
+        </form>
+      </section>
+
+      <section style={{ marginTop: 26 }}>
+        <h2 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: C.ink }}>
+          Add an existing account
         </h2>
         <form onSubmit={onAdd} className="home-card" style={{ padding: 14 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -262,11 +420,9 @@ export function OrgPeopleScreen() {
             </button>
           </div>
           <p style={{ margin: '10px 0 0', fontSize: 12, color: C.helper, lineHeight: 1.5 }}>
-            Only people who already have a LIGN account appear here. Organisation invitations
-            by email are not stored yet, so someone new has to be invited to a workspace or
-            project first — see <span className="auth-mono">docs/proposed/</span>.
-            Making someone an <strong>admin</strong> gives them every workspace in this
-            organisation immediately.
+            For people who already have an account. Someone new goes through
+            <strong> Invite by email</strong> above. Making someone an <strong>admin</strong>
+            gives them every workspace in this organisation immediately.
           </p>
         </form>
       </section>

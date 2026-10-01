@@ -13,6 +13,7 @@ import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
 import { ProjectPeopleScreen } from '@/features/access/ProjectPeopleScreen'
 import { InviteClaimScreen } from '@/auth/InviteClaimScreen'
+import { OrgInviteClaimScreen } from '@/auth/OrgInviteClaimScreen'
 import { DeepLinkResolver } from '@/auth/DeepLinkResolver'
 import { RootLayout } from '@/shell/RootLayout'
 import { WorkspaceLayout } from '@/shell/WorkspaceLayout'
@@ -141,6 +142,7 @@ export const router = createBrowserRouter([
   { path: '/signup', element: <Alias to="/sign-up" /> },
   { path: '/reset-password', element: <ResetPasswordScreen /> },
   { path: '/invite/:token', element: <InviteClaimScreen /> },
+  { path: '/org-invite/:token', element: <OrgInviteClaimScreen /> },
   // The account home lives at /dashboard and "/" is its front door. This sits
   // OUTSIDE Gated deliberately: a signed-out visit to "/" then bounces as
   // /sign-in?returnTo=/dashboard, so the post-login destination is the real

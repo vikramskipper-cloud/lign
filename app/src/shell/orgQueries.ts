@@ -95,12 +95,13 @@ export function useCreateWorkspace() {
 /* --------------------------------------------------------------------------
  * Organisation membership.
  *
- * add_org_member / change_org_member_role / remove_org_member have been
- * deployed since APP 015. They take a profile id rather than an email because
- * invitations.workspace_id is still NOT NULL, so an organisation invitation
- * cannot be represented — the person must already have an account. Flagged in
- * the APP 015 report; the migration that would fix it is parked in
- * docs/proposed/.
+ * Two ways in, because they answer different questions. add_org_member takes a
+ * profile id and is for someone who already has an account you can see.
+ * invite_org_member takes an email and is for someone who does not — it stores
+ * a row in organization_invitations and returns a one-time token.
+ *
+ * APP 016e gave organisation invitations their own table rather than loosening
+ * invitations.workspace_id, which is NOT NULL and frozen.
  * ------------------------------------------------------------------------ */
 
 export interface OrgMember {
@@ -228,5 +229,130 @@ export function useRemoveOrgMember(organizationId: string) {
       if (error) throw error
     },
     onSuccess: () => orgInvalidate(qc, organizationId),
+  })
+}
+
+/* ---------------------------------------------------- org invitations ----- */
+
+export interface OrgInvitation {
+  id: string
+  email: string
+  role: OrgRole
+  status: string
+  expiresAt: string
+  createdAt: string
+}
+
+export function useOrgInvitations(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['org-invitations', organizationId ?? ''],
+    enabled: Boolean(organizationId),
+    staleTime: 30_000,
+    queryFn: async (): Promise<OrgInvitation[]> => {
+      const { data, error } = await supabase
+        .from('organization_invitations')
+        .select('id, email, role, status, expires_at, created_at')
+        .eq('organization_id', organizationId as string)
+        .eq('status', 'sent')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return ((data ?? []) as {
+        id: string; email: string; role: OrgRole
+        status: string; expires_at: string; created_at: string
+      }[]).map((r) => ({
+        id: r.id,
+        email: r.email.toLowerCase(),
+        role: r.role,
+        status: r.status,
+        expiresAt: r.expires_at,
+        createdAt: r.created_at,
+      }))
+    },
+  })
+}
+
+export interface OrgInviteResult {
+  invitationId: string
+  /** Shown ONCE. Only its sha256 reaches the database. */
+  token: string
+  expiresAt: string
+}
+
+/** The link an org invitee opens. Copy-link delivery — no email is sent. */
+export function orgInviteUrl(token: string): string {
+  return `${window.location.origin}/org-invite/${token}`
+}
+
+/** Raised when the address is already a member, or already has a live invite. */
+export class OrgInviteConflict extends Error {
+  constructor(public readonly kind: 'member' | 'pending', public readonly email: string | null) {
+    super(kind)
+    this.name = 'OrgInviteConflict'
+  }
+}
+
+export function useInviteOrgMember(organizationId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { email: string; role: OrgRole }): Promise<OrgInviteResult> => {
+      const { data, error } = await supabase.rpc('invite_org_member', {
+        p_organization_id: organizationId,
+        p_email: input.email.trim(),
+        p_role: input.role,
+        p_expires_in_days: 14,
+      })
+      if (error) {
+        if (error.code === '23505' && error.message?.includes('ORG_MEMBER_EXISTS')) {
+          throw new OrgInviteConflict('member', error.details ?? null)
+        }
+        if (error.code === '23505' && error.message?.includes('ORG_INVITE_PENDING')) {
+          throw new OrgInviteConflict('pending', error.details ?? null)
+        }
+        throw error
+      }
+      const row = Array.isArray(data) ? data[0] : data
+      return {
+        invitationId: row.out_invitation_id as string,
+        token: row.out_token as string,
+        expiresAt: row.out_expires_at as string,
+      }
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['org-invitations', organizationId], refetchType: 'all' }),
+  })
+}
+
+export function useRevokeOrgInvitation(organizationId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { error } = await supabase.rpc('revoke_org_invitation', {
+        p_invitation_id: invitationId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['org-invitations', organizationId], refetchType: 'all' }),
+  })
+}
+
+export function useAcceptOrgInvitation() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (token: string): Promise<string> => {
+      const { data, error } = await supabase.rpc('accept_org_invitation', { p_token: token })
+      if (error) throw error
+      return data as string
+    },
+    onSuccess: async () => {
+      // Accepting changes which workspaces exist for this account, so the
+      // things that decide where they can go must be refetched before any
+      // redirect — not merely marked stale.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['organizations'], refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: qk.workspaces(), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: ['access-check'], refetchType: 'all' }),
+      ])
+    },
   })
 }

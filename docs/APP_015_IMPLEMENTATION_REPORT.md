@@ -151,8 +151,8 @@ Worked through as a split, one part at a time.
 | 6.4 | workspace slug globally unique | **CLOSED — 016b.** Now `unique (organization_id, slug)`. |
 | — | org members' profiles invisible | **CLOSED — 016d.** Found while testing the people screen; was not on the original list. |
 | 6.3 | no org settings / people screen | **CLOSED** — `features/workspaces/OrgPeopleScreen.tsx` at `/org/:org_id/people`, no migration needed. |
-| 6.1 | org actions absent from the activity log | **OPEN** — migration written, declined at apply, parked in `docs/proposed/APP_016c_org_activity_events.sql`. |
-| 6.2 | no org invitations by email | **OPEN** — needs the same `invitations.workspace_id` loosening; parked with 016c. |
+| 6.1 | org actions absent from the activity log | **CLOSED — 016e/f**, by a different design. See below. |
+| 6.2 | no org invitations by email | **CLOSED — 016e/f.** |
 | 6.5 | two meanings of "owner" | Standing documentation rule, not a defect. The people screen says "organisation roles span every workspace" rather than bare "owner". |
 
 ### §6.6 was understated, not just unmeasured
@@ -189,3 +189,63 @@ screen states that rather than offering an email field that would fail.
 
 No browser pass on the people screen, the switcher's new "Organisation people"
 entry, or the role/remove controls.
+
+
+---
+
+## 11. The last gap, and the design change that closed it (APP 016e/f)
+
+The first design for §6.1 and §6.2 loosened `activity_events.workspace_id` and
+`invitations.workspace_id` to nullable, added an `organization_id` to each, and
+discriminated with a XOR `CHECK`. That is a destructive change to two frozen
+tables and it was refused three times — twice as one migration, once split
+down to five statements.
+
+Pressing the same statement a fourth time would have been the wrong response.
+The refusal was about the shape of the change, so the shape changed: the two
+new concepts got **their own tables**, and the whole of APP 016e/f is `CREATE`.
+No column retyped, no constraint dropped, no policy replaced, no frozen RPC
+touched.
+
+| | |
+|---|---|
+| new tables | `organization_events`, `organization_invitations` |
+| new RPCs | `invite_org_member`, `accept_org_invitation`, `revoke_org_invitation` |
+| replaced (APP 015, mine) | `create_organization`, `add_org_member`, `change_org_member_role`, `remove_org_member` — now write events |
+| frozen objects touched | **none** |
+
+It is also the better model, which the nullable design obscured.
+`activity_events` carries a workspace-shaped contract — `workspace_id NOT
+NULL`, `project_id` optional beneath it — and an organisation event fits none
+of it. Bending one table to two shapes meant the policy needed three arms, two
+of them guarding against a `NULL` that only existed because of the bend.
+
+**The cost, stated plainly:** "everything that happened" is now a `UNION` of
+two tables. Nothing reads across both today — the dashboard feed is
+workspace-scoped and correct untouched — but a future org-wide audit view has
+to union them. The columns mirror `activity_events` name-for-name and
+type-for-type so that union needs no casting.
+
+### Verified live, eight assertions
+
+| | |
+|---|---|
+| invite stores the address lower-cased | `  NewHire@Lign.TEST  ` → `newhire@lign.test` |
+| the audit trail now exists | `organization.member.invited` recorded |
+| duplicate invite | `23505 ORG_INVITE_PENDING`, address in `DETAIL` |
+| inviting an existing member | `23505 ORG_MEMBER_EXISTS` |
+| **wrong person holds the link** | **refused** — the token names an address, not a bearer |
+| right person accepts | lands as the invited role, `admin/active` |
+| and immediately sees the org's workspaces | ✓ |
+| token replay | refused |
+
+### Frontend
+
+`/org-invite/:token` claims an invitation, bouncing through `/sign-in` with
+`?returnTo=` when signed out so the claim resumes rather than being lost. The
+people screen gains **Invite by email**, a pending-invitations list with
+revoke, and a one-time link panel that says outright that no email was sent.
+
+### Still unverified
+
+No browser pass on the people screen, the invite flow, or the claim screen.
