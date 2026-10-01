@@ -21,3 +21,4 @@ supabase/.temp/
 
 # Claude Code session scratch
 .claude/scheduled_tasks.lock
+ops/.tmp/

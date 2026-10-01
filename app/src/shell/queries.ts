@@ -7,6 +7,8 @@ export interface WorkspaceRow {
   name: string
   slug: string
   status: string
+  /** APP 015: the owning organisation. */
+  organization_id: string
 }
 
 export interface ProjectRow {
@@ -32,7 +34,7 @@ export function useWorkspaces() {
     queryFn: async (): Promise<WorkspaceRow[]> => {
       const { data, error } = await supabase
         .from('workspaces')
-        .select('id, name, slug, status')
+        .select('id, name, slug, status, organization_id')
         .order('name')
       if (error) throw error
       return data ?? []
@@ -47,7 +49,7 @@ export function useWorkspace(id: string | undefined) {
     queryFn: async (): Promise<WorkspaceRow | null> => {
       const { data, error } = await supabase
         .from('workspaces')
-        .select('id, name, slug, status')
+        .select('id, name, slug, status, organization_id')
         .eq('id', id as string)
         .maybeSingle()
       if (error) throw error

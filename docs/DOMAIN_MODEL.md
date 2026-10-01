@@ -29,8 +29,17 @@ LIGN is an AI-powered design management and collaboration platform. This documen
 - **Mutability**: Profile mutable; identity fields immutable.
 - **Archive/Delete**: Deactivation only. Authored artifacts remain attributed.
 
+#### Organization
+- **Represents**: The tenant boundary (APP 015). Owns workspaces; an account's workspaces all sit under one.
+- **Relationships**: Has many `OrganizationMember`, `Workspace`.
+- **Roles**: `owner`, `admin`, `member`. Owner and admin see and administer **every** workspace the organisation owns — this is the only role in the system that spans workspaces. `member` confers **no** implicit workspace access; it records company affiliation only.
+- **Invariants**: Always has at least one active owner (last-owner protection in the RPCs). Only an owner may grant or revoke the owner role.
+- **Does NOT confer work capabilities.** Org owners/admins hold the project *read* keys and the workspace member-management keys everywhere in the org, but `version.upload`, `version.publish`, `approval.respond`, `release.create` and `review.create` still require a `ProjectParticipant` row. An approval recorded against a non-participant is a signature with no basis, and `approval_responses` is immutable.
+- **Lifecycle**: `active → suspended`. No hard delete; deleting an organisation that still owns workspaces is refused (`on delete restrict`).
+
 #### Workspace
-- **Represents**: The top-level tenant boundary. All projects and design work live inside exactly one workspace.
+- **Represents**: A division inside an organisation — a team, an office, or a client. All projects and design work live inside exactly one workspace. (Before APP 015 this was the top-level tenant boundary; the organisation is now.)
+- **Belongs to**: exactly one `Organization` (`workspaces.organization_id`, NOT NULL).
 - **Owned by**: A founding `User` (owner), then by the set of `WorkspaceMember`s with owner role.
 - **Relationships**: Has many `WorkspaceMember`, `Project`, `Stakeholder`, `Invitation`, `ActivityEvent`.
 - **Lifecycle**: `active → suspended → archived`. No hard delete.
@@ -92,8 +101,10 @@ LIGN is an AI-powered design management and collaboration platform. This documen
 
 Authorization in LIGN is capability-based. Roles are named bundles of capabilities; capabilities are the enforceable verbs. **Membership class (WorkspaceMember vs Stakeholder) never gates any action.** An authorized Stakeholder holding a project role that includes a capability may perform that capability exactly as a WorkspaceMember with the same capability would.
 
-- **Workspace roles (v0 tiers)**: `owner`, `admin`, `member`, `guest`.
+- **Organization roles**: `owner`, `admin`, `member`. The first two span every workspace in the org; `member` grants nothing implicitly. See the Organization entity above.
+- **Workspace roles**: `owner`, `admin`, `member`. There is **no `guest` role** — the deployed CHECK constraint allows only these three, and nothing has ever written a fourth. (This line previously listed `guest`; corrected 2026-10-01 against the live constraint.)
   - `admin` implies **administrative authorization** over every project in the workspace (view/manage) but does not implicitly add them as a `ProjectParticipant`. Admin access and project participation are separate.
+  - `owner` differs from `admin` only in control of the owner role itself: granting it, revoking it, removing another owner, and not being removable as the last one. For visibility and capability they are identical.
 - **Project roles (v0 tiers)**: `lead`, `contributor`, `reviewer`, `approver`, `observer`. These are available to both WorkspaceMembers and Stakeholders participating in the project.
 - **Capabilities (illustrative, non-exhaustive)**: `version.upload`, `version.publish`, `asset.set_current`, `review.create`, `approval.request`, `approval.respond`, `decision.create`, `release.create`, `comment.write`, `annotation.write`.
 - **Default capability grants** attach to *project roles*, not to membership class:

@@ -29,14 +29,28 @@ export interface AccessState {
   hasAccess: boolean
   visibleProjects: number
   isAdminSomewhere: boolean
+  /** Workspaces this user can actually open, RLS-filtered. */
+  visibleWorkspaces: number
+  /** Orgs where this user is owner or admin, and so may create a workspace. */
+  adminOrgIds: string[]
+  /** Any active org membership at all, including plain `member`. */
+  orgMemberships: number
   /**
-   * First run: nowhere to go AND nobody to wait for, so the answer is to
-   * create a workspace rather than to sit on /no-access.
+   * Send them to /welcome.
    *
-   * Requires BOTH counts to be zero. A stakeholder has no workspace_members
-   * row at all — p_stake was the fixture for exactly this — so "no membership"
-   * alone would send an external client to the first-run screen and offer them
-   * a workspace of their own. Their visible projects are what place them.
+   * The honest condition is "can open no workspace AND can do something about
+   * it". Two cases qualify: a brand-new account with no organisation (creates
+   * both), and an org owner/admin whose org has no workspace yet (creates one
+   * in it).
+   *
+   * An org *member* with no workspace is deliberately excluded — they cannot
+   * create anything, so /welcome would be a form that always fails. They get
+   * /no-access, which is the truth: someone has to add them.
+   *
+   * Counting workspaces rather than memberships also keeps stakeholders out of
+   * here. An external client has no workspace_members row at all — p_stake was
+   * the fixture for exactly that — but RLS does show them the workspace their
+   * project lives in, so they land in the app like everyone else.
    */
   needsWorkspace: boolean
 }
@@ -50,7 +64,7 @@ export function useAccessCheck() {
     enabled: Boolean(uid),
     staleTime: 30_000,
     queryFn: async (): Promise<AccessState> => {
-      const [projects, roles] = await Promise.all([
+      const [projects, roles, workspaces, orgs] = await Promise.all([
         // RLS-filtered: exactly the projects this user could open.
         supabase.from('projects').select('id').limit(1),
         // MUST be scoped to this user. workspace_members RLS exposes every
@@ -61,13 +75,24 @@ export function useAccessCheck() {
           .select('role')
           .eq('user_id', uid as string)
           .eq('status', 'active'),
+        // RLS-filtered: includes workspaces reached as an org admin or as a
+        // stakeholder, not just ones with a membership row.
+        supabase.from('workspaces').select('id'),
+        // Scoped to this user for the same reason the workspace read is:
+        // organization_members RLS exposes every member of your org.
+        supabase
+          .from('organization_members')
+          .select('organization_id, role')
+          .eq('user_id', uid as string)
+          .eq('status', 'active'),
       ])
 
       // A failed read is not evidence of "no access". Let the user through
       // rather than locking out a valid account on a transient error.
-      if (projects.error || roles.error) {
+      if (projects.error || roles.error || workspaces.error || orgs.error) {
         return {
           hasAccess: true, visibleProjects: -1, isAdminSomewhere: false,
+          visibleWorkspaces: -1, adminOrgIds: [], orgMemberships: 0,
           // Never onboard on a failed read: that would offer a workspace to
           // someone who already has one and just hit a flaky network.
           needsWorkspace: false,
@@ -78,12 +103,22 @@ export function useAccessCheck() {
       const isAdminSomewhere = (roles.data ?? []).some(
         (r) => r.role === 'owner' || r.role === 'admin',
       )
-      const memberships = roles.data?.length ?? 0
+      const visibleWorkspaces = workspaces.data?.length ?? 0
+      const orgRows = orgs.data ?? []
+      const adminOrgIds = orgRows
+        .filter((o) => o.role === 'owner' || o.role === 'admin')
+        .map((o) => o.organization_id as string)
+
       return {
-        hasAccess: visibleProjects > 0 || isAdminSomewhere,
+        hasAccess: visibleProjects > 0 || isAdminSomewhere || visibleWorkspaces > 0,
         visibleProjects,
         isAdminSomewhere,
-        needsWorkspace: memberships === 0 && visibleProjects === 0,
+        visibleWorkspaces,
+        adminOrgIds,
+        orgMemberships: orgRows.length,
+        needsWorkspace:
+          visibleWorkspaces === 0 &&
+          (orgRows.length === 0 || adminOrgIds.length > 0),
       }
     },
   })

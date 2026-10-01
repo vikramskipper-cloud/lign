@@ -8,21 +8,24 @@ import { useAccessCheck } from '@/auth/useAccessCheck'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
 import { FullPageLoader } from '@/ui/full-page-loader'
 import { persistLastWorkspace } from '@/shell/WorkspaceSwitcher'
+import { useMyOrganizations } from '@/shell/orgQueries'
 import '@/styles/auth-theme.css'
 
 /**
- * First run: an account that belongs to no workspace and can open no project.
+ * First run: an account that can open no workspace but can do something about
+ * it. Two shapes arrive here, and they need different copy:
  *
- * Until now that account landed on /no-access — correct for someone waiting on
- * an invitation, wrong for the first person through the door, who has nobody
- * to wait for. create_workspace() has existed since the first migration and
- * makes its caller the owner; nothing in the app ever called it, so the only
- * way to get a first workspace was to insert one by hand.
+ *   1. No organisation at all. One name creates the organisation AND its first
+ *      workspace — asking someone to distinguish the two before they have seen
+ *      either is how first runs get abandoned.
+ *   2. An org owner/admin whose organisation has no workspace yet. The
+ *      organisation already has a name; this only names a workspace inside it.
  *
- * /no-access still exists and is still right for the other case: you hold a
- * membership but nothing has been shared with you yet. The two are separated
- * by useAccessCheck().needsWorkspace — see the note there on why a stakeholder
- * with zero memberships must NOT be sent here.
+ * /no-access still exists and is still right for the third shape: you hold a
+ * membership but nothing has been shared with you yet, and no amount of form
+ * filling will fix that. useAccessCheck().needsWorkspace draws the line, and
+ * deliberately excludes a plain org `member` — they cannot create a workspace,
+ * so this screen would be a form that always fails.
  */
 
 /** Same shape create_project_full derives for projects: lowercase, hyphenated. */
@@ -38,6 +41,7 @@ function slugify(name: string): string {
 export function CreateWorkspaceScreen() {
   const { session, user, isLoading, signOut } = useSession()
   const access = useAccessCheck()
+  const orgs = useMyOrganizations()
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -52,11 +56,17 @@ export function CreateWorkspaceScreen() {
   React.useEffect(() => { nameRef.current?.focus() }, [])
   React.useEffect(() => { if (error) errorRef.current?.focus() }, [error])
 
+  // The organisation to create inside, if there already is one. Null means
+  // create_workspace makes the organisation too — its first-run branch.
+  const targetOrgId = access.data?.adminOrgIds?.[0] ?? null
+  const targetOrg = orgs.data?.find((o) => o.id === targetOrgId) ?? null
+
   const create = useMutation({
     mutationFn: async (workspaceName: string): Promise<string> => {
       const { data, error: rpcError } = await supabase.rpc('create_workspace', {
         p_name: workspaceName,
         p_slug: slugify(workspaceName) || 'workspace',
+        p_organization_id: targetOrgId,
       })
       if (rpcError) throw rpcError
       return data as string
@@ -106,10 +116,12 @@ export function CreateWorkspaceScreen() {
       onError: (err) => {
         inFlight.current = false
         const code = (err as { code?: string } | null)?.code
+        // The server suffixes colliding slugs rather than failing, so 23505
+        // here means something other than the name clashing.
         setError(
-          code === '23505'
-            ? 'A workspace with that name already exists. Try another.'
-            : "Couldn't create the workspace. Check your connection and try again.",
+          code === '42501'
+            ? "You don't have permission to create a workspace here."
+            : "Couldn't create it. Check your connection and try again.",
         )
       },
     })
@@ -125,14 +137,19 @@ export function CreateWorkspaceScreen() {
         </div>
 
         <p className="auth-mono" style={{ margin: 0, fontSize: 11.5, letterSpacing: '0.14em', color: '#8A6420' }}>
-          FIRST RUN
+          {targetOrg ? targetOrg.name.toUpperCase() : 'FIRST RUN'}
         </p>
         <h1 className="auth-display" style={{ fontSize: 'clamp(30px, 5vw, 36px)', lineHeight: 1.1, margin: '14px 0 0' }}>
-          Name your workspace
+          {targetOrg ? 'Add a workspace' : 'Name your organisation'}
         </h1>
         <p style={{ margin: '12px 0 0', fontSize: 15, lineHeight: 1.6, color: 'var(--muted)' }}>
-          A workspace holds your projects, your team and your clients. Usually your company
-          name. You can rename it later in Settings.
+          {targetOrg ? (
+            <>A workspace holds projects, the people working on them, and their clients.
+            Teams, offices or clients usually get one each. You can add more later.</>
+          ) : (
+            <>Usually your company name. We&apos;ll create your organisation and its first
+            workspace under it — you can add more workspaces and rename either later.</>
+          )}
         </p>
 
         {error && (
@@ -155,7 +172,7 @@ export function CreateWorkspaceScreen() {
             htmlFor="ws-name"
             style={{ display: 'block', fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', marginBottom: 7 }}
           >
-            Workspace name
+            {targetOrg ? 'Workspace name' : 'Organisation name'}
           </label>
           <input
             ref={nameRef}
@@ -164,13 +181,15 @@ export function CreateWorkspaceScreen() {
             value={name}
             disabled={busy}
             maxLength={120}
-            placeholder="e.g. Atkinson Studio"
+            placeholder={targetOrg ? 'e.g. Northgate Team' : 'e.g. Atkinson Studio'}
             aria-invalid={error ? 'true' : undefined}
             aria-describedby="ws-name-help"
             onChange={(e) => { setName(e.target.value); if (error) setError(null) }}
           />
           <p id="ws-name-help" style={{ margin: '7px 0 0', fontSize: 12.5, color: 'var(--faint)' }}>
-            You&apos;ll be its owner. {trimmed && <>URL: <span className="auth-mono">/{slugify(trimmed) || 'workspace'}</span></>}
+            {targetOrg
+              ? <>Created inside {targetOrg.name}. You&apos;ll be its owner.</>
+              : <>You&apos;ll be the owner of both.</>}
           </p>
 
           <button
@@ -180,7 +199,7 @@ export function CreateWorkspaceScreen() {
             disabled={!trimmed || busy}
             aria-busy={busy || undefined}
           >
-            {busy ? 'Creating…' : 'Create workspace'}
+            {busy ? 'Creating…' : targetOrg ? 'Create workspace' : 'Create organisation'}
           </button>
         </form>
 

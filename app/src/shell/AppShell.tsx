@@ -1,8 +1,9 @@
 import * as React from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import {
-  ChevronDown, ClipboardCheck, ClipboardList, FolderOpen, Home, Inbox, Layers,
-  LayoutDashboard, Menu, Rocket, Search, Settings2, Stamp, UserRound, Users,
+  Check, ChevronDown, ClipboardCheck, ClipboardList, FolderOpen, Home, Inbox,
+  Layers, LayoutDashboard, Menu, Plus, Rocket, Search, Settings2, Stamp,
+  UserRound, Users,
 } from 'lucide-react'
 import { useWorkspaces, useProject } from '@/shell/queries'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
@@ -17,6 +18,8 @@ import { usePinnedProjectIds } from '@/features/home/pins'
 import { useMyParticipations } from '@/features/home/queries'
 import { PINNED_CAP } from '@/features/home/copy'
 import { Wordmark } from '@/auth/AuthShell'
+import { useAdminOrganizations, useMyOrganizations } from '@/shell/orgQueries'
+import { NewWorkspaceDialog } from '@/features/workspaces/NewWorkspaceDialog'
 import type { CapabilityKey } from '@/types/capabilities'
 import '@/styles/auth-theme.css'
 
@@ -62,7 +65,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // not a second round of lign_has_capability calls.
   const projectCaps = useProjectCapabilities(proj_id ?? '', workspaceId ?? '')
 
+  const orgs = useMyOrganizations()
+  const adminOrgs = useAdminOrganizations()
+
   const [wsMenuOpen, setWsMenuOpen] = React.useState(false)
+  const [newWsOpen, setNewWsOpen] = React.useState(false)
   const [navOpen, setNavOpen] = React.useState(false)
 
   // Any navigation closes the mobile drawer. Doing it here rather than on each
@@ -72,9 +79,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const all = workspaces.data ?? []
   const current = all.find((w) => w.id === workspaceId)
-  // Workspace is the tenant boundary, not a navigation level: with one
-  // workspace it is identity, so it renders as a label with no affordance.
-  const canSwitch = all.length > 1
+  // The workspace is no longer the tenant boundary — the organisation is — so
+  // this is a real navigation level now. The menu opens whenever there is
+  // something in it: more than one workspace to pick, or the right to add one.
+  // Gating on all.length > 1 alone hid "New workspace" from everyone with
+  // exactly one, which is everyone on their first day.
+  const canAddWorkspace = (adminOrgs.data ?? []).length > 0
+  const canSwitch = all.length > 1 || canAddWorkspace
+  // The org that owns the workspace currently in scope, so the menu header
+  // names the tenant you are actually inside rather than whichever org
+  // happened to sort first.
+  const orgName =
+    orgs.data?.find((o) => o.id === current?.organization_id)?.name
+    ?? orgs.data?.[0]?.name
+    ?? null
 
   const canSeePeople = Boolean(access.data?.['member.invite'] || access.data?.['workspace.manage'])
   const canSeeSettings = Boolean(access.data?.['workspace.manage'])
@@ -248,6 +266,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               role="menu"
               style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, zIndex: 40, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }}
             >
+              {orgName && (
+                <p
+                  className="auth-mono"
+                  style={{ margin: '4px 10px 6px', fontSize: 10, letterSpacing: '0.12em', color: 'var(--faint)' }}
+                >
+                  {orgName.toUpperCase()}
+                </p>
+              )}
               {all.map((w) => (
                 <button
                   key={w.id}
@@ -265,11 +291,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : `/workspace/${w.id}/projects`,
                     )
                   }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', background: w.id === workspaceId ? 'var(--panel)' : 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 10px', background: w.id === workspaceId ? 'var(--panel)' : 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
                 >
-                  {w.name}
+                  <span style={{ flex: 1 }}>{w.name}</span>
+                  {w.id === workspaceId && <Check size={13} aria-hidden="true" style={{ color: 'var(--muted)' }} />}
                 </button>
               ))}
+              {canAddWorkspace && (
+                <>
+                  <div aria-hidden="true" style={{ height: 1, background: 'var(--panel-border)', margin: '5px 8px' }} />
+                  <button
+                    role="menuitem"
+                    onClick={() => { setWsMenuOpen(false); setNewWsOpen(true) }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 10px', background: 'none', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
+                  >
+                    <Plus size={14} aria-hidden="true" />
+                    New workspace
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -310,6 +350,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
         <main style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{children}</main>
       </div>
+
+      <NewWorkspaceDialog open={newWsOpen} onOpenChange={setNewWsOpen} />
     </div>
   )
 }
