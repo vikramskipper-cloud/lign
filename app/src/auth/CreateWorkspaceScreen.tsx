@@ -15,17 +15,21 @@ import '@/styles/auth-theme.css'
  * First run: an account that can open no workspace but can do something about
  * it. Two shapes arrive here, and they need different copy:
  *
- *   1. No organisation at all. One name creates the organisation AND its first
- *      workspace — asking someone to distinguish the two before they have seen
- *      either is how first runs get abandoned.
+ *   1. No organisation exists ANYWHERE yet — the very first account. One name
+ *      creates the organisation and its first workspace; asking someone to
+ *      distinguish the two before they have seen either is how first runs get
+ *      abandoned.
  *   2. An org owner/admin whose organisation has no workspace yet. The
- *      organisation already has a name; this only names a workspace inside it.
+ *      organisation already has a name, so this only names a workspace in it.
  *
- * /no-access still exists and is still right for the third shape: you hold a
- * membership but nothing has been shared with you yet, and no amount of form
- * filling will fix that. useAccessCheck().needsWorkspace draws the line, and
- * deliberately excludes a plain org `member` — they cannot create a workspace,
- * so this screen would be a form that always fails.
+ * LIGN holds exactly ONE organisation (APP 017), which is why case 1 is keyed
+ * on lign_organization_exists() and not on "I belong to none". Those are the
+ * same thing to an orgless account — RLS shows it zero organisations either
+ * way — and treating them as the same is what let a stranger sign in and
+ * silently create a second company alongside the first.
+ *
+ * /no-access handles everyone else with nothing to open: you are waiting on an
+ * invitation, and no amount of form filling will fix that.
  */
 
 /** Same shape create_project_full derives for projects: lowercase, hyphenated. */
@@ -57,7 +61,8 @@ export function CreateWorkspaceScreen() {
   React.useEffect(() => { if (error) errorRef.current?.focus() }, [error])
 
   // The organisation to create inside, if there already is one. Null means
-  // create_workspace makes the organisation too — its first-run branch.
+  // create_workspace makes the organisation too — its first-run branch, which
+  // the server now permits only when no organisation exists at all.
   const targetOrgId = access.data?.adminOrgIds?.[0] ?? null
   const targetOrg = orgs.data?.find((o) => o.id === targetOrgId) ?? null
 
@@ -118,10 +123,13 @@ export function CreateWorkspaceScreen() {
         const code = (err as { code?: string } | null)?.code
         // The server suffixes colliding slugs rather than failing, so 23505
         // here means something other than the name clashing.
+        const message = (err as { message?: string } | null)?.message ?? ''
         setError(
-          code === '42501'
-            ? "You don't have permission to create a workspace here."
-            : "Couldn't create it. Check your connection and try again.",
+          message.includes('ORG_ALREADY_EXISTS')
+            ? 'This LIGN is already set up. Ask an administrator to invite you.'
+            : code === '42501'
+              ? "You don't have permission to create a workspace here."
+              : "Couldn't create it. Check your connection and try again.",
         )
       },
     })

@@ -30,7 +30,8 @@ LIGN is an AI-powered design management and collaboration platform. This documen
 - **Archive/Delete**: Deactivation only. Authored artifacts remain attributed.
 
 #### Organization
-- **Represents**: The tenant boundary (APP 015). Owns workspaces; an account's workspaces all sit under one.
+- **Represents**: The company (APP 015). Owns workspaces; every workspace sits under it.
+- **EXACTLY ONE EXISTS** (APP 017). The organisation is the company, not a tenant slot: `create_organization` refuses when one already exists, so the first account creates it and everyone else is invited in. `lign_organization_exists()` is how a client tells "not set up yet" from "you need an invitation" — RLS shows an orgless account zero organisations either way, and conflating the two is what previously let a stranger sign in and silently create a second company alongside the first. Relaxing the rule is deleting one IF block; recovering from two organisations that have both accumulated work is not.
 - **Relationships**: Has many `OrganizationMember`, `Workspace`.
 - **Roles**: `owner`, `admin`, `member`. Owner and admin see and administer **every** workspace the organisation owns — this is the only role in the system that spans workspaces. `member` confers **no** implicit workspace access; it records company affiliation only.
 - **Invariants**: Always has at least one active owner (last-owner protection in the RPCs). Only an owner may grant or revoke the owner role.

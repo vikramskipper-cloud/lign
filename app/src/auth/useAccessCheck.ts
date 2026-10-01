@@ -36,6 +36,17 @@ export interface AccessState {
   /** Any active org membership at all, including plain `member`. */
   orgMemberships: number
   /**
+   * Whether this LIGN holds an organisation yet, answered by a SECURITY
+   * DEFINER probe rather than by counting what RLS shows.
+   *
+   * The two are not the same and the difference is the whole point: an account
+   * that belongs to no organisation sees ZERO organisations either way, so a
+   * client-side count cannot tell "nothing here yet, name it" from "already
+   * set up, you need an invitation". It used to guess the first, which sent a
+   * stranger into a form that created a second organisation.
+   */
+  organizationExists: boolean
+  /**
    * Send them to /welcome.
    *
    * The honest condition is "can open no workspace AND can do something about
@@ -64,7 +75,7 @@ export function useAccessCheck() {
     enabled: Boolean(uid),
     staleTime: 30_000,
     queryFn: async (): Promise<AccessState> => {
-      const [projects, roles, workspaces, orgs] = await Promise.all([
+      const [projects, roles, workspaces, orgs, orgExists] = await Promise.all([
         // RLS-filtered: exactly the projects this user could open.
         supabase.from('projects').select('id').limit(1),
         // MUST be scoped to this user. workspace_members RLS exposes every
@@ -85,6 +96,7 @@ export function useAccessCheck() {
           .select('organization_id, role')
           .eq('user_id', uid as string)
           .eq('status', 'active'),
+        supabase.rpc('lign_organization_exists'),
       ])
 
       // A failed read is not evidence of "no access". Let the user through
@@ -93,6 +105,9 @@ export function useAccessCheck() {
         return {
           hasAccess: true, visibleProjects: -1, isAdminSomewhere: false,
           visibleWorkspaces: -1, adminOrgIds: [], orgMemberships: 0,
+          // Assume set up on a failed probe. Guessing "not set up" is the
+          // guess that creates a second organisation.
+          organizationExists: true,
           // Never onboard on a failed read: that would offer a workspace to
           // someone who already has one and just hit a flaky network.
           needsWorkspace: false,
@@ -109,6 +124,9 @@ export function useAccessCheck() {
         .filter((o) => o.role === 'owner' || o.role === 'admin')
         .map((o) => o.organization_id as string)
 
+      // A failed probe is treated as "set up", for the same reason as above.
+      const organizationExists = orgExists.error ? true : Boolean(orgExists.data)
+
       return {
         hasAccess: visibleProjects > 0 || isAdminSomewhere || visibleWorkspaces > 0,
         visibleProjects,
@@ -116,9 +134,15 @@ export function useAccessCheck() {
         visibleWorkspaces,
         adminOrgIds,
         orgMemberships: orgRows.length,
+        organizationExists,
+        // Two cases can act, and only these two:
+        //   * an org admin whose organisation has no workspace yet;
+        //   * the very first account, when no organisation exists at all.
+        // Everyone else with nothing to open is waiting on an invitation, and
+        // belongs on /no-access rather than in front of a form that refuses.
         needsWorkspace:
           visibleWorkspaces === 0 &&
-          (orgRows.length === 0 || adminOrgIds.length > 0),
+          (adminOrgIds.length > 0 || (orgRows.length === 0 && !organizationExists)),
       }
     },
   })
