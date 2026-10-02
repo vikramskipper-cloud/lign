@@ -1,24 +1,20 @@
-# Dependencies
-node_modules/
 
 # Build output
-dist/
-dist-ssr/
-*.tsbuildinfo
-
-# Environment / secrets
-.env
-.env.local
-.env.*.local
-
-# Supabase CLI scratch
-supabase/.temp/
-
-# Editor / OS
-.DS_Store
-*.log
-.vite/
-
 # Claude Code session scratch
+# Dependencies
+# Editor / OS
+# Environment / secrets
+# Supabase CLI scratch
+*.log
+*.tsbuildinfo
+.DS_Store
 .claude/scheduled_tasks.lock
+.env
+.env.*.local
+.env.local
+.vite/
+dist-ssr/
+dist/
+node_modules/
 ops/.tmp/
+supabase/.temp/
