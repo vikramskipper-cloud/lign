@@ -147,6 +147,161 @@ Rationale:
 
 Tradeoff accepted for MVP: an asset that naturally spans two collections (e.g. a "Kitchen Lighting Fixture" that fits both Interiors and Lighting) must pick one primary bucket. This is acceptable for early users and cheap to lift later if the pattern proves common.
 
+### 1.2a PROPOSAL — Nested Collections and Collection-Scoped Requirements
+
+**Status: PROPOSAL, 2026-10-01. Nothing applied.** Approval needed here before any
+migration, per the rule in §0. Two destructive statements are involved; they are
+called out in full below.
+
+#### Why this exists
+
+The ask arrived as "can we nest sub-spaces — Living room, then front wall" and I first
+answered it as a filing question, recommending the flat model be tried first. That was
+the wrong frame. The case that decides it is **requirements**, and the deployed
+`list_applicable_requirements` settles it:
+
+```
+effective_root = coalesce(parent_requirement_id, id)
+
+project-wide = a requirement root linked to NO assets
+asset-scoped = a requirement root linked to THIS asset
+applicable   = project-wide ∪ asset-scoped
+```
+
+There is no middle scope. A requirement that governs one room has nowhere correct to
+live: project-wide also binds the kitchen, and asset-scoped means hand-linking a row per
+element.
+
+**The hand-linked version fails open.** Add a curtain to the Living room next week and it
+inherits nothing — the requirement silently stops covering new work, and nothing reports
+it. For a product whose purpose is proving what was approved against what, a compliance
+rule that quietly narrows is worse than one that errors.
+
+Note also that requirements **already nest** (`parent_requirement_id`), so today there is
+a tree of requirements, a flat set of spaces, and only a row-per-asset join between them.
+The asymmetry is the defect.
+
+#### Two increments, in this order
+
+1. **Collection-scoped requirements** — a requirement may be scoped to a space instead of
+   to a list of assets. This is where the value is, and it works even with flat
+   collections.
+2. **Nested collections** — makes that scope cascade: Floor 2 → Living room → curtain.
+
+Scope is the primitive; nesting is the multiplier. Nesting alone is filing and touches
+requirements not at all, so it would not be shipped on its own. Both are proposed
+together only so the recursive applicability walk is written once rather than built flat
+and rewritten.
+
+#### Collection, revised
+
+- **Represents**: unchanged — a neutral grouping of `DesignAsset`s inside one `Project`.
+- **New**: `parent_collection_id`, nullable, self-referencing. A collection may contain
+  collections.
+- **Invariants**: parent must be in the same project (enforced by composite FK against
+  the existing `collections_id_project_workspace_key`); no cycles; **maximum depth 4**.
+- **Naming**: unique per *parent*, not per project — so two rooms may each hold a
+  "Wardrobe".
+
+**Elements do not nest.** `DesignAsset` stays flat inside a collection. This is the line
+that keeps the product coherent: an asset is the unit that carries versions, so it is the
+unit that gets approved. If elements contained elements, "approved" would stop having one
+answer — did they approve the wall, or the wall's paint spec? The rule for users:
+
+> **If it is approved on its own, it is an element. If it only organises things, it is a
+> space.** Sub-parts that are not separately approved are *files within one version*,
+> which already works.
+
+Depth 4 is a judgement, not a limit of the model: it covers Building → Floor → Room →
+Zone, and it keeps the ancestor walk bounded so applicability stays cheap on the RLS hot
+path. Raising it later is a constant.
+
+#### RequirementCollection (new)
+
+- **Represents**: a requirement scoped to a space. `(requirement_id, collection_id)`.
+- **Why a join table rather than inheritance by position**: scope becomes an explicit,
+  dated, attributable fact — "this requirement was scoped to the Living room, by this
+  person, on this date" — which is exactly what the audit trail exists to hold. Silent
+  inheritance would leave nothing to show a client two years later.
+
+#### Applicability, revised
+
+```
+applicable(asset, version) =
+      project-wide                                    (root linked to no asset AND no collection)
+    ∪ asset-scoped        (root linked to THIS asset)
+    ∪ collection-scoped   (root linked to a collection that is THIS asset's
+                           collection, or any ANCESTOR of it)
+```
+
+The third clause is the whole change. "Ancestor" is a bounded recursive walk up
+`parent_collection_id`.
+
+#### Blast radius — larger than it looks
+
+Applicability is load-bearing in **seven** places, and one of them is not a read:
+
+| object | kind | why it matters |
+|---|---|---|
+| `list_applicable_requirements` | read | what the UI shows against a version |
+| **`enforce_assessment_applicability`** | **BEFORE trigger on `version_requirement_assessments`** | **decides what can be RECORDED, not just listed** |
+| `get_release_readiness_for_version` | read | whether a version is fit to release |
+| `set_requirement_applicability` | write | gains a collection argument |
+| `get_requirement`, `get_requirement_trace`, `list_requirements_dashboard` | read | scope display and counts |
+
+The trigger is the reason this is not a cosmetic change: widening applicability widens
+what assessments the database will accept. Narrowing it would orphan existing
+assessments. Either direction needs proving, not assuming.
+
+Separately, **`collections` has no RPC layer at all** — it is table-only CRUD under RLS
+today. Making it a tree with invariants (same project, no cycles, depth cap) means it
+needs one, or the invariants live only in triggers.
+
+#### A defect found while reading this
+
+`coalesce(parent_requirement_id, id)` resolves a grandchild requirement to its *parent*,
+not its root. So the requirement tree is **effectively depth-2 only**, and anything
+deeper already mis-resolves its scope. That is a live bug independent of this proposal,
+in the same function. It should be fixed in the same pass or explicitly declared a
+two-level tree.
+
+#### Verification this requires
+
+1. **Applicability fingerprint** — every (asset, version, requirement) applicability
+   answer captured before and after, and diffed. The only permitted difference is
+   requirements becoming applicable through a collection scope. Nothing may become
+   *inapplicable*.
+2. **Trigger behaviour** — an assessment that was accepted before is still accepted; one
+   that was rejected is rejected for the same reason.
+3. **Tree invariants** — cross-project parent refused, cycle refused, depth 5 refused.
+4. **Cost** — the ancestor walk measured on the RLS path, per the APP 016a lesson that a
+   nested `SECURITY DEFINER` call cost 14× what its comment claimed.
+
+**There is no project data yet.** That makes the fingerprint cheap to establish and the
+change cheap to make. It is the same argument that made the organisation layer easy last
+week and would not be true in six months.
+
+#### Destructive statements requiring explicit approval
+
+1. `drop index collections_project_name_active_key` — replaced by a unique index on
+   `(project_id, parent_collection_id, name) where status = 'active'`. Without this, two
+   rooms cannot each hold a "Wardrobe", and the feature is not worth having.
+2. `create or replace` of `enforce_assessment_applicability` — not a drop, but it changes
+   a trigger that gates writes, which deserves the same scrutiny.
+
+Everything else is additive: one nullable column, one join table, indexes, and function
+replacements.
+
+#### What is NOT proposed
+
+- Nested `DesignAsset`s — see the line above.
+- Many-to-many asset↔collection. The MVP decision below stands; a nested tree makes a
+  single parent more defensible, not less.
+- Requirement scope to *disciplines*. Discipline is already an independent axis and
+  mixing the two scopes in one release would make the applicability diff unreadable.
+
+---
+
 #### DesignAsset
 - **Represents**: The persistent identity of a piece of design work ("the Kitchen Layout", "the Chair Frame", "the Login Screen"). Independent of any specific file or version.
 - **Owned by**: `Project`. Optionally organized under one `Collection`.
