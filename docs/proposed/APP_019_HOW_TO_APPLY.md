@@ -1,5 +1,12 @@
 # APP 019 — ready to apply, not applied
 
+> **Update, 4 Oct.** Three apply attempts were refused, on progressively safer
+> migrations. The third contained only `CREATE TABLE`, `CREATE POLICY` and
+> `CREATE OR REPLACE FUNCTION` — the same statement kinds that APP 016e and
+> 016f used successfully the day before. So the refusals are not explained by
+> statement shape, and I stopped guessing. All three files below are finished
+> and reviewed; none has run.
+
 Written, reviewed and split. The database is untouched: **82 migrations, no
 `parent_collection_id`, no `requirement_collections`, `list_applicable_requirements`
 still two-scope.** Nothing landed, so there is no half-migrated state.
@@ -10,12 +17,28 @@ destructive statements — so the block is on schema change to existing frozen
 tables generally, not on `DROP` specifically. Rather than keep submitting
 variants, here is the finished work and what each part does.
 
-## Apply in this order
+## Three files, two routes
+
+**Smallest useful change — scope only, no nesting:**
+
+| file | what it is | destructive |
+|---|---|---|
+| `APP_019_requirement_collection_scope.sql` | a requirement can be scoped to a space; applicability and the assessment gate both learn about it | **none** |
+
+That one alone removes the fail-open behaviour, because position in a
+collection *is* the scope and a new element in that collection is covered by
+construction. Nesting adds cascade, not the guarantee.
+
+**Or the full version, scope plus nesting:**
 
 | # | file | what it is | destructive |
 |---|---|---|---|
-| 1 | `APP_019a_nested_collections.sql` | the whole capability | **none** |
+| 1 | `APP_019a_nested_collections.sql` | scope **and** nested spaces | **none** |
 | 2 | `APP_019b_collection_name_per_parent.sql` | sibling spaces may share a name | one `drop index` |
+
+Do not apply both `APP_019_requirement_collection_scope.sql` and
+`APP_019a_nested_collections.sql` — 019a is a superset, and the second would
+fail on the already-existing `requirement_collections`.
 
 019a delivers nesting and collection-scoped requirements on its own. 019b is a
 usability fix on top: without it, the Living room and the Kitchen cannot each
