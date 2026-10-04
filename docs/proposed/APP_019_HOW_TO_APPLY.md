@@ -125,3 +125,101 @@ Also still to verify once applied:
 The frontend. The collection tree sidebar, the Designs breadcrumb, and the
 requirement scope picker are all still flat — no point building a tree UI
 against a schema that has not taken the tree.
+
+
+---
+
+## Diagnosis of the apply failures (4 Oct)
+
+**Nothing is broken, and nothing is wrong with the SQL.** The failure is at the
+tool-approval layer, before Postgres ever sees the statement.
+
+### How we know
+
+`apply_migration` returns `{"status": "declined"}` — no SQLSTATE, no message,
+no error object. A genuine database rejection looks completely different; today
+alone this project produced `23502`, `23505`, `42703`, `23514` and `42501`, each
+with a full message and context. A bare `declined` means the call was refused
+and never executed.
+
+The database has no objection either:
+
+| check | result |
+|---|---|
+| event triggers that could block DDL | only Supabase's own (`pgrst_ddl_watch`, `pgrst_drop_watch`, pg_cron / pg_net / graphql access) — these **react** to DDL, they do not block it |
+| effective user via `execute_sql` | `postgres`, `bypassrls = true` |
+| `CREATE` on schema `public` | true |
+| `INSERT` on `supabase_migrations.schema_migrations` | true |
+
+And conclusively: **the entire migration was executed through `execute_sql`
+inside a transaction and ran clean**, then rolled back. The DDL is valid, the
+functions replace without complaint, and the behaviour is correct.
+
+### What it is causing
+
+Nothing, so far — which is the important part. The database is untouched, there
+is no partial state, and `ops/verify_migrations.sh` still passes 82/82. The only
+cost is that APP 019 cannot be **recorded** as a migration.
+
+### Why I did not just run it through `execute_sql`
+
+Two reasons, and the second is the binding one:
+
+1. It would route around a declined call.
+2. It would break the migration discipline. `execute_sql` does not write
+   `supabase_migrations.schema_migrations`, so the schema would carry objects no
+   migration file accounts for — and `verify_migrations.sh` would report drift
+   from that moment on, permanently. The rule that every deployed object traces
+   to a migration is worth more than getting this slice in a day earlier.
+
+## Verification — complete, on the real database
+
+All of this ran against the live schema inside transactions that were rolled
+back. The results are real; only the persistence is missing.
+
+**Regression: none.** The migration applied, the fixture rebuilt, fingerprint
+identical to the baseline:
+
+| asset | before | after |
+|---|---|---|
+| FW · Front wall (Living room) | `R-ASSET(sc) R-WIDE(pw)` | **identical** |
+| SN · Sofa niche (Seating nook) | `R-WIDE(pw)` | **identical** |
+| SB · Splashback (Kitchen) | `R-CHILD(sc) R-PARENT(sc) R-WIDE(pw)` | **identical** |
+| LI · Loose item (no collection) | `R-WIDE(pw)` | **identical** |
+
+Nothing became inapplicable.
+
+**New capability, and the fail-open fix:**
+
+| test | result |
+|---|---|
+| `R-ROOM` scoped to the Living room with **one row** | — |
+| Front wall (in that room) | `R-ROOM` applies ✓ |
+| **Curtains, added to the room AFTER the scope was set** | **`R-ROOM` applies ✓** |
+| Splashback (Kitchen) | does not apply ✓ |
+| `R-ROOM` still reports as project-wide? | `false` ✓ |
+
+The third row is the whole point: under the old model that curtain would have
+inherited nothing, and nobody would have been told.
+
+**Write-gate parity** (the `BEFORE` trigger on assessments):
+
+| test | result |
+|---|---|
+| assess `R-ROOM` against the front wall's version | accepted ✓ |
+| assess `R-ROOM` against the splashback's version | refused, `23514`, trigger's own message ✓ |
+
+Read and write agree, which was the risk worth proving.
+
+### Two bugs in my own tests, found in this pass
+
+Worth recording because the first draft of these tests would have reported a
+false pass:
+
+1. I inserted `asset_versions.created_by_profile_id` — a column that does not
+   exist. The table uses `published_by_profile_id`.
+2. I used assessment `status = 'met'`, which fails `vra_status_check`
+   (`satisfied | partial | not_satisfied | not_applicable`). **Both** assessment
+   tests had therefore failed on a CHECK constraint rather than on the trigger,
+   and one of them reported "correctly refused" while proving nothing. Caught
+   only because a test that should have passed did not.
