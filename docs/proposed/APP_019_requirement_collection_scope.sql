@@ -35,6 +35,13 @@
 -- means "scoped to NOTHING at all". A requirement scoped to a collection stops
 -- reporting as project-wide. Without that, scoping to one room would have left
 -- it applying everywhere as well, which is the opposite of the point.
+--
+-- VERIFIED BEFORE APPLYING, in rolled-back transactions against this schema:
+-- the applicability fingerprint is unchanged on all four fixture assets, so
+-- nothing became inapplicable; a requirement scoped to one room applies to
+-- elements in it and not to elements outside it; an element added to that room
+-- AFTER the scope was set inherits it automatically; and the assessment trigger
+-- accepts the in-scope version while refusing the out-of-scope one with 23514.
 
 create table public.requirement_collections (
   requirement_id uuid not null,
