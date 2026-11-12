@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { queueInvitationEmail } from '@/lib/queueInvitationEmail'
 import { humanizeError } from '@/features/shared/errors'
 import { invalidateAccess } from '@/features/shared/invalidate'
 import type { ProjectRole, WorkspaceRole } from './queries'
@@ -22,7 +23,10 @@ export interface InviteResult {
   expiresAt: string
 }
 
-/** The link an invitee opens. Copy-link delivery — there is no email infrastructure. */
+/**
+ * The link an invitee opens. Still offered for copy-link delivery; since
+ * APP 023 the same link is also queued for email, so both carry one token.
+ */
 export function inviteUrl(token: string): string {
   return `${window.location.origin}/invite/${token}`
 }
@@ -39,6 +43,8 @@ export function useInviteMember(wsId: string) {
       })
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
+      // Post-commit, per APP 023. Never throws — see queueInvitationEmail.
+      await queueInvitationEmail(row.out_token as string)
       return {
         invitationId: row.out_invitation_id as string,
         token: row.out_token as string,
@@ -69,6 +75,8 @@ export function useInviteStakeholder(wsId: string) {
       })
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
+      // Post-commit, per APP 023. Never throws — see queueInvitationEmail.
+      await queueInvitationEmail(row.out_token as string)
       return {
         invitationId: row.out_invitation_id as string,
         stakeholderId: row.out_stakeholder_id as string,

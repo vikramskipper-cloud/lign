@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
+import { queueInvitationEmails } from '@/lib/queueInvitationEmail'
 
 /**
  * Write + read layer for the New project dialog.
@@ -81,11 +82,15 @@ export function useCreateProject(workspaceId: string) {
         out_code: string | null
         out_invites: CreatedInvite[] | null
       }
+      const invites = row.out_invites ?? []
+      // Post-commit, per APP 023 and the APP 014 brief. Queued one by one so
+      // a single bad address cannot stop the rest.
+      await queueInvitationEmails(invites.map((i) => i.token))
       return {
         projectId: row.out_project_id,
         slug: row.out_slug,
         code: row.out_code,
-        invites: row.out_invites ?? [],
+        invites,
       }
     },
     onSuccess: () => {

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
 import { useSession } from '@/auth/SessionProvider'
+import { queueInvitationEmail } from '@/lib/queueInvitationEmail'
 
 /**
  * Organisation layer (APP 015). The tenant above workspace.
@@ -311,6 +312,9 @@ export function useInviteOrgMember(organizationId: string) {
         throw error
       }
       const row = Array.isArray(data) ? data[0] : data
+      // Post-commit, per APP 023. Never throws, so a mail problem cannot
+      // surface as "the invitation failed" when the invitation exists.
+      await queueInvitationEmail(row.out_token as string)
       return {
         invitationId: row.out_invitation_id as string,
         token: row.out_token as string,
