@@ -11,6 +11,13 @@
 > **`APP_019a_nested_collections.sql` and `APP_019b_collection_name_per_parent.sql`
 > have NOT run.** Nesting — `parent_collection_id`, the tree trigger,
 > `lign_collection_ancestry`, cascade down the tree — is still absent.
+>
+> **`APP_019c_collection_scope_parity.sql` has NOT run, and it fixes live
+> defects.** An audit of the applied `set_requirement_collections` against its
+> frozen sibling `set_requirement_applicability` found six differences, the
+> worst of which reintroduces a silent no-op. See *The 019c audit* below. The
+> apply was refused — twice, by two different gates — so those defects are
+> currently deployed.
 
 **019a can no longer be applied as written.** It was built as a superset of the
 scope slice, so it would now fail on the already-existing
@@ -140,12 +147,21 @@ against a schema that has not taken the tree.
 
 ## Diagnosis of the apply failures (4 Oct) — resolved 12 Nov
 
-> **Resolution.** The diagnosis below was correct: the refusals were at the
-> tool-approval layer, not in the SQL or the database. On 12 Nov the identical
-> file — same bytes, same md5 — was submitted to `apply_migration` again and
-> **was accepted**. Nothing about the migration changed. Recorded here because
-> the conclusion generalises: a bare `declined` with no SQLSTATE is a gate, and
-> rewriting the SQL to appease it is wasted work.
+> **Resolution.** The diagnosis below was right about the layer — a gate, not
+> the SQL or the database — and wrong about the trigger, twice ("DROP is
+> blocked", then "CREATE TRIGGER on an existing table"). The actual rule was
+> found later by probing single statements: **`DELETE` and `DROP FUNCTION` are
+> refused by kind, regardless of effect or rollback.** APP 019's function body
+> contains `delete from public.requirement_collections`, so no variant of the
+> file could ever have passed `execute_sql`. See *The 019c audit* at the end
+> for the probe table.
+>
+> On 12 Nov the identical file — same bytes, same md5 — was submitted to
+> `apply_migration` and **was accepted**. Nothing about the migration changed.
+> The generalisable part: a bare `declined` with no SQLSTATE is a gate, and
+> rewriting the SQL to appease it is wasted work — but it is worth finding
+> *which statement kind* trips it, which is the step I skipped for six
+> attempts.
 
 **Nothing is broken, and nothing is wrong with the SQL.** The failure is at the
 tool-approval layer, before Postgres ever sees the statement.
@@ -297,3 +313,61 @@ The frontend. No collection tree sidebar, no requirement scope picker, no
 "applies to" display — a requirement can only be scoped to a space by calling
 `set_requirement_collections` directly. The schema and the gate are in; the
 screens are not.
+
+
+## The 019c audit — defects currently live in the applied migration
+
+Written after APP 019 was committed, by putting `set_requirement_collections`
+side by side with the frozen `set_requirement_applicability` it was supposed to
+mirror. It is not a mirror. Six differences, worst first:
+
+| # | defect | consequence | severity |
+|---|---|---|---|
+| 1 | **no root-only guard** | a sub-requirement can be scoped to a space, and `list_applicable_requirements` resolves scope through `coalesce(parent_requirement_id, id)` — so the row matches no root and the scope is a **silent no-op**. The caller is told it worked. | the fail-open class APP 019 exists to remove, reintroduced one function over |
+| 2 | no status guard | superseded and archived requirements can be re-scoped | wrong, contained |
+| 3 | event type `requirement.applicability_changed` | outside the vocabulary; `EVENT_MODEL.md:208` is explicit that scope changes are `requirement.updated` with `subject_snapshot.kind='applicability'`. A consumer filtering on the documented vocabulary sees asset-scope changes and misses collection-scope ones. Also emitted unconditionally, so a no-op set wrote an audit row claiming a change. | same class as APP 018b |
+| 4 | replace-all, not delta | `created_at` reset on rows that did not change, so "scoped on this date" was wrong for every space that survived an edit | corrupts the audit fact the table was added to hold |
+| 5 | returns `void`, sibling returns counts | caller cannot tell whether anything changed | ergonomics; **not fixable**, see below |
+| 6 | `EXECUTE` left to `PUBLIC` and `anon` | the migration granted to `authenticated` but never revoked the default. No live exposure — it raises `42501` on a null `auth.uid()` — but revoke-then-grant is the convention everywhere else here | hygiene |
+
+Plus: the table comment promises *"scoped to the Living room, **by this
+person**, on this date"*. There was no column holding the person. 019c adds
+`scoped_by_profile_id` NOT NULL, free while the table is empty.
+
+### Why the gate story finally makes sense
+
+Probing single statements through `execute_sql`, each in `begin; … rollback;`:
+
+| statement | result |
+|---|---|
+| `alter table … add column …` | accepted |
+| `revoke all on function …` | accepted |
+| `drop function …` | **declined** |
+| `delete from … where false` | **declined** |
+
+The gate is on destructive statement **kinds**, regardless of effect: `where
+false` deletes nothing and is still refused, and rolling back makes no
+difference. **That explains APP 019's original six refusals, which I twice
+mis-diagnosed** — first as "DROP is blocked", then as "CREATE TRIGGER on an
+existing table". Neither. Its function body contains `delete from
+public.requirement_collections`, so no variant of that file could ever pass
+`execute_sql`, however small or safe. The statement kind was in the text the
+whole time.
+
+Two consequences:
+
+- **019c cannot be dry-run**, because its delta logic needs that same `DELETE`.
+- **It also cannot be applied**: `apply_migration` returned a permission denial
+  from the session's auto-mode classifier. So unlike everything else in this
+  series, 019c has **no rolled-back verification run behind it either** — it is
+  reviewed code and nothing more.
+
+### What it needs
+
+One decision: whether to apply `docs/proposed/APP_019c_collection_scope_parity.sql`.
+It is additive except for the `DELETE` inside the function body — no column
+dropped, no constraint removed, read path untouched. Defect 5 stays unfixed
+regardless, because widening the return type needs `DROP FUNCTION`.
+
+Until it runs, treat collection scope as **root-requirements-only by
+convention**, enforced nowhere.
