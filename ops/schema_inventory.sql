@@ -1,4 +1,4 @@
--- Full object inventory of the public schema, consumed by
+-- Full object inventory of the public schema and LIGN-owned storage policies, consumed by
 -- ops/audit_schema_provenance.py.
 --
 --   psql "$SUPABASE_DB_URL" -At -F$'\t' -f ops/schema_inventory.sql > /tmp/inventory.tsv
@@ -26,7 +26,9 @@ union all
 select 'POLICY', policyname, tablename,
        cmd || ' roles=' || array_to_string(roles, '+') ||
        ' using=' || coalesce(qual, '-') || ' check=' || coalesce(with_check, '-')
-from pg_policies where schemaname = 'public'
+from pg_policies where schemaname = 'public' or
+ (schemaname = 'storage' and tablename = 'objects' and
+  (policyname like 'lign_files_%' or policyname like 'brief_reference_%'))
 union all
 select 'TRIGGER', t.tgname, c.relname, pg_get_triggerdef(t.oid)
 from pg_trigger t

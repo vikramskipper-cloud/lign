@@ -182,6 +182,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // so the capability map is answerable. Same keys NavRail used.
   const projectNav: Array<NavEntry & { capability: CapabilityKey }> = [
     { to: proj('overview'), label: 'Overview', icon: <LayoutDashboard size={15} />, capability: 'project.view' },
+    { to: proj('brief'), label: 'Project brief', icon: <ClipboardList size={15} />, capability: 'project.view' },
     { to: proj('designs'), label: 'Designs', icon: <Layers size={15} />, capability: 'asset.view' },
     { to: proj('reviews'), label: 'Reviews', icon: <ClipboardCheck size={15} />, capability: 'review.view' },
     { to: proj('requirements'), label: 'Requirements', icon: <ClipboardList size={15} />, capability: 'requirement.view' },

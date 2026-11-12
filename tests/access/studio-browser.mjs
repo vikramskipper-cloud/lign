@@ -42,7 +42,7 @@ const createProject=async(page,name,leadName)=>{
  await dialog.getByLabel('Project name',{exact:true}).fill(name)
  await dialog.getByLabel('Project lead',{exact:true}).selectOption({label:leadName})
  await dialog.getByRole('button',{name:'Create project',exact:true}).click()
- await page.waitForURL((u)=>/\/project\/[^/]+\/overview$/.test(u.pathname))
+ await page.waitForURL((u)=>/\/project\/[^/]+\/brief$/.test(u.pathname))
  return new URL(page.url()).pathname.split('/')[4]
 }
 try {

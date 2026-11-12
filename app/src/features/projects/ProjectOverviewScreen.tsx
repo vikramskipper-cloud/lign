@@ -22,6 +22,7 @@ import { useProjectCapabilities } from '@/lib/capabilities'
 import { humanizeError } from '@/features/shared/errors'
 import { EditProjectDialog } from './EditProjectDialog'
 import { relative, absolute } from '@/lib/formatDate'
+import { BriefStartCard } from '@/features/briefs/BriefStartCard'
 
 export const ProjectOverviewHandle = { crumb: 'Overview' }
 
@@ -114,6 +115,7 @@ export function ProjectOverviewScreen() {
         )}
       </div>
 
+      <BriefStartCard workspaceId={ws_id} projectId={proj_id} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader>

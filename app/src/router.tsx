@@ -211,6 +211,7 @@ export const router = createBrowserRouter([
                     children: [
                       { index: true, element: <Navigate to="overview" replace /> },
                       { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
+                      { path: 'brief', lazy: () => import('@/features/briefs/brief.route'), handle: { crumb: 'Project brief' } },
                       { path: 'designs', element: <DesignsScreen />, handle: DesignsHandle },
                       { path: 'reviews', element: <ProjectReviewsScreen />, handle: ProjectReviewsHandle },
                       { path: 'review/:review_id', lazy: () => import('@/features/reviews/review-detail.route') },

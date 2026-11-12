@@ -264,7 +264,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
           onOpenChange(false)
           toast.success('Project created')
           surfaceInvites(result.invites)
-          navigate(`/workspace/${workspaceId}/project/${result.projectId}/overview`)
+          navigate(`/workspace/${workspaceId}/project/${result.projectId}/brief`)
         },
         onError: (err) => {
           inFlight.current = false
@@ -317,7 +317,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                 New project
               </h2>
               <p style={{ margin: '6px 0 0', fontSize: 13, color: C.helper, lineHeight: 1.5 }}>
-                In {workspace.data?.name ?? 'this workspace'}. You can add people and requirements once it exists.
+                In {workspace.data?.name ?? 'this workspace'}. Start with a brief, then add your team and design work.
               </p>
             </div>
             <button
@@ -439,8 +439,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                   <FieldError id="np-client-err">{errors.client}</FieldError>
                 ) : (
                   <Helper id="np-client-help">
-                    They&apos;ll be added as an external approver and emailed an invite on create. No Lign
-                    account needed to respond.
+                    They&apos;ll join as external approvers with access to this project, and sign in to respond.
                   </Helper>
                 )}
 

@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/ui/dropdown-menu'
 import { useCopyLink } from '@/features/comments/useCopyLink'
-import { useArchiveRequirement, useToggleRequirementBookmark } from './mutations'
+import { useArchiveRequirement, useEditRequirement, useToggleRequirementBookmark } from './mutations'
 import type { CapabilityMap } from '@/types/capabilities'
 
 interface Props {
@@ -32,6 +32,7 @@ export function RequirementActions({
 }: Props) {
   const copy = useCopyLink()
   const archive = useArchiveRequirement(workspaceId, projectId)
+  const edit = useEditRequirement(workspaceId, projectId)
   const bookmark = useToggleRequirementBookmark(workspaceId)
 
   const canArchive =
@@ -40,6 +41,11 @@ export function RequirementActions({
 
   return (
     <div className="flex items-center gap-1">
+      {status === 'draft' && caps?.['requirement.edit'] && (
+        <Button size="sm" disabled={edit.isPending} onClick={() => edit.mutate({ requirementId, status: 'active' })}>
+          {edit.isPending ? 'Activating…' : 'Activate requirement'}
+        </Button>
+      )}
       <Button
         variant="secondary"
         size="sm"
