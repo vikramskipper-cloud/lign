@@ -1,7 +1,9 @@
 # The mail sender's contract
 
-`public.email_outbox` is a to-send list. Nothing in LIGN sends mail; a sender
-added later drains this table. This is what it has to do.
+`public.email_outbox` is drained by `supabase/functions/send-emails/index.ts`
+(APP 024). It uses SendGrid, with credentials held only by the Edge Function.
+The implementation is prepared in the repository; hosted deployment and sender
+configuration must be completed before claiming that emails are delivered.
 
 ## Access
 
@@ -11,45 +13,35 @@ carries invitation tokens — `SELECT *` as `authenticated` fails `42501`. So th
 sender runs with the service key, which means **an Edge Function or a server
 job, never the browser**.
 
-## The loop
+## Delivery and retries
 
-```sql
-select id, to_email, template, payload
-  from public.email_outbox
- where status = 'queued'
- order by created_at
- limit 50;
-```
+The service-only `claim_email_batch` RPC leases up to ten queued messages for
+ten minutes using `FOR UPDATE SKIP LOCKED`. Claiming increments `attempts`.
+Workers update only rows with their own `lock_token`. Failures retry after one
+minute, up to five attempts, then become `failed`. Expired leases recover a
+crashed worker's jobs. Delivery is at least once: a provider timeout after
+acceptance can produce a duplicate email, but retries reuse the same link.
 
-Then, per row, after a successful send:
+An authenticated LIGN platform admin can invoke delivery for one decided access
+request. All other client callers are refused. The scheduled worker uses a
+separate `EMAIL_WORKER_TOKEN` and drains all supported templates. A pending
+public request cannot invoke delivery directly.
 
-```sql
-update public.email_outbox
-   set status = 'sent', sent_at = now(), payload = '{}'::jsonb
- where id = $1;
-```
+The generated activation URL is persisted in server-only `payload` before
+sending. Successful delivery marks the row `sent` and clears `payload`, so
+password and invitation tokens do not remain at rest after delivery. Neither
+responses nor operator-visible errors contain these tokens.
 
-**Clearing `payload` is required, not tidying.** It is what keeps an invitation
-token out of the database once it has been delivered; until APP 023 only
-`sha256(token)` was ever stored, and the queue is the one place the plaintext
-now lives. On failure, instead:
-
-```sql
-update public.email_outbox
-   set status = case when attempts + 1 >= 5 then 'failed' else 'queued' end,
-       attempts = attempts + 1,
-       last_error = left($2, 500)
- where id = $1;
-```
-
-Keep `payload` on a retryable failure — the next attempt needs it.
+`resend_access_welcome` is staff-only. It resets delivery attempts and removes
+the previous stored activation URL so an explicit resend can mint a fresh one.
+It cannot reset a job with an active delivery lease.
 
 ## Templates
 
 | `template` | sent when | payload |
 |---|---|---|
 | `access_request_received` | someone submits the public request-access form | `name` |
-| `access_request_approved` | a platform admin approves them | `name` |
+| `access_request_approved` | a platform admin approves them | `name`, `request_id`; company is read from the approved request |
 | `access_request_declined` | a platform admin declines them | `name` |
 | `org_invitation` | an org owner/admin invites someone to the organisation | `invitation_id`, `email`, `role`, `context_name`, `claim_route`, `token`, `expires_at` |
 | `workspace_member_invitation` | someone is invited to a workspace | as above |
@@ -58,20 +50,41 @@ Keep `payload` on a retryable failure — the next attempt needs it.
 `context_name` is the organisation or workspace name — what the message should
 say they are being invited to. `role` is their role once they accept.
 
-## Building the link
+## Access-only activation
 
-`claim_route` is the path **without** the token, so the sender never needs to
-know LIGN's routing:
+There is no public signup. Both `/sign-up` and `/signup` redirect to
+`/request-access`, and the Auth server must have `disable_signup: true` while
+keeping email/password authentication enabled.
+
+For approved applicants, the sender verifies the approval and company name,
+then uses Auth admin `generateLink` to create an invited account, or a recovery
+link for an existing account. The welcome email opens:
 
 ```
-<APP_URL> + payload.claim_route + '/' + payload.token
+<APP_URL>/set-password#token_hash=<hash>&type=invite&returnTo=%2Fdashboard
 ```
 
-giving `https://app.example.com/org-invite/<token>` or `/invite/<token>`.
+Existing accounts use `type=recovery`. Only `invite` and `recovery` are
+accepted. `verifyOtp` consumes the single-use token, the user chooses and
+confirms a password, and `complete_approved_access` creates their organisation
+and first workspace from the approved company name. It grants owner membership
+and spends the approval once. Retries return the same workspace. The user then
+signs in normally with their email and new password.
+
+The database checks verified identity and the approval against the caller's own
+profile email. No client chooses an owner ID or submits a target organisation.
+All six request fields, including company and phone, are required server-side.
+Historical requests without a company cannot be approved until resubmitted.
+
+Member invitations use the same password activation page, with `returnTo`
+restricted to the exact `/org-invite/<token>` or `/invite/<token>` claim route.
+After password setup and sign-in, the existing invitation RPC checks the email,
+expiry, and token before admitting them. They receive no founder entitlement.
+Existing users can also use the invitation email's direct sign-in/claim link.
 
 ## What the queue does NOT do
 
-- **No scheduling.** Rows are queued the moment the thing happens.
+- **Scheduling needs hosted setup.** Apply `ops/schedule_access_emails.sql` after storing the worker token in Vault; it invokes delivery every minute.
 - **No rate limiting.** `submit_access_request` is callable by `anon`, so the
   public form can be driven in a loop with distinct addresses. Postgres has
   nowhere good for a per-IP limit; this needs an edge function in front or a
@@ -81,11 +94,12 @@ giving `https://app.example.com/org-invite/<token>` or `/invite/<token>`.
 - **No unsubscribe.** All of these are transactional; if marketing mail is ever
   added it must not share this table.
 
-## Approval does not grant access
+## Required hosted configuration
 
-`access_request_approved` means a platform admin said yes. It does **not**
-create an account, an organisation or a membership. The applicant then signs in
-and founds their own organisation, which `create_organization` permits only
-against an unspent approved request for that same email (APP 022). So the
-approval email should tell them to sign in and set up their company — not that
-anything already exists.
+See `ops/DEPLOYMENT.md` for the rollout checklist. The welcome sender needs a
+verified SendGrid sender, `SENDGRID_API_KEY`, `EMAIL_FROM`, `APP_URL`, and
+`EMAIL_WORKER_TOKEN`. Supabase's separate password recovery mail also needs
+SMTP configuration and a redirect allowlist entry for `/set-password`.
+
+The code does not send a test email to any real recipient. A delivered email
+and browser activation on the hosted LIGN domain remain deployment checks.

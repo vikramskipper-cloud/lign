@@ -18,3 +18,4 @@ dist/
 node_modules/
 ops/.tmp/
 supabase/.temp/
+.vercel/

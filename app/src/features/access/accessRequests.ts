@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
@@ -38,6 +39,7 @@ export interface AccessRequestInput {
   name: string
   email: string
   phone: string
+  company: string
   companyRole: string
   teamSize: TeamSize
 }
@@ -62,6 +64,7 @@ export function useSubmitAccessRequest() {
         p_email: input.email.trim(),
         p_phone: input.phone.trim() || null,
         p_company_role: input.companyRole.trim(),
+        p_company: input.company.trim(),
         p_team_size: input.teamSize,
       })
       if (!error) return
@@ -120,6 +123,7 @@ export interface AccessRequest {
   name: string
   email: string
   phone: string | null
+  company: string
   companyRole: string
   teamSize: string
   status: AccessRequestStatus
@@ -147,7 +151,7 @@ export function useAccessRequests(
       let q = supabase
         .from('access_requests')
         .select(
-          'id, name, email, phone, company_role, team_size, status, note, created_at, decided_at, ' +
+          'id, name, email, phone, company, company_role, team_size, status, note, created_at, decided_at, ' +
             'decided_by:profiles!access_requests_decided_by_profile_id_fkey(display_name, email)',
         )
         .order('created_at', { ascending: false })
@@ -161,6 +165,7 @@ export function useAccessRequests(
         name: string
         email: string
         phone: string | null
+        company: string | null
         company_role: string
         team_size: string
         status: AccessRequestStatus
@@ -174,6 +179,7 @@ export function useAccessRequests(
         name: r.name,
         email: r.email.toLowerCase(),
         phone: r.phone,
+        company: r.company ?? '',
         companyRole: r.company_role,
         teamSize: r.team_size,
         status: r.status,
@@ -211,11 +217,19 @@ export function useDecideAccessRequest() {
         p_note: input.note?.trim() || null,
       })
       if (error) throw error
+      // The DB decision is committed. A delivery failure must not undo it.
+      const delivery = await supabase.functions.invoke('send-emails', { body: { request_id: input.id } })
+      return { deliveryPending: Boolean(delivery.error || delivery.data?.failed || !delivery.data?.sent) }
     },
     // refetchType 'all': the lists for the other buckets are usually inactive,
     // and a plain invalidate leaves an inactive query merely stale — so
     // switching tabs would show the row in its old bucket.
-    onSuccess: async () => {
+    onSuccess: async (result, input) => {
+      // Notify here before invalidation removes the pending card. Per-call
+      // callbacks are skipped when that card unmounts during a refetch.
+      toast.success(input.approve
+        ? result.deliveryPending ? 'Approved — welcome email queued for delivery' : 'Approved — welcome email sent'
+        : 'Request declined')
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['access-requests'], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: ['email-outbox'], refetchType: 'all' }),
@@ -238,9 +252,7 @@ export interface QueuedEmail {
 }
 
 /**
- * The to-send list. Nothing drains it yet — SendGrid is not wired — so this
- * exists so an admin can see what *would* have gone out and to whom, rather
- * than the queue being invisible until a sender appears.
+ * Delivery metadata only. Password setup links in payload remain server-only.
  */
 export function useEmailOutbox(
   status: 'queued' | 'sent' | 'failed' | 'all' = 'queued',
@@ -250,6 +262,7 @@ export function useEmailOutbox(
     queryKey: qk.emailOutbox(status),
     enabled,
     staleTime: 15_000,
+    refetchInterval: 15_000,
     queryFn: async (): Promise<QueuedEmail[]> => {
       let q = supabase
         .from('email_outbox')
@@ -280,5 +293,19 @@ export function useEmailOutbox(
         sentAt: r.sent_at,
       }))
     },
+  })
+}
+
+/** Explicit resend for expired links or failed delivery. */
+export function useResendAccessWelcome() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('resend_access_welcome', { p_request_id: id })
+      if (error) throw error
+      const delivery = await supabase.functions.invoke('send-emails', { body: { request_id: id } })
+      return { deliveryPending: Boolean(delivery.error || delivery.data?.failed || !delivery.data?.sent) }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['email-outbox'], refetchType: 'all' }),
   })
 }

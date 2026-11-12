@@ -74,7 +74,7 @@ export function InviteClaimScreen() {
           <CardDescription>
             {session
               ? `Signed in as ${user?.email}. The invitation must have been sent to this address.`
-              : 'Sign in or create an account with the email address that received this invitation.'}
+              : 'Use the password setup link in your invitation email, then sign in with the same email address.'}
           </CardDescription>
         </CardHeader>
 
@@ -85,9 +85,6 @@ export function InviteClaimScreen() {
 
           {!session && token && (
             <div className="flex gap-2">
-              <Button asChild className="flex-1">
-                <Link to={`/sign-up?returnTo=${encodeURIComponent(returnTo)}`}>Create account</Link>
-              </Button>
               <Button asChild variant="secondary" className="flex-1">
                 <Link to={`/sign-in?returnTo=${encodeURIComponent(returnTo)}`}>Sign in</Link>
               </Button>

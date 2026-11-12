@@ -7,6 +7,7 @@ import {
   useDecideAccessRequest,
   useEmailOutbox,
   useIsPlatformAdmin,
+  useResendAccessWelcome,
   type AccessRequest,
   type AccessRequestStatus,
 } from '@/features/access/accessRequests'
@@ -25,10 +26,8 @@ import { FullPageLoader } from '@/ui/full-page-loader'
  * read as "nothing pending", and a screen that inferred it would report an
  * empty queue to someone who simply could not see it.
  *
- * Approving records the decision and queues the outcome email. It deliberately
- * does NOT issue an invitation: whether someone joins an organisation or a
- * single project as an external client is a separate, explicit choice. Approval
- * here means "yes, let them in" — it is not itself the letting in.
+ * Approval sends a password activation link. Activation provisions the approved
+ * applicant's organisation and first workspace, with the applicant as owner.
  */
 
 export const AccessRequestsHandle = { crumb: 'Access requests' }
@@ -79,6 +78,7 @@ const META: React.CSSProperties = {
 
 function RequestCard({ request }: { request: AccessRequest }) {
   const decide = useDecideAccessRequest()
+  const resend = useResendAccessWelcome()
   const [note, setNote] = React.useState('')
   const [showNote, setShowNote] = React.useState(false)
   // Ref, not state: two clicks before a re-render would fire two decisions,
@@ -91,13 +91,6 @@ function RequestCard({ request }: { request: AccessRequest }) {
     decide.mutate(
       { id: request.id, approve, note },
       {
-        onSuccess: () => {
-          toast.success(
-            approve
-              ? `Approved — a confirmation email is queued for ${request.email}`
-              : `Declined ${request.name}`,
-          )
-        },
         onError: (err) => {
           inFlight.current = false
           const code = (err as { code?: string } | null)?.code
@@ -121,6 +114,7 @@ function RequestCard({ request }: { request: AccessRequest }) {
         <h2 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, color: 'var(--ink)' }}>
           {request.name}
         </h2>
+        {request.company && <span style={{ fontSize: 13, fontWeight: 500 }}>{request.company}</span>}
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{request.companyRole}</span>
         <span style={{ flex: 1 }} />
         <span style={{ ...META, gap: 5, flex: '0 0 auto' }}>
@@ -185,7 +179,8 @@ function RequestCard({ request }: { request: AccessRequest }) {
             <button
               type="button"
               onClick={() => act(true)}
-              disabled={busy}
+              disabled={busy || !request.company}
+              title={!request.company ? 'Company name missing — ask the applicant to resubmit.' : undefined}
               style={{
                 height: 34,
                 padding: '0 15px',
@@ -233,6 +228,7 @@ function RequestCard({ request }: { request: AccessRequest }) {
           </div>
         </>
       ) : (
+        <>
         <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--muted)' }}>
           <strong
             style={{
@@ -246,6 +242,15 @@ function RequestCard({ request }: { request: AccessRequest }) {
           {request.decidedAt ? ` · ${when(request.decidedAt)}` : ''}
           {request.note ? ` · “${request.note}”` : ''}
         </p>
+        {request.status === 'approved' && (
+          <button type="button" className="auth-link" disabled={resend.isPending} style={{ marginTop: 10 }} onClick={() => resend.mutate(request.id, {
+            onSuccess: (result) => toast.success(result.deliveryPending ? 'Welcome email queued for delivery' : 'Welcome email sent'),
+            onError: () => toast.error('Could not resend the welcome email. Try again.'),
+          })}>
+            {resend.isPending ? 'Sending…' : 'Resend welcome email'}
+          </button>
+        )}
+        </>
       )}
     </div>
   )
@@ -255,7 +260,7 @@ export function AccessRequestsScreen() {
   const isOperator = useIsPlatformAdmin()
   const [tab, setTab] = React.useState<AccessRequestStatus | 'all'>('pending')
   const requests = useAccessRequests(tab, isOperator.data === true)
-  const outbox = useEmailOutbox('queued', isOperator.data === true)
+  const outbox = useEmailOutbox('all', isOperator.data === true)
 
   if (isOperator.isLoading) return <FullPageLoader label="Loading" />
   // Not a platform operator: RLS would hand back an empty list, which would
@@ -263,7 +268,8 @@ export function AccessRequestsScreen() {
   if (isOperator.data !== true) return <Navigate to="/dashboard" replace />
 
   const rows = requests.data ?? []
-  const queued = outbox.data?.length ?? 0
+  const queued = outbox.data?.filter((email) => email.status === 'queued').length ?? 0
+  const failed = outbox.data?.filter((email) => email.status === 'failed').length ?? 0
 
   return (
     <div className="lign-warm" style={{ maxWidth: 820, margin: '0 auto', padding: '28px 24px 48px' }}>
@@ -271,12 +277,11 @@ export function AccessRequestsScreen() {
         Access requests
       </h1>
       <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.6, color: 'var(--muted)' }}>
-        People asking to use LIGN. Approving records the decision and queues them an email — it does
-        not grant access on its own. Admit them by adding them to an organisation, or have a project
-        lead invite them to a single project as a client.
+        Review requests to use LIGN. Approval sends a welcome email with a secure password setup
+        link. The applicant activates their company and first workspace as the organisation owner.
       </p>
 
-      {queued > 0 && (
+      {(queued > 0 || failed > 0) && (
         <div
           style={{
             marginTop: 18,
@@ -290,10 +295,10 @@ export function AccessRequestsScreen() {
           }}
         >
           <strong style={{ fontWeight: 600 }}>
-            {queued} {queued === 1 ? 'email is' : 'emails are'} queued and unsent.
+            {queued} queued · {failed} failed.
           </strong>{' '}
-          No mail provider is wired yet, so nothing has actually been delivered — contact people
-          directly until it is.
+          Queued messages are waiting for delivery. Failed welcome emails can be retried from
+          the approved request. If delivery keeps failing, check the server email configuration.
         </div>
       )}
 

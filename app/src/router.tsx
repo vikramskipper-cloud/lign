@@ -3,7 +3,7 @@ import { useAccessCheck } from '@/auth/useAccessCheck'
 import { FullPageLoader } from '@/ui/full-page-loader'
 import { AuthGate } from '@/auth/AuthGate'
 import { SignInScreen } from '@/auth/SignInScreen'
-import { SignUpScreen } from '@/auth/SignUpScreen'
+import { SetPasswordScreen } from '@/auth/SetPasswordScreen'
 import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
 import { CreateWorkspaceScreen } from '@/auth/CreateWorkspaceScreen'
@@ -106,7 +106,9 @@ function NotificationDeepLink() {
  */
 function RequireWorkspace() {
   const access = useAccessCheck()
+  const location = useLocation()
   if (access.isLoading) return <FullPageLoader label="Signing you in" />
+  if (location.pathname === '/access-requests') return <Outlet />
   if (access.data?.needsWorkspace) return <Navigate to="/welcome" replace />
   return <Outlet />
 }
@@ -138,8 +140,9 @@ export const router = createBrowserRouter([
   // rename is undoing.
   { path: '/sign-in', element: <SignInScreen /> },
   { path: '/signin', element: <Alias to="/sign-in" /> },
-  { path: '/sign-up', element: <SignUpScreen /> },
-  { path: '/signup', element: <Alias to="/sign-up" /> },
+  { path: '/sign-up', element: <Navigate to="/request-access" replace /> },
+  { path: '/signup', element: <Navigate to="/request-access" replace /> },
+  { path: '/set-password', element: <SetPasswordScreen /> },
   { path: '/reset-password', element: <ResetPasswordScreen /> },
   // Public and ungated: an applicant has no account yet. Not a sign-up
   // form — it creates no session, only a row an admin triages.
@@ -170,7 +173,7 @@ export const router = createBrowserRouter([
               { path: '/org/:org_id/people', element: <OrgPeopleScreen />, handle: OrgPeopleHandle },
               // Not org-scoped in the URL: access_requests has no
               // organization_id — an applicant belongs to nothing yet. The
-              // screen gates on "owner or admin of an org", as the RPC does.
+              // screen and RPC both require a LIGN platform administrator.
               { path: '/access-requests', lazy: () => import('@/features/access/access-requests.route') },
               { path: '/workspace-picker', element: <WorkspacePicker /> },
               { path: '/deep/review/:id', element: <ReviewDeepLink /> },

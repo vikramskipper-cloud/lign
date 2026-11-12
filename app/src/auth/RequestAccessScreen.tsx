@@ -17,8 +17,8 @@ import '@/styles/auth-theme.css'
  *
  * Public and unauthenticated — it is outside the auth gate, and the RPC behind
  * it is granted to `anon`. It is NOT a sign-up form: nothing here creates an
- * account or a session. An application lands in a queue an organisation admin
- * reads, and access arrives later as an invitation.
+ * account or a session. LIGN staff review the application; an approved applicant
+ * receives a welcome email to set their password and activate their organisation.
  *
  * Submitting always appears to succeed for a well-formed application, even for
  * an address that has already applied. That is the server's behaviour and this
@@ -56,7 +56,7 @@ const TEAM_SIZE_LABEL: Record<TeamSize, string> = {
   '200+': 'More than 200',
 }
 
-type Field = 'name' | 'email' | 'phone' | 'companyRole' | 'teamSize'
+type Field = 'name' | 'email' | 'phone' | 'company' | 'companyRole' | 'teamSize'
 
 export function RequestAccessScreen() {
   const submit = useSubmitAccessRequest()
@@ -64,6 +64,7 @@ export function RequestAccessScreen() {
   const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [phone, setPhone] = React.useState('')
+  const [company, setCompany] = React.useState('')
   const [companyRole, setCompanyRole] = React.useState('')
   const [teamSize, setTeamSize] = React.useState<TeamSize | ''>('')
 
@@ -73,6 +74,8 @@ export function RequestAccessScreen() {
 
   const nameRef = React.useRef<HTMLInputElement>(null)
   const emailRef = React.useRef<HTMLInputElement>(null)
+  const phoneRef = React.useRef<HTMLInputElement>(null)
+  const companyRef = React.useRef<HTMLInputElement>(null)
   const roleRef = React.useRef<HTMLInputElement>(null)
   const sizeRef = React.useRef<HTMLSelectElement>(null)
   const errorRef = React.useRef<HTMLDivElement>(null)
@@ -92,7 +95,8 @@ export function RequestAccessScreen() {
     const map: Record<Field, React.RefObject<HTMLElement | null>> = {
       name: nameRef,
       email: emailRef,
-      phone: emailRef,
+      phone: phoneRef,
+      company: companyRef,
       companyRole: roleRef,
       teamSize: sizeRef,
     }
@@ -115,6 +119,9 @@ export function RequestAccessScreen() {
     if (name.trim().length > 120) return fail('name', 'Name is too long (120 characters max).')
     if (!EMAIL_RE.test(email.trim())) return fail('email', 'Enter a valid work email address.')
     if (email.trim().length > 254) return fail('email', 'That email address is too long.')
+    if (!company.trim()) return fail('company', 'Tell us your company name.')
+    if (company.trim().length > 120) return fail('company', 'Company name is too long (120 characters max).')
+    if (!phone.trim()) return fail('phone', 'Enter your phone number.')
     if (!companyRole.trim()) return fail('companyRole', 'What is your role?')
     if (companyRole.trim().length > 120) return fail('companyRole', 'Role is too long (120 characters max).')
     if (phone.trim().length > 40) return fail('phone', 'That phone number is too long.')
@@ -125,7 +132,7 @@ export function RequestAccessScreen() {
     setInvalidField(null)
 
     submit.mutate(
-      { name, email, phone, companyRole, teamSize },
+      { name, email, phone, company, companyRole, teamSize },
       {
         onSuccess: () => {
           const addressed = email.trim().toLowerCase()
@@ -171,8 +178,8 @@ export function RequestAccessScreen() {
           </h1>
           <p style={{ margin: '12px 0 0', fontSize: 15, lineHeight: 1.6, color: 'var(--muted)' }}>
             We review every request by hand during the beta. We&apos;ll email{' '}
-            <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>{done}</strong> when your
-            account is ready — there&apos;s nothing to do in the meantime.
+            <strong style={{ color: 'var(--ink)', fontWeight: 500 }}>{done}</strong> with a secure link to set your password if your
+            request is approved — there&apos;s nothing to do in the meantime.
           </p>
 
           <p style={{ margin: '26px 0 0', fontSize: 13, color: 'var(--muted)' }}>
@@ -298,10 +305,11 @@ export function RequestAccessScreen() {
 
         <div style={{ marginTop: 16 }}>
           <label htmlFor="ra-phone" style={LABEL}>
-            Phone <span style={{ color: 'var(--faint)', fontWeight: 400 }}>(optional)</span>
+            Phone
           </label>
           <input
             id="ra-phone"
+            ref={phoneRef}
             className="auth-field"
             type="tel"
             autoComplete="tel"
@@ -313,6 +321,26 @@ export function RequestAccessScreen() {
             aria-describedby={describedBy('phone')}
             onChange={(e) => {
               setPhone(e.target.value)
+              if (error) setError(null)
+            }}
+          />
+        </div>
+
+        <div style={{ marginTop: 16 }}>
+          <label htmlFor="ra-company" style={LABEL}>Company</label>
+          <input
+            id="ra-company"
+            ref={companyRef}
+            className="auth-field"
+            autoComplete="organization"
+            maxLength={120}
+            placeholder="Your company name"
+            value={company}
+            disabled={busy}
+            aria-invalid={invalidField === 'company' || undefined}
+            aria-describedby={describedBy('company')}
+            onChange={(e) => {
+              setCompany(e.target.value)
               if (error) setError(null)
             }}
           />

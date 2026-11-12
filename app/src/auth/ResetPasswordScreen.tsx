@@ -49,7 +49,7 @@ export function ResetPasswordScreen() {
     setSubmitting(true)
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${window.location.origin}/sign-in`,
+        redirectTo: `${window.location.origin}/set-password`,
       })
       if (resetError && (resetError.status === 429 || /rate limit/i.test(resetError.message))) {
         setError('Too many attempts. Wait a few minutes and try again.')
