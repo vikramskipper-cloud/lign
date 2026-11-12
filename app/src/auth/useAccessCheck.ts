@@ -36,27 +36,35 @@ export interface AccessState {
   /** Any active org membership at all, including plain `member`. */
   orgMemberships: number
   /**
-   * Whether this LIGN holds an organisation yet, answered by a SECURITY
-   * DEFINER probe rather than by counting what RLS shows.
+   * Whether this account is allowed to FOUND an organisation — answered by a
+   * SECURITY DEFINER probe, because the facts behind it are not readable from
+   * the client.
    *
-   * The two are not the same and the difference is the whole point: an account
-   * that belongs to no organisation sees ZERO organisations either way, so a
-   * client-side count cannot tell "nothing here yet, name it" from "already
-   * set up, you need an invitation". It used to guess the first, which sent a
-   * stranger into a form that created a second organisation.
+   * APP 022 replaced the old question, "does this deployment hold an
+   * organisation yet". That stopped being the right one when LIGN stopped
+   * being single-tenant: many organisations now coexist, so their existence
+   * says nothing about whether this person may add another. What permits it is
+   * an APPROVED access request for this account's own email, or being LIGN
+   * staff — and `access_requests` is readable only by platform admins, so the
+   * client cannot work it out for itself.
+   *
+   * Still a courtesy either way: create_organization re-checks and is the
+   * control.
    */
-  organizationExists: boolean
+  mayFoundOrganization: boolean
   /**
    * Send them to /welcome.
    *
    * The honest condition is "can open no workspace AND can do something about
-   * it". Two cases qualify: a brand-new account with no organisation (creates
-   * both), and an org owner/admin whose org has no workspace yet (creates one
-   * in it).
+   * it". Two cases qualify: an APPROVED APPLICANT with no organisation yet
+   * (founds both), and an org owner/admin whose org has no workspace yet
+   * (creates one in it).
    *
    * An org *member* with no workspace is deliberately excluded — they cannot
-   * create anything, so /welcome would be a form that always fails. They get
-   * /no-access, which is the truth: someone has to add them.
+   * create anything, so /welcome would be a form that always fails. So is a
+   * signed-up stranger with no approved application: under APP 022 nothing
+   * they type will be accepted. Both get /no-access, which is the truth —
+   * someone has to add them, or approve them.
    *
    * Counting workspaces rather than memberships also keeps stakeholders out of
    * here. An external client has no workspace_members row at all — p_stake was
@@ -75,7 +83,7 @@ export function useAccessCheck() {
     enabled: Boolean(uid),
     staleTime: 30_000,
     queryFn: async (): Promise<AccessState> => {
-      const [projects, roles, workspaces, orgs, orgExists] = await Promise.all([
+      const [projects, roles, workspaces, orgs, mayFound] = await Promise.all([
         // RLS-filtered: exactly the projects this user could open.
         supabase.from('projects').select('id').limit(1),
         // MUST be scoped to this user. workspace_members RLS exposes every
@@ -96,7 +104,7 @@ export function useAccessCheck() {
           .select('organization_id, role')
           .eq('user_id', uid as string)
           .eq('status', 'active'),
-        supabase.rpc('lign_organization_exists'),
+        supabase.rpc('lign_may_found_organization'),
       ])
 
       // A failed read is not evidence of "no access". Let the user through
@@ -105,9 +113,9 @@ export function useAccessCheck() {
         return {
           hasAccess: true, visibleProjects: -1, isAdminSomewhere: false,
           visibleWorkspaces: -1, adminOrgIds: [], orgMemberships: 0,
-          // Assume set up on a failed probe. Guessing "not set up" is the
-          // guess that creates a second organisation.
-          organizationExists: true,
+          // Fail closed on a bad probe. Guessing "yes, you may found one"
+          // would send someone into a form create_organization then refuses.
+          mayFoundOrganization: false,
           // Never onboard on a failed read: that would offer a workspace to
           // someone who already has one and just hit a flaky network.
           needsWorkspace: false,
@@ -124,8 +132,8 @@ export function useAccessCheck() {
         .filter((o) => o.role === 'owner' || o.role === 'admin')
         .map((o) => o.organization_id as string)
 
-      // A failed probe is treated as "set up", for the same reason as above.
-      const organizationExists = orgExists.error ? true : Boolean(orgExists.data)
+      // A failed probe is treated as "not permitted", for the same reason.
+      const mayFoundOrganization = mayFound.error ? false : Boolean(mayFound.data)
 
       return {
         hasAccess: visibleProjects > 0 || isAdminSomewhere || visibleWorkspaces > 0,
@@ -134,15 +142,16 @@ export function useAccessCheck() {
         visibleWorkspaces,
         adminOrgIds,
         orgMemberships: orgRows.length,
-        organizationExists,
+        mayFoundOrganization,
         // Two cases can act, and only these two:
         //   * an org admin whose organisation has no workspace yet;
-        //   * the very first account, when no organisation exists at all.
-        // Everyone else with nothing to open is waiting on an invitation, and
-        // belongs on /no-access rather than in front of a form that refuses.
+        //   * an approved applicant who has not founded their company yet.
+        // Everyone else with nothing to open is waiting on an invitation or on
+        // approval, and belongs on /no-access rather than in front of a form
+        // that refuses.
         needsWorkspace:
           visibleWorkspaces === 0 &&
-          (adminOrgIds.length > 0 || (orgRows.length === 0 && !organizationExists)),
+          (adminOrgIds.length > 0 || (orgRows.length === 0 && mayFoundOrganization)),
       }
     },
   })

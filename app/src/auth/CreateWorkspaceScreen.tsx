@@ -12,24 +12,24 @@ import { useMyOrganizations } from '@/shell/orgQueries'
 import '@/styles/auth-theme.css'
 
 /**
- * First run: an account that can open no workspace but can do something about
- * it. Two shapes arrive here, and they need different copy:
+ * An account that can open no workspace but can do something about it. Two
+ * shapes arrive here, and they need different copy:
  *
- *   1. No organisation exists ANYWHERE yet — the very first account. One name
- *      creates the organisation and its first workspace; asking someone to
- *      distinguish the two before they have seen either is how first runs get
- *      abandoned.
+ *   1. An APPROVED APPLICANT founding their company. One name creates the
+ *      organisation and its first workspace; asking someone to distinguish the
+ *      two before they have seen either is how first runs get abandoned.
  *   2. An org owner/admin whose organisation has no workspace yet. The
  *      organisation already has a name, so this only names a workspace in it.
  *
- * LIGN holds exactly ONE organisation (APP 017), which is why case 1 is keyed
- * on lign_organization_exists() and not on "I belong to none". Those are the
- * same thing to an orgless account — RLS shows it zero organisations either
- * way — and treating them as the same is what let a stranger sign in and
- * silently create a second company alongside the first.
+ * Case 1 is keyed on lign_may_found_organization(), NOT on "does an
+ * organisation exist" and not on "I belong to none". Under APP 022 many
+ * organisations coexist, so their existence says nothing; and an orgless
+ * account sees zero of them whether it is an approved founder or a stranger
+ * who just signed up. Only the server can tell those apart, because the
+ * approval lives in access_requests, which only platform admins may read.
  *
  * /no-access handles everyone else with nothing to open: you are waiting on an
- * invitation, and no amount of form filling will fix that.
+ * invitation or on approval, and no amount of form filling will fix that.
  */
 
 /** Same shape create_project_full derives for projects: lowercase, hyphenated. */
@@ -61,8 +61,8 @@ export function CreateWorkspaceScreen() {
   React.useEffect(() => { if (error) errorRef.current?.focus() }, [error])
 
   // The organisation to create inside, if there already is one. Null means
-  // create_workspace makes the organisation too — its first-run branch, which
-  // the server now permits only when no organisation exists at all.
+  // create_workspace founds the organisation too — the branch the server now
+  // permits only for an approved applicant or for LIGN staff.
   const targetOrgId = access.data?.adminOrgIds?.[0] ?? null
   const targetOrg = orgs.data?.find((o) => o.id === targetOrgId) ?? null
 
@@ -125,11 +125,17 @@ export function CreateWorkspaceScreen() {
         // here means something other than the name clashing.
         const message = (err as { message?: string } | null)?.message ?? ''
         setError(
-          message.includes('ORG_ALREADY_EXISTS')
-            ? 'This LIGN is already set up. Ask an administrator to invite you.'
-            : code === '42501'
-              ? "You don't have permission to create a workspace here."
-              : "Couldn't create it. Check your connection and try again.",
+          // APP 022. ORG_ALREADY_EXISTS is gone — the singleton it enforced
+          // was removed — but it is still mapped, because a stale cached
+          // bundle hitting an older deployment would otherwise fall through to
+          // the generic connection message and mislead.
+          message.includes('ORG_NOT_PERMITTED')
+            ? 'Creating an organisation needs an approved access request for this email address.'
+            : message.includes('ORG_ALREADY_EXISTS')
+              ? 'This LIGN is already set up. Ask an administrator to invite you.'
+              : code === '42501'
+                ? "You don't have permission to create a workspace here."
+                : "Couldn't create it. Check your connection and try again.",
         )
       },
     })
@@ -145,7 +151,7 @@ export function CreateWorkspaceScreen() {
         </div>
 
         <p className="auth-mono" style={{ margin: 0, fontSize: 11.5, letterSpacing: '0.14em', color: '#8A6420' }}>
-          {targetOrg ? targetOrg.name.toUpperCase() : 'FIRST RUN'}
+          {targetOrg ? targetOrg.name.toUpperCase() : 'ACCESS APPROVED'}
         </p>
         <h1 className="auth-display" style={{ fontSize: 'clamp(30px, 5vw, 36px)', lineHeight: 1.1, margin: '14px 0 0' }}>
           {targetOrg ? 'Add a workspace' : 'Name your organisation'}
@@ -155,8 +161,9 @@ export function CreateWorkspaceScreen() {
             <>A workspace holds projects, the people working on them, and their clients.
             Teams, offices or clients usually get one each. You can add more later.</>
           ) : (
-            <>Usually your company name. We&apos;ll create your organisation and its first
-            workspace under it — you can add more workspaces and rename either later.</>
+            <>Your access has been approved — welcome. Usually your company name. We&apos;ll
+            create your organisation and its first workspace under it, with you as owner,
+            and you can add more workspaces or rename either later.</>
           )}
         </p>
 
