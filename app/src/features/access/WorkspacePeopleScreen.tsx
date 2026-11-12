@@ -8,6 +8,10 @@ import { Avatar, AvatarFallback } from '@/ui/avatar'
 import { EmptyState } from '@/ui/empty-state'
 import { AsyncBoundary } from '@/ui/async-boundary'
 import { Skeleton } from '@/ui/skeleton'
+import { useMyOrganizations } from '@/shell/orgQueries'
+import { useWorkspace } from '@/shell/queries'
+import { WorkspaceTeamAssignment } from './WorkspaceTeamAssignment'
+import { WORKSPACE_ROLE_LABELS } from './roleLabels'
 import { useSession } from '@/auth/SessionProvider'
 import { useWorkspaceAccess } from '@/lib/capabilities'
 import { relative } from '@/lib/formatDate'
@@ -27,6 +31,8 @@ function initials(s: string) {
 export function WorkspacePeopleScreen() {
   const { ws_id: wsId } = useParams<{ ws_id: string }>()
   const { user } = useSession()
+  const workspace = useWorkspace(wsId)
+  const orgs = useMyOrganizations()
   const [inviteOpen, setInviteOpen] = React.useState(false)
 
   const access = useWorkspaceAccess(wsId)
@@ -46,6 +52,9 @@ export function WorkspacePeopleScreen() {
   const members = people.data?.members ?? []
   const stakeholders = people.data?.stakeholders ?? []
   const pending = invitations.data ?? []
+  const orgRole = orgs.data?.find((o) => o.id === workspace.data?.organization_id)?.role
+  const canAppointLead = orgRole === 'owner' || orgRole === 'admin'
+  const canGrantOwner = orgRole === 'owner' || members.some((m) => m.profileId === user?.id && m.role === 'owner' && m.status === 'active')
 
   // The workspace has no owner if the fixtures (or a direct insert) never made
   // one. Surfaced rather than hidden: only an owner can grant the owner role,
@@ -81,6 +90,7 @@ export function WorkspacePeopleScreen() {
       )}
 
       <AsyncBoundary>
+        {canInvite && workspace.data && <WorkspaceTeamAssignment workspaceId={wsId ?? ''} organizationId={workspace.data.organization_id} assignedUserIds={members.filter((m) => m.status === 'active').map((m) => m.profileId)} canAppointLead={canAppointLead} />}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Members</CardTitle>
@@ -115,7 +125,7 @@ export function WorkspacePeopleScreen() {
                       aria-label={`Role for ${m.displayName}`}
                       className="h-8 rounded-[--radius-md] border border-[--color-border] bg-[--color-surface] px-2 text-xs"
                       value={m.role}
-                      disabled={changeRole.isPending}
+                      disabled={changeRole.isPending || (m.role === 'owner' && !canGrantOwner) || (m.role === 'admin' && !canAppointLead)}
                       onChange={(e) =>
                         changeRole.mutate({
                           memberId: m.id,
@@ -123,14 +133,14 @@ export function WorkspacePeopleScreen() {
                         })
                       }
                     >
-                      {WORKSPACE_ROLES.map((r) => (
+                      {WORKSPACE_ROLES.filter((r) => r === m.role || r === 'member' || (r === 'admin' && canAppointLead) || (r === 'owner' && canGrantOwner)).map((r) => (
                         <option key={r} value={r}>
-                          {r}
+                          {WORKSPACE_ROLE_LABELS[r]}
                         </option>
                       ))}
                     </select>
                   ) : (
-                    <Badge variant="outline">{m.role}</Badge>
+                    <Badge variant="outline">{WORKSPACE_ROLE_LABELS[m.role]}</Badge>
                   )}
 
                   {canRemove && !isSelf && (
@@ -138,7 +148,7 @@ export function WorkspacePeopleScreen() {
                       variant="ghost"
                       size="icon"
                       aria-label={`Remove ${m.displayName}`}
-                      disabled={removeMember.isPending}
+                      disabled={removeMember.isPending || (m.role === 'owner' && !canGrantOwner) || (m.role === 'admin' && !canAppointLead)}
                       onClick={() => {
                         if (
                           window.confirm(
@@ -260,7 +270,7 @@ export function WorkspacePeopleScreen() {
           open={inviteOpen}
           onOpenChange={setInviteOpen}
           workspaceId={wsId}
-          mode="member"
+          mode="member" allowedWorkspaceRoles={WORKSPACE_ROLES.filter((r) => r === 'member' || (r === 'admin' && canAppointLead) || (r === 'owner' && canGrantOwner))}
         />
       )}
     </div>

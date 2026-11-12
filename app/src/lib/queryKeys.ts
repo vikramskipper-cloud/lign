@@ -16,6 +16,7 @@ export interface AssetNeighborScope {
 }
 
 export const qk = {
+  studioOverview: (orgId?: string, wsId?: string, userId?: string) => ['studio-overview', orgId ?? null, wsId ?? null, userId ?? 'anon'] as const,
   session: () => ['session'] as const,
   profile: (id: string) => ['profile', id] as const,
 

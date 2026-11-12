@@ -9,6 +9,7 @@ import { EmptyState } from '@/ui/empty-state'
 import { AsyncBoundary } from '@/ui/async-boundary'
 import { Skeleton } from '@/ui/skeleton'
 import { useCapability, useWorkspaceAccess } from '@/lib/capabilities'
+import { PROJECT_ROLE_LABELS } from './roleLabels'
 import { InviteDialog } from './InviteDialog'
 import {
   PROJECT_ROLES,
@@ -109,7 +110,7 @@ export function ProjectPeopleScreen() {
                 >
                   {PROJECT_ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {PROJECT_ROLE_LABELS[r]}
                     </option>
                   ))}
                 </select>
@@ -121,6 +122,7 @@ export function ProjectPeopleScreen() {
           </Card>
         )}
 
+        <p className="mt-4 text-sm text-[--color-text-muted]">Every project keeps at least one project lead. Assign the next lead before handing over or removing the current lead.</p>
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-base">Participants</CardTitle>
@@ -166,12 +168,12 @@ export function ProjectPeopleScreen() {
                   >
                     {PROJECT_ROLES.map((r) => (
                       <option key={r} value={r}>
-                        {r}
+                        {PROJECT_ROLE_LABELS[r]}
                       </option>
                     ))}
                   </select>
                 ) : (
-                  <Badge variant="outline">{p.role}</Badge>
+                  <Badge variant="outline">{PROJECT_ROLE_LABELS[p.role]}</Badge>
                 )}
 
                 {canManage && (

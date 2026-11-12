@@ -96,6 +96,7 @@ export function useCreateProject(workspaceId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.projects(workspaceId) })
       qc.invalidateQueries({ queryKey: ['home'] })
+      qc.invalidateQueries({ queryKey: ['studio-overview'] })
     },
   })
 }

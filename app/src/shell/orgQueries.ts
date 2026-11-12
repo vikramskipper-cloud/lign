@@ -71,11 +71,12 @@ export function useAdminOrganizations() {
 export function useCreateWorkspace() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: { name: string; organizationId: string | null }): Promise<string> => {
-      const { data, error } = await supabase.rpc('create_workspace', {
+    mutationFn: async (input: { name: string; organizationId: string | null; leadUserId?: string | null; memberUserIds?: string[] }): Promise<string> => {
+      const { data, error } = await supabase.rpc('create_workspace_team', {
         p_name: input.name,
-        p_slug: null,
         p_organization_id: input.organizationId,
+        p_lead_user_id: input.leadUserId ?? null,
+        p_member_user_ids: input.memberUserIds ?? [],
       })
       if (error) throw error
       return data as string
@@ -88,6 +89,7 @@ export function useCreateWorkspace() {
         qc.invalidateQueries({ queryKey: qk.workspaces(), refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: ['access-check'], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: ['organizations'], refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: ['studio-overview'] }),
       ])
     },
   })

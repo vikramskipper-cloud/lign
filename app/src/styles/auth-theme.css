@@ -321,3 +321,18 @@
 @media (prefers-reduced-motion: reduce) {
   @keyframes lign-spin { to { transform: none; } }
 }
+
+
+/* Studio/workspace names remain usable on small screens. */
+.app-topbar { gap: 12px; padding: 0 16px; }
+.app-workspace-switcher { position: relative; flex: 0 1 240px; min-width: 0; max-width: 260px; }
+.app-workspace-menu [role="menuitem"] span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 1023px) {
+  .app-topbar .app-search { display: none; }
+}
+@media (max-width: 639px) {
+  .app-topbar { gap: 6px; padding: 0 8px; }
+  .app-brand span, .app-topbar .app-crumb { display: none; }
+  .app-workspace-switcher { flex: 1 1 auto; max-width: none; }
+  .app-workspace-menu { position: fixed !important; top: 56px !important; left: 8px !important; right: 8px !important; max-height: calc(100dvh - 72px); overflow-y: auto; }
+}

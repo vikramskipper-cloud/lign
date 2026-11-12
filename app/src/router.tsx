@@ -7,6 +7,7 @@ import { SetPasswordScreen } from '@/auth/SetPasswordScreen'
 import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
 import { CreateWorkspaceScreen } from '@/auth/CreateWorkspaceScreen'
+import { AccountHome } from '@/features/oversight/AccountHome'
 import { HomeScreen } from '@/features/home/HomeScreen'
 import { OrgPeopleScreen, OrgPeopleHandle } from '@/features/workspaces/OrgPeopleScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
@@ -169,7 +170,9 @@ export const router = createBrowserRouter([
           {
             element: <RootLayout />,
             children: [
-              { path: '/dashboard', element: <HomeScreen /> },
+              { path: '/dashboard', element: <AccountHome /> },
+              { path: '/my-work', element: <HomeScreen /> },
+              { path: '/org/:org_id/overview', lazy: () => import('@/features/oversight/overview.route'), handle: { crumb: 'Studio overview' } },
               { path: '/org/:org_id/people', element: <OrgPeopleScreen />, handle: OrgPeopleHandle },
               // Not org-scoped in the URL: access_requests has no
               // organization_id — an applicant belongs to nothing yet. The
@@ -191,6 +194,7 @@ export const router = createBrowserRouter([
                 handle: WorkspaceLayout.handle,
                 children: [
                   { index: true, element: <Navigate to="projects" replace /> },
+                  { path: 'overview', lazy: () => import('@/features/oversight/overview.route'), handle: { crumb: 'Workspace overview' } },
                   { path: 'projects', element: <ProjectListScreen />, handle: ProjectListHandle },
                   { path: 'reviews', element: <WorkspaceReviewsScreen />, handle: WorkspaceReviewsHandle },
                   { path: 'approvals', element: <WorkspaceApprovalsScreen />, handle: WorkspaceApprovalsHandle },

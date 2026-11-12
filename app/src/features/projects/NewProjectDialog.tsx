@@ -116,7 +116,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
 
   const myMemberId = members.data?.find((m) => m.userId === user?.id)?.memberId ?? null
   const effectiveLead = leadMemberId ?? myMemberId
-  const leadIsSomeoneElse = Boolean(effectiveLead && myMemberId && effectiveLead !== myMemberId)
+  const leadIsSomeoneElse = Boolean(effectiveLead && effectiveLead !== myMemberId)
 
   const trimmedName = name.trim()
   const canSubmit = trimmedName.length > 0 && !create.isPending
@@ -391,6 +391,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                     onChange={(e) => setLeadMemberId(e.target.value || null)}
                     style={{ ...field(false), appearance: 'none', paddingRight: 34 }}
                   >
+                    {!myMemberId && <option value="">Me — lead this project</option>}
                     {(members.data ?? []).map((m) => (
                       <option key={m.memberId} value={m.memberId}>
                         {m.memberId === myMemberId ? `${m.name} (you)` : m.name}

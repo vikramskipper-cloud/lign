@@ -5,7 +5,7 @@ import {
   Home, Inbox, Layers, LayoutDashboard, Menu, Plus, Rocket, Search, Settings2,
   Stamp, UserRound, Users,
 } from 'lucide-react'
-import { useWorkspaces, useProject } from '@/shell/queries'
+import { useWorkspaces, useProject, useProjects } from '@/shell/queries'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
 import { useWorkspaceAccess, useProjectCapabilities } from '@/lib/capabilities'
 import { useNotificationBadgeCount } from '@/features/notifications/queries'
@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const { workspaceId } = useActiveWorkspaceId()
   const workspaces = useWorkspaces()
+  const workspaceProjects = useProjects(workspaceId)
   const access = useWorkspaceAccess(workspaceId)
   const badge = useNotificationBadgeCount(workspaceId)
   const reviewInbox = useReviewInboxCount(workspaceId)
@@ -165,8 +166,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
    */
   const workspaceNav: NavEntry[] = [
     { to: '/dashboard', label: 'Home', icon: <Home size={15} /> },
+    ...(adminOrgId ? [{ to: `/org/${adminOrgId}/overview`, label: 'Studio overview', icon: <Building2 size={15} /> }] : []),
+    ...(canSeeSettings ? [{ to: ws('overview'), label: 'Workspace overview', icon: <LayoutDashboard size={15} /> }] : []),
+    { to: '/my-work', label: 'My work', icon: <UserRound size={15} /> },
     { to: ws('inbox'), label: 'Inbox', icon: <Inbox size={15} />, trailing: count(unread, 'accent') },
-    { to: ws('projects'), label: 'Projects', icon: <FolderOpen size={15} />, trailing: count(participations.length) },
+    { to: ws('projects'), label: 'Projects', icon: <FolderOpen size={15} />, trailing: count(workspaceProjects.data?.length ?? 0) },
     { to: ws('reviews'), label: 'Reviews', icon: <ClipboardCheck size={15} />, trailing: count(myReviews, 'accent') },
     { to: ws('approvals'), label: 'Approvals', icon: <Stamp size={15} /> },
     { to: ws('requirements'), label: 'Requirements', icon: <ClipboardList size={15} /> },
@@ -229,10 +233,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="lign-warm" style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <header
+        className="app-topbar"
         style={{
           height: 56, flex: '0 0 56px', background: 'var(--surface)',
           borderBottom: '1px solid var(--border-soft)', display: 'flex',
-          alignItems: 'center', gap: 12, padding: '0 16px',
+          alignItems: 'center',
         }}
       >
         <button
@@ -246,30 +251,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Menu size={18} />
         </button>
 
-        <Link to="/dashboard" aria-label="Home" style={{ textDecoration: 'none', flex: '0 0 auto' }}>
+        <Link className="app-brand" to="/dashboard" aria-label="Home" style={{ textDecoration: 'none', flex: '0 0 auto' }}>
           <Wordmark />
         </Link>
 
-        <div style={{ position: 'relative', flex: '0 0 auto' }}>
+        <div className="app-workspace-switcher">
           {canSwitch ? (
             <button
               type="button"
               onClick={() => setWsMenuOpen((v) => !v)}
               aria-expanded={wsMenuOpen}
               aria-haspopup="menu"
-              style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13.5, padding: '6px 8px', borderRadius: 7, minHeight: 36 }}
+              style={{ display: 'flex', width: '100%', minWidth: 0, alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 13.5, padding: '6px 8px', borderRadius: 7, minHeight: 36 }}
             >
-              {current?.name ?? 'Workspace'}
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.name ?? 'Workspace'}</span>
               <ChevronDown size={14} aria-hidden="true" />
             </button>
           ) : (
-            <span style={{ fontSize: 13.5, color: 'var(--text)', padding: '6px 8px' }}>
+            <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13.5, color: 'var(--text)', padding: '6px 8px' }}>
               {current?.name ?? 'Workspace'}
             </span>
           )}
           {wsMenuOpen && canSwitch && (
             <div
               role="menu"
+              className="app-workspace-menu"
               style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, minWidth: 200, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, zIndex: 40, boxShadow: '0 8px 24px -12px rgba(0,0,0,.25)' }}
             >
               {orgName && (
@@ -322,7 +328,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 7, textDecoration: 'none', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
                     >
                       <Building2 size={14} aria-hidden="true" />
-                      Organisation people
+                      Studio people
                     </Link>
                   )}
 

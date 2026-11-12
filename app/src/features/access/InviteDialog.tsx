@@ -14,6 +14,7 @@ import { Input } from '@/ui/input'
 import { Label } from '@/ui/label'
 import { FormRow } from '@/ui/form-row'
 import { absolute, relative } from '@/lib/formatDate'
+import { WORKSPACE_ROLE_LABELS, PROJECT_ROLE_LABELS } from './roleLabels'
 import { PROJECT_ROLES, WORKSPACE_ROLES } from './queries'
 import type { ProjectRole, WorkspaceRole } from './queries'
 import { inviteUrl, useInviteMember, useInviteStakeholder, type InviteResult } from './mutations'
@@ -28,6 +29,7 @@ interface Props {
   /** Required for stakeholders: they see nothing without project scope. */
   projectId?: string
   projectName?: string
+  allowedWorkspaceRoles?: WorkspaceRole[]
 }
 
 /**
@@ -46,6 +48,7 @@ export function InviteDialog({
   mode,
   projectId,
   projectName,
+  allowedWorkspaceRoles = WORKSPACE_ROLES,
 }: Props) {
   const [email, setEmail] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
@@ -192,9 +195,9 @@ export function InviteDialog({
                       : setProjRole(e.target.value as ProjectRole)
                   }
                 >
-                  {(mode === 'member' ? WORKSPACE_ROLES : PROJECT_ROLES).map((r) => (
+                  {(mode === 'member' ? allowedWorkspaceRoles : PROJECT_ROLES).map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {mode === 'member' ? WORKSPACE_ROLE_LABELS[r as WorkspaceRole] : PROJECT_ROLE_LABELS[r as ProjectRole]}
                     </option>
                   ))}
                 </select>
