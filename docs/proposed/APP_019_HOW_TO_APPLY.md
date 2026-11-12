@@ -1,29 +1,38 @@
-# APP 019 — ready to apply, not applied
+# APP 019 — scope slice APPLIED; nesting still pending
 
-> **Update, 4 Oct.** Three apply attempts were refused, on progressively safer
-> migrations. The third contained only `CREATE TABLE`, `CREATE POLICY` and
-> `CREATE OR REPLACE FUNCTION` — the same statement kinds that APP 016e and
-> 016f used successfully the day before. So the refusals are not explained by
-> statement shape, and I stopped guessing. All three files below are finished
-> and reviewed; none has run.
+> **Status, 12 Nov.** `APP_019_requirement_collection_scope.sql` **is applied
+> and committed** as migration **83**
+> (`20261112064944_app_019_requirement_collection_scope.sql`, md5
+> `cf268866b48a56fc207c7736e5ba5033`). `ops/verify_migrations.sh` reads
+> **83/83 byte-identical, 0 drifted**. The verification below was re-run against
+> the committed schema, not a rolled-back transaction — see
+> *Verification on committed state* at the end.
+>
+> **`APP_019a_nested_collections.sql` and `APP_019b_collection_name_per_parent.sql`
+> have NOT run.** Nesting — `parent_collection_id`, the tree trigger,
+> `lign_collection_ancestry`, cascade down the tree — is still absent.
 
-Written, reviewed and split. The database is untouched: **82 migrations, no
-`parent_collection_id`, no `requirement_collections`, `list_applicable_requirements`
-still two-scope.** Nothing landed, so there is no half-migrated state.
+**019a can no longer be applied as written.** It was built as a superset of the
+scope slice, so it would now fail on the already-existing
+`requirement_collections`. Before it runs it must be **reduced to the nesting
+delta**: `collections.parent_collection_id`, `enforce_collection_tree`,
+`lign_collection_ancestry`, and one `CREATE OR REPLACE` each on
+`list_applicable_requirements` and `enforce_assessment_applicability` swapping
+the `ancestry` CTE for the recursive walk. That CTE is the only seam —
+everything else in the applied migration stays as it is.
 
-Both files were refused at the apply step by this environment's guard on schema
-change. The second refusal is the informative one — it contained **zero**
-destructive statements — so the block is on schema change to existing frozen
-tables generally, not on `DROP` specifically. Rather than keep submitting
-variants, here is the finished work and what each part does.
+The applied slice already removes the fail-open behaviour on its own, because
+position in a collection *is* the scope and a new element in that collection is
+covered by construction (verified: test 6 below). Nesting adds cascade through
+ancestors, not the guarantee.
 
 ## Three files, two routes
 
 **Smallest useful change — scope only, no nesting:**
 
-| file | what it is | destructive |
-|---|---|---|
-| `APP_019_requirement_collection_scope.sql` | a requirement can be scoped to a space; applicability and the assessment gate both learn about it | **none** |
+| file | what it is | destructive | state |
+|---|---|---|---|
+| `APP_019_requirement_collection_scope.sql` | a requirement can be scoped to a space; applicability and the assessment gate both learn about it | **none** | **APPLIED — migration 83** |
 
 That one alone removes the fail-open behaviour, because position in a
 collection *is* the scope and a new element in that collection is covered by
@@ -31,14 +40,14 @@ construction. Nesting adds cascade, not the guarantee.
 
 **Or the full version, scope plus nesting:**
 
-| # | file | what it is | destructive |
-|---|---|---|---|
-| 1 | `APP_019a_nested_collections.sql` | scope **and** nested spaces | **none** |
-| 2 | `APP_019b_collection_name_per_parent.sql` | sibling spaces may share a name | one `drop index` |
+| # | file | what it is | destructive | state |
+|---|---|---|---|---|
+| 1 | `APP_019a_nested_collections.sql` | scope **and** nested spaces | **none** | not run — **must be reduced to the nesting delta first** |
+| 2 | `APP_019b_collection_name_per_parent.sql` | sibling spaces may share a name | one `drop index` | not run |
 
-Do not apply both `APP_019_requirement_collection_scope.sql` and
-`APP_019a_nested_collections.sql` — 019a is a superset, and the second would
-fail on the already-existing `requirement_collections`.
+**The scope slice has already run, so 019a as written will fail** on the
+existing `requirement_collections` — it was a superset of it. Reduce it to the
+nesting delta described in the status block above before applying.
 
 019a delivers nesting and collection-scoped requirements on its own. 019b is a
 usability fix on top: without it, the Living room and the Kitchen cannot each
@@ -92,7 +101,7 @@ Note the change to *project-wide*: it now means "scoped to nothing at all".
 Without that, scoping a requirement to one room would have left it applying
 everywhere as well — the opposite of the point.
 
-## The verification, already prepared
+## The verification method
 
 I captured the before-fingerprint on a fixture with fixed UUIDs so the identical
 estate can be rebuilt after and diffed line for line.
@@ -120,7 +129,7 @@ Also still to verify once applied:
    is deliberately still a helper because it runs once per RPC call rather than
    once per RLS candidate row, but that is an argument, not a measurement.
 
-## Not built
+## Not built (as of the proposal; see *Still not built* at the end)
 
 The frontend. The collection tree sidebar, the Designs breadcrumb, and the
 requirement scope picker are all still flat — no point building a tree UI
@@ -129,7 +138,14 @@ against a schema that has not taken the tree.
 
 ---
 
-## Diagnosis of the apply failures (4 Oct)
+## Diagnosis of the apply failures (4 Oct) — resolved 12 Nov
+
+> **Resolution.** The diagnosis below was correct: the refusals were at the
+> tool-approval layer, not in the SQL or the database. On 12 Nov the identical
+> file — same bytes, same md5 — was submitted to `apply_migration` again and
+> **was accepted**. Nothing about the migration changed. Recorded here because
+> the conclusion generalises: a bare `declined` with no SQLSTATE is a gate, and
+> rewriting the SQL to appease it is wasted work.
 
 **Nothing is broken, and nothing is wrong with the SQL.** The failure is at the
 tool-approval layer, before Postgres ever sees the statement.
@@ -172,10 +188,12 @@ Two reasons, and the second is the binding one:
    from that moment on, permanently. The rule that every deployed object traces
    to a migration is worth more than getting this slice in a day earlier.
 
-## Verification — complete, on the real database
+## Verification — on the real database, rolled back (4 Oct)
 
 All of this ran against the live schema inside transactions that were rolled
-back. The results are real; only the persistence is missing.
+back. The results were real; only the persistence was missing. It has since
+been re-run on the committed schema — see *Verification on committed state*
+below, which supersedes this section.
 
 **Regression: none.** The migration applied, the fixture rebuilt, fingerprint
 identical to the baseline:
@@ -223,3 +241,59 @@ false pass:
    tests had therefore failed on a CHECK constraint rather than on the trigger,
    and one of them reported "correctly refused" while proving nothing. Caught
    only because a test that should have passed did not.
+
+
+## Verification on committed state (12 Nov)
+
+Everything above was measured inside transactions that were rolled back. These
+were re-run after the migration was committed, so they test the persistent
+schema.
+
+**Recorded state**
+
+| check | result |
+|---|---|
+| migrations | **83** |
+| recorded md5 | `cf268866b48a56fc207c7736e5ba5033` — matches the file byte for byte |
+| `verify_migrations.sh` | 83 applied, 83 byte-identical, 0 drifted, 0 missing, 0 unapplied |
+| `requirement_collections` exists | yes |
+| `set_requirement_collections` exists | yes |
+| `list_applicable_requirements` knows collections | yes |
+| `enforce_assessment_applicability` knows collections | yes |
+
+**Regression fingerprint — identical to the pre-apply baseline**
+
+| asset | collection | before | on committed schema |
+|---|---|---|---|
+| FW · Front wall | Living room | `R-ASSET(sc) R-WIDE(pw)` | `R-ASSET(sc) R-WIDE(pw)` |
+| SN · Sofa niche | Seating nook | `R-WIDE(pw)` | `R-WIDE(pw)` |
+| SB · Splashback | Kitchen | `R-CHILD(sc) R-PARENT(sc) R-WIDE(pw)` | `R-CHILD(sc) R-PARENT(sc) R-WIDE(pw)` |
+| LI · Loose item | — | `R-WIDE(pw)` | `R-WIDE(pw)` |
+
+Nothing became inapplicable.
+
+**New capability, driven through the deployed RPC as a project lead** (not by
+direct insert — this also exercises the capability check and the audit write):
+
+| # | test | result |
+|---|---|---|
+| 1 | `set_requirement_collections` called as a project lead | accepted |
+| 2 | Front wall, in the scoped room | `R-ROOM` applies ✓ |
+| 3 | Splashback, different room | does not apply ✓ |
+| 4 | `R-ROOM` still reports project-wide? | `false` ✓ |
+| 5 | scope change audited | `requirement.applicability_changed` ✓ |
+| 6 | **Curtains, added to the room AFTER the scope was set** | **`R-ROOM` applies ✓** |
+| 7 | assess `R-ROOM` on the front wall | accepted ✓ |
+| 8 | assess `R-ROOM` on the splashback | refused `23514` ✓ |
+
+Tests 7 and 8 are the read/write parity check: the gate refuses exactly what
+the read says is inapplicable, so the UI cannot offer an assessment the
+database will reject. Test 6 is the fail-open fix — the element did not exist
+when the scope was set, and is covered anyway.
+
+## Still not built
+
+The frontend. No collection tree sidebar, no requirement scope picker, no
+"applies to" display — a requirement can only be scoped to a space by calling
+`set_requirement_collections` directly. The schema and the gate are in; the
+screens are not.
