@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { Mail, UserPlus, X } from 'lucide-react'
 import { Button } from '@/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card'
@@ -11,7 +11,9 @@ import { Skeleton } from '@/ui/skeleton'
 import { useMyOrganizations } from '@/shell/orgQueries'
 import { useWorkspace } from '@/shell/queries'
 import { WorkspaceTeamAssignment } from './WorkspaceTeamAssignment'
-import { WORKSPACE_ROLE_LABELS } from './roleLabels'
+import { WORKSPACE_ROLE_LABELS, WORKSPACE_ROLE_DESCRIPTIONS, PROJECT_ROLE_LABELS } from './roleLabels'
+import { RoleBadge } from './RoleBadge'
+import { useAccessDirectory } from './directoryQueries'
 import { useSession } from '@/auth/SessionProvider'
 import { useWorkspaceAccess } from '@/lib/capabilities'
 import { relative } from '@/lib/formatDate'
@@ -26,6 +28,15 @@ import { useChangeMemberRole, useRemoveMember, useRevokeInvitation, useRevokeSta
 
 function initials(s: string) {
   return s.slice(0, 2).toUpperCase()
+}
+
+function ExternalProjectAccess({ directory, stakeholderId, workspaceId }: {
+  directory: ReturnType<typeof useAccessDirectory>; stakeholderId: string; workspaceId: string
+}) {
+  if (directory.isLoading) return <p className="text-xs">Loading project access…</p>
+  if (directory.isError) return <p role="alert" className="text-xs">Project access unavailable. <button type="button" className="auth-link" onClick={() => void directory.refetch()}>Try again</button></p>
+  const projects = directory.data?.people.flatMap((p) => p.projectRoles).filter((p) => p.source === 'external' && p.sourceId === stakeholderId) ?? []
+  return projects.length ? <>{projects.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-2"><Link className="auth-link text-xs" to={`/workspace/${workspaceId}/project/${p.projectId}/people`}>{p.projectName}</Link><RoleBadge scope="project" role={p.role} />{p.archived && <Badge variant="outline">Archived</Badge>}</div>)}</> : <p className="text-xs text-[--color-text-muted]">No current project assignments.</p>
 }
 
 export function WorkspacePeopleScreen() {
@@ -48,6 +59,7 @@ export function WorkspacePeopleScreen() {
   const canChangeRole = Boolean(access.data?.['member.change_role'])
   const canRemove = Boolean(access.data?.['member.remove'])
   const canRevokeStakeholder = Boolean(access.data?.['stakeholder.revoke'])
+  const directory = useAccessDirectory(undefined, wsId, canRevokeStakeholder)
 
   const members = people.data?.members ?? []
   const stakeholders = people.data?.stakeholders ?? []
@@ -106,18 +118,21 @@ export function WorkspacePeopleScreen() {
               return (
                 <div
                   key={m.id}
-                  className="flex items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
+                  className="flex flex-wrap items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>{initials(m.displayName)}</AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1 basis-52">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-medium">{m.displayName}</span>
+                      <RoleBadge scope="workspace" role={m.role} />
+                      <Badge>Internal</Badge>
                       {isSelf && <Badge variant="brand">you</Badge>}
                       {m.status !== 'active' && <Badge variant="outline">{m.status}</Badge>}
                     </div>
                     <div className="truncate text-xs text-[--color-text-muted]">{m.email}</div>
+                    <p className="mt-1 text-xs text-[--color-text-muted]">{WORKSPACE_ROLE_DESCRIPTIONS[m.role]}</p>
                   </div>
 
                   {canChangeRole && !isSelf ? (
@@ -139,9 +154,7 @@ export function WorkspacePeopleScreen() {
                         </option>
                       ))}
                     </select>
-                  ) : (
-                    <Badge variant="outline">{WORKSPACE_ROLE_LABELS[m.role]}</Badge>
-                  )}
+                  ) : null}
 
                   {canRemove && !isSelf && (
                     <Button
@@ -186,19 +199,23 @@ export function WorkspacePeopleScreen() {
             {stakeholders.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
+                className="flex flex-wrap items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{initials(s.displayName ?? s.email)}</AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-52">
                   <div className="truncate text-sm font-medium">{s.displayName ?? s.email}</div>
                   <div className="truncate text-xs text-[--color-text-muted]">{s.email}</div>
+                  <Badge>External</Badge>
+                  {canRevokeStakeholder && <div className="mt-2 space-y-2">
+                    <ExternalProjectAccess directory={directory} stakeholderId={s.id} workspaceId={wsId ?? ''} />
+                  </div>}
                 </div>
-                {s.claimedProfileId ? (
-                  <Badge variant="success">claimed</Badge>
+                {s.claimedProfileId && s.status === 'active' ? (
+                  <Badge variant="success">Active</Badge>
                 ) : (
-                  <Badge variant="outline">not yet signed in</Badge>
+                  <Badge variant="outline">Invitation not yet accepted</Badge>
                 )}
                 {canRevokeStakeholder && (
                   <Button
@@ -237,14 +254,14 @@ export function WorkspacePeopleScreen() {
               {pending.map((i) => (
                 <div
                   key={i.id}
-                  className="flex items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
+                  className="flex flex-wrap items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
                 >
                   <Mail className="h-4 w-4 shrink-0 text-[--color-text-subtle]" />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-52">
                     <div className="truncate text-sm">{i.email}</div>
                     <div className="truncate text-xs text-[--color-text-muted]">
-                      {i.kind === 'stakeholder' ? 'stakeholder' : 'member'}
-                      {i.role ? ` · ${i.role}` : ''} · expires {relative(i.expiresAt)}
+                      {i.kind === 'stakeholder' ? 'External' : 'Internal'}
+                      {i.role ? ` · ${i.kind === 'stakeholder' ? PROJECT_ROLE_LABELS[i.role as keyof typeof PROJECT_ROLE_LABELS] : WORKSPACE_ROLE_LABELS[i.role as WorkspaceRole]}` : ''} · expires {relative(i.expiresAt)}
                       {i.invitedByName ? ` · invited by ${i.invitedByName}` : ''}
                     </div>
                   </div>

@@ -176,7 +176,7 @@ export function useProjectAccess(projId: string | undefined) {
            workspace_member:workspace_members!project_participants_workspace_member_fk(
              id, profile:profiles!workspace_members_user_id_fkey(display_name, email)),
            stakeholder:stakeholders!project_participants_stakeholder_fk(
-             id, display_name, email, user_id)`,
+             id, display_name, email, user_id, status)`,
         )
         .eq('project_id', projId as string)
         .eq('status', 'active')
@@ -188,7 +188,7 @@ export function useProjectAccess(projId: string | undefined) {
         workspace_member_id: string | null
         stakeholder_id: string | null
         workspace_member: { id: string; profile: { display_name: string; email: string } | null } | null
-        stakeholder: { id: string; display_name: string | null; email: string; user_id: string | null } | null
+        stakeholder: { id: string; display_name: string | null; email: string; user_id: string | null; status: string } | null
       }
 
       return ((data ?? []) as unknown as Raw[])
@@ -212,7 +212,7 @@ export function useProjectAccess(projId: string | undefined) {
               displayName: r.stakeholder.display_name ?? r.stakeholder.email,
               email: r.stakeholder.email,
               role: r.role as ProjectRole,
-              pending: r.stakeholder.user_id === null,
+              pending: r.stakeholder.user_id === null || r.stakeholder.status !== 'active',
             }
           }
           return null

@@ -9,7 +9,8 @@ import { EmptyState } from '@/ui/empty-state'
 import { AsyncBoundary } from '@/ui/async-boundary'
 import { Skeleton } from '@/ui/skeleton'
 import { useCapability, useWorkspaceAccess } from '@/lib/capabilities'
-import { PROJECT_ROLE_LABELS } from './roleLabels'
+import { PROJECT_ROLE_LABELS, PROJECT_ROLE_DESCRIPTIONS } from './roleLabels'
+import { RoleBadge } from './RoleBadge'
 import { InviteDialog } from './InviteDialog'
 import {
   PROJECT_ROLES,
@@ -141,18 +142,20 @@ export function ProjectPeopleScreen() {
             {rows.map((p) => (
               <div
                 key={p.id}
-                className="flex items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
+                className="flex flex-wrap items-center gap-3 rounded-[--radius-md] px-2 py-2 hover:bg-[--color-surface-2]"
               >
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>{initials(p.displayName)}</AvatarFallback>
                 </Avatar>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 basis-52">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium">{p.displayName}</span>
-                    {p.kind === 'stakeholder' && <Badge variant="neutral">external</Badge>}
-                    {p.pending && <Badge variant="outline">not yet signed in</Badge>}
+                    <RoleBadge scope="project" role={p.role} />
+                    <Badge variant="neutral">{p.kind === 'stakeholder' ? 'External' : 'Internal'}</Badge>
+                    {p.pending && <Badge variant="outline">Invitation not yet accepted</Badge>}
                   </div>
                   <div className="truncate text-xs text-[--color-text-muted]">{p.email}</div>
+                  <p className="mt-1 text-xs text-[--color-text-muted]">{PROJECT_ROLE_DESCRIPTIONS[p.role]}</p>
                 </div>
 
                 {canManage ? (
@@ -174,9 +177,7 @@ export function ProjectPeopleScreen() {
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <Badge variant="outline">{PROJECT_ROLE_LABELS[p.role]}</Badge>
-                )}
+                ) : null}
 
                 {canManage && (
                   <Button

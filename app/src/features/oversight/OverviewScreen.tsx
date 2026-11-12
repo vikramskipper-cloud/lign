@@ -46,6 +46,7 @@ export function OverviewScreen() {
           <p style={{ ...muted, marginTop: 8 }}>{wsId ? 'Every project in this workspace, its lead and the work waiting for attention.' : 'Every workspace and project in your studio, including work delegated to other leads.'}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!wsId && <Link style={button} to={`/org/${data.organizationId}/access`}>Access directory</Link>}
           <Link style={button} to={wsId ? `/workspace/${wsId}/people` : `/org/${data.organizationId}/people`}><Users size={15} />{wsId ? 'Manage team' : 'Studio people'}</Link>
           <button type="button" style={{ ...button, background: 'var(--accent)', color: '#fff', borderColor: 'var(--accent)' }} onClick={() => wsId ? setNewProject(true) : setNewWorkspace(true)}><Plus size={15} />{wsId ? 'New project' : 'New workspace'}</button>
         </div>

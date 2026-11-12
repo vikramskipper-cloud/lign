@@ -236,6 +236,7 @@ export function invalidateAllNeighbors(qc: QueryClient) {
  * is worse than an extra round trip.
  */
 export function invalidateAccess(qc: QueryClient, wsId?: string, projId?: string) {
+  qc.invalidateQueries({ queryKey: ['access-directory'] })
   qc.invalidateQueries({ queryKey: ['studio-overview'] })
   qc.invalidateQueries({ queryKey: ['workspaces'] })
   qc.invalidateQueries({ queryKey: ['access-check'] })

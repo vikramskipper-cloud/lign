@@ -90,6 +90,7 @@ export function useCreateWorkspace() {
         qc.invalidateQueries({ queryKey: ['access-check'], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: ['organizations'], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: ['studio-overview'] }),
+        qc.invalidateQueries({ queryKey: ['access-directory'] }),
       ])
     },
   })
@@ -183,6 +184,8 @@ export function useAddableProfiles(organizationId: string | undefined) {
 
 function orgInvalidate(qc: ReturnType<typeof useQueryClient>, organizationId: string) {
   return Promise.all([
+    qc.invalidateQueries({ queryKey: ['access-directory'] }),
+    qc.invalidateQueries({ queryKey: ['studio-overview'] }),
     qc.invalidateQueries({ queryKey: ['org-members', organizationId], refetchType: 'all' }),
     qc.invalidateQueries({ queryKey: ['org-addable'], refetchType: 'all' }),
     qc.invalidateQueries({ queryKey: ['organizations'], refetchType: 'all' }),
@@ -323,8 +326,10 @@ export function useInviteOrgMember(organizationId: string) {
         expiresAt: row.out_expires_at as string,
       }
     },
-    onSuccess: () =>
+    onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: ['org-invitations', organizationId], refetchType: 'all' }),
+      qc.invalidateQueries({ queryKey: ['access-directory'] }),
+    ]),
   })
 }
 
@@ -337,8 +342,10 @@ export function useRevokeOrgInvitation(organizationId: string) {
       })
       if (error) throw error
     },
-    onSuccess: () =>
+    onSuccess: () => Promise.all([
       qc.invalidateQueries({ queryKey: ['org-invitations', organizationId], refetchType: 'all' }),
+      qc.invalidateQueries({ queryKey: ['access-directory'] }),
+    ]),
   })
 }
 

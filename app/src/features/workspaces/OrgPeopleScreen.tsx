@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Navigate, useParams } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { AlertCircle, Building2, Copy, Mail, Plus, X } from 'lucide-react'
 import { useSession } from '@/auth/SessionProvider'
@@ -10,6 +10,8 @@ import {
   type OrgMember, type OrgRole,
 } from '@/shell/orgQueries'
 import { FullPageLoader } from '@/ui/full-page-loader'
+import { RoleBadge } from '@/features/access/RoleBadge'
+import { ORG_ROLE_DESCRIPTIONS } from '@/features/access/roleLabels'
 import '@/styles/auth-theme.css'
 
 export const OrgPeopleHandle = { crumb: 'Organisation people' }
@@ -39,31 +41,6 @@ const C = {
   ink: '#171310', text: '#3A332D', helper: '#6B625A',
   error: '#963015', errorIcon: '#A8341A',
   accent: '#D9622B', accentDisabled: '#E5B69C',
-}
-
-const ROLE_BLURB: Record<OrgRole, string> = {
-  owner: 'Sees and administers every workspace. Controls the owner role itself.',
-  admin: 'Sees and administers every workspace in the organisation.',
-  member: 'No access by itself — workspaces are granted individually.',
-}
-
-function RoleChip({ role }: { role: OrgRole }) {
-  const tone = role === 'owner'
-    ? { fg: '#8A3A13', bg: '#FAEDE5' }
-    : role === 'admin'
-      ? { fg: '#7A5A18', bg: '#F7EFDC' }
-      : { fg: '#5E554D', bg: '#F1ECE5' }
-  return (
-    <span
-      className="auth-mono"
-      style={{
-        fontSize: 10, letterSpacing: '0.08em', padding: '2px 6px', borderRadius: 4,
-        color: tone.fg, background: tone.bg, whiteSpace: 'nowrap',
-      }}
-    >
-      {role.toUpperCase()}
-    </span>
-  )
 }
 
 export function OrgPeopleScreen() {
@@ -184,6 +161,8 @@ export function OrgPeopleScreen() {
         </div>
       )}
 
+      <Link className="auth-link" style={{ display: 'inline-block', marginTop: 20, fontSize: 14 }} to={`/org/${org_id}/access`}>View everyone’s workspace and project access</Link>
+
       <section style={{ marginTop: 26 }}>
         <h2 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: C.ink }}>
           People ({rows.length})
@@ -204,13 +183,13 @@ export function OrgPeopleScreen() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 14, color: C.ink }}>{m.name}</span>
                     {isMe && <span style={{ fontSize: 12, color: C.helper }}>(you)</span>}
-                    <RoleChip role={m.role} />
+                    <RoleBadge scope="organization" role={m.role} />
                     {m.status !== 'active' && (
                       <span style={{ fontSize: 12, color: '#8A6420' }}>{m.status}</span>
                     )}
                   </div>
                   <p style={{ margin: '3px 0 0', fontSize: 12.5, color: C.helper }}>
-                    {m.email} · {ROLE_BLURB[m.role]}
+                    {m.email} · {ORG_ROLE_DESCRIPTIONS[m.role]}
                   </p>
                 </div>
 
@@ -271,7 +250,7 @@ export function OrgPeopleScreen() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 14, color: C.ink }}>{inv.email}</span>
-                    <RoleChip role={inv.role} />
+                    <RoleBadge scope="organization" role={inv.role} />
                   </div>
                   <p style={{ margin: '3px 0 0', fontSize: 12.5, color: C.helper }}>
                     Invited · expires {new Date(inv.expiresAt).toLocaleDateString()} · the link

@@ -1,4 +1,4 @@
-# Studio and workspace leadership (APP 025–026)
+# Studio and workspace leadership (APP 025–027)
 
 The beta remains access-only. An approved studio owner activates their account,
 then invites architects through **Studio people**. Once an architect joins, the
@@ -48,6 +48,32 @@ workspace's data; contributors cannot retrieve leadership summaries. Existing
 project capabilities still govern creative actions such as publishing and
 responding to approvals.
 
+## Access directory and role labels
+
+Studio owners and administrators can open **Access directory** from the studio
+overview, sidebar, or Studio people. `/org/:org_id/access` combines internal and
+external people with their organization role, workspace roles and assigned
+project roles. Search by name, email, project or role, and filter by workspace
+or internal/external access. Someone with both internal and external project
+assignments appears once, with each participation path labeled separately.
+
+Shared badges and short descriptions explain portal access on the organization,
+workspace and project people screens. Workspace leadership can also see each
+external person's project assignments and roles in Workspace people.
+
+The directory distinguishes inherited studio/workspace administration from
+project roles that permit design work. It shows pending invitations and
+acceptance status separately from active access. Archived scopes remain visible
+with labels. Removed organization membership can coexist with a separate active
+workspace/project assignment under existing membership rules; the directory
+shows both facts so an owner can review the remaining access.
+
+`get_access_directory` requires studio leadership for a full directory or
+workspace leadership for a directory restricted to that workspace. It returns
+existing assignments only and includes no invitation tokens. Role changes and
+invitations invalidate cached directory data, with a 30-second refresh for
+changes made by other users.
+
 ## Implementation and verification
 
 Migration `20261112120000_app_025_studio_leadership.sql` adds atomic workspace
@@ -69,6 +95,8 @@ node tests/access/studio-leadership.mjs
 node tests/access/studio-browser.mjs
 node tests/access/project-external.mjs
 node tests/access/project-external-browser.mjs
+node tests/access/access-directory.mjs
+node tests/access/access-directory-browser.mjs
 ```
 
 Use Node 22 or later. Save the isolated stack's status JSON to ignored

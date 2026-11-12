@@ -167,6 +167,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const workspaceNav: NavEntry[] = [
     { to: '/dashboard', label: 'Home', icon: <Home size={15} /> },
     ...(adminOrgId ? [{ to: `/org/${adminOrgId}/overview`, label: 'Studio overview', icon: <Building2 size={15} /> }] : []),
+    ...(adminOrgId ? [{ to: `/org/${adminOrgId}/access`, label: 'Access directory', icon: <Users size={15} /> }] : []),
     ...(canSeeSettings ? [{ to: ws('overview'), label: 'Workspace overview', icon: <LayoutDashboard size={15} /> }] : []),
     { to: '/my-work', label: 'My work', icon: <UserRound size={15} /> },
     { to: ws('inbox'), label: 'Inbox', icon: <Inbox size={15} />, trailing: count(unread, 'accent') },
