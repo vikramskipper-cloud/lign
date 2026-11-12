@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import {
   Building2, Check, ChevronDown, ClipboardCheck, ClipboardList, FolderOpen,
   Home, Inbox, Layers, LayoutDashboard, Menu, Plus, Rocket, Search, Settings2,
-  Stamp, UserPlus, UserRound, Users,
+  Stamp, UserRound, Users,
 } from 'lucide-react'
 import { useWorkspaces, useProject } from '@/shell/queries'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
@@ -18,7 +18,6 @@ import { usePinnedProjectIds } from '@/features/home/pins'
 import { useMyParticipations } from '@/features/home/queries'
 import { PINNED_CAP } from '@/features/home/copy'
 import { Wordmark } from '@/auth/AuthShell'
-import { usePendingAccessRequestCount } from '@/features/access/accessRequests'
 import { useAdminOrganizations, useMyOrganizations } from '@/shell/orgQueries'
 import { NewWorkspaceDialog } from '@/features/workspaces/NewWorkspaceDialog'
 import type { CapabilityKey } from '@/types/capabilities'
@@ -68,9 +67,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const orgs = useMyOrganizations()
   const adminOrgs = useAdminOrganizations()
-  // Only org admins can see the queue, and only they are shown the link,
-  // so the hook is harmless for everyone else: RLS returns an empty list.
-  const pendingRequests = usePendingAccessRequestCount()
 
   const [wsMenuOpen, setWsMenuOpen] = React.useState(false)
   const [newWsOpen, setNewWsOpen] = React.useState(false)
@@ -329,25 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       Organisation people
                     </Link>
                   )}
-                  {canAddWorkspace && (
-                    <Link
-                      role="menuitem"
-                      to="/access-requests"
-                      onClick={() => setWsMenuOpen(false)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 7, textDecoration: 'none', fontSize: 13.5, color: 'var(--text)', minHeight: 36 }}
-                    >
-                      <UserPlus size={14} aria-hidden="true" />
-                      Access requests
-                      {pendingRequests > 0 && (
-                        <span
-                          aria-label={`${pendingRequests} waiting`}
-                          style={{ marginLeft: 'auto', minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'grid', placeItems: 'center' }}
-                        >
-                          {pendingRequests}
-                        </span>
-                      )}
-                    </Link>
-                  )}
+
                 </>
               )}
             </div>

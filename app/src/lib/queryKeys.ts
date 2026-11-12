@@ -196,5 +196,6 @@ export const qk = {
   // APP 020 — beta access requests. Not scoped to a workspace: an applicant
   // has no workspace yet, which is the whole point of the queue.
   accessRequests: (status: string) => ['access-requests', status] as const,
+  isPlatformAdmin: (uid: string) => ['platform-admin', uid] as const,
   emailOutbox: (status: string) => ['email-outbox', status] as const,
 } as const

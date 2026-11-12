@@ -2,29 +2,33 @@ import * as React from 'react'
 import { Navigate } from 'react-router'
 import { toast } from 'sonner'
 import { Mail, Phone, Users, Clock } from 'lucide-react'
-import { useAdminOrganizations } from '@/shell/orgQueries'
 import {
   useAccessRequests,
   useDecideAccessRequest,
   useEmailOutbox,
+  useIsPlatformAdmin,
   type AccessRequest,
   type AccessRequestStatus,
 } from '@/features/access/accessRequests'
 import { FullPageLoader } from '@/ui/full-page-loader'
 
 /**
- * APP 020 — triage for the public request-access form.
+ * APP 020 — triage for the public request-access form. Re-gated by APP 021.
  *
- * Organisation owners and admins only. The gate is checked here as well as in
- * the database because RLS returns an EMPTY LIST to anyone else rather than an
- * error — so "no rows" cannot be read as "nothing pending", and a screen that
- * inferred it would tell an admin their queue was empty when it was hidden.
+ * LIGN PLATFORM ADMINS ONLY — not organisation admins. An applicant is a
+ * stranger who belongs to no organisation; deciding whether they may use LIGN
+ * is the vendor's call, and their name, work email and phone number are not a
+ * customer's to read. APP 020 had this wrong and gated on org role.
+ *
+ * The gate is re-checked here as well as in the database because RLS returns
+ * an EMPTY LIST to anyone else rather than an error — so "no rows" cannot be
+ * read as "nothing pending", and a screen that inferred it would report an
+ * empty queue to someone who simply could not see it.
  *
  * Approving records the decision and queues the outcome email. It deliberately
- * does NOT issue an invitation: whether someone joins the organisation or a
- * single project as an external client is a separate, explicit choice, made on
- * the Organisation people screen or by a project lead. Approval here means
- * "yes, let them in" — it is not itself the letting in.
+ * does NOT issue an invitation: whether someone joins an organisation or a
+ * single project as an external client is a separate, explicit choice. Approval
+ * here means "yes, let them in" — it is not itself the letting in.
  */
 
 export const AccessRequestsHandle = { crumb: 'Access requests' }
@@ -101,7 +105,7 @@ function RequestCard({ request }: { request: AccessRequest }) {
             code === '23514'
               ? 'Someone else has already decided this one.'
               : code === '42501'
-                ? 'Only organisation owners and admins can decide requests.'
+                ? 'Only LIGN platform administrators can decide requests.'
                 : "Couldn't record that. Try again.",
           )
         },
@@ -248,15 +252,15 @@ function RequestCard({ request }: { request: AccessRequest }) {
 }
 
 export function AccessRequestsScreen() {
-  const adminOrgs = useAdminOrganizations()
+  const isOperator = useIsPlatformAdmin()
   const [tab, setTab] = React.useState<AccessRequestStatus | 'all'>('pending')
-  const requests = useAccessRequests(tab)
-  const outbox = useEmailOutbox('queued')
+  const requests = useAccessRequests(tab, isOperator.data === true)
+  const outbox = useEmailOutbox('queued', isOperator.data === true)
 
-  if (adminOrgs.isLoading) return <FullPageLoader label="Loading" />
-  // Not an org admin: RLS would hand back an empty list, which would read as
-  // "nothing pending". Say the true thing instead.
-  if ((adminOrgs.data ?? []).length === 0) return <Navigate to="/dashboard" replace />
+  if (isOperator.isLoading) return <FullPageLoader label="Loading" />
+  // Not a platform operator: RLS would hand back an empty list, which would
+  // read as "nothing pending". Leave rather than show a false empty queue.
+  if (isOperator.data !== true) return <Navigate to="/dashboard" replace />
 
   const rows = requests.data ?? []
   const queued = outbox.data?.length ?? 0
@@ -267,9 +271,9 @@ export function AccessRequestsScreen() {
         Access requests
       </h1>
       <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.6, color: 'var(--muted)' }}>
-        Applications from the public request-access form. Approving records the decision and queues
-        the applicant an email — it does not grant access on its own. Add them to the organisation,
-        or have a project lead invite them as a client.
+        People asking to use LIGN. Approving records the decision and queues them an email — it does
+        not grant access on its own. Admit them by adding them to an organisation, or have a project
+        lead invite them to a single project as a client.
       </p>
 
       {queued > 0 && (
