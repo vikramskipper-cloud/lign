@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 import { useSession } from '@/auth/SessionProvider'
 import { useAccessCheck } from '@/auth/useAccessCheck'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
@@ -33,7 +33,11 @@ export function NoAccessScreen() {
         </h1>
         <p style={{ margin: '12px 0 0', fontSize: 15, lineHeight: 1.6, color: 'var(--muted)' }}>
           You&apos;re signed in, but you haven&apos;t been added to a workspace or project yet. Ask
-          your project lead to invite you.
+          your project lead to invite you — or{' '}
+          <Link to="/request-access" className="auth-link">
+            request access
+          </Link>{' '}
+          and we&apos;ll set you up.
         </p>
 
         <button

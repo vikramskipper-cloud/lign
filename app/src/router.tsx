@@ -141,6 +141,9 @@ export const router = createBrowserRouter([
   { path: '/sign-up', element: <SignUpScreen /> },
   { path: '/signup', element: <Alias to="/sign-up" /> },
   { path: '/reset-password', element: <ResetPasswordScreen /> },
+  // Public and ungated: an applicant has no account yet. Not a sign-up
+  // form — it creates no session, only a row an admin triages.
+  { path: '/request-access', lazy: () => import('@/auth/request-access.route') },
   { path: '/invite/:token', element: <InviteClaimScreen /> },
   { path: '/org-invite/:token', element: <OrgInviteClaimScreen /> },
   // The account home lives at /dashboard and "/" is its front door. This sits
@@ -165,6 +168,10 @@ export const router = createBrowserRouter([
             children: [
               { path: '/dashboard', element: <HomeScreen /> },
               { path: '/org/:org_id/people', element: <OrgPeopleScreen />, handle: OrgPeopleHandle },
+              // Not org-scoped in the URL: access_requests has no
+              // organization_id — an applicant belongs to nothing yet. The
+              // screen gates on "owner or admin of an org", as the RPC does.
+              { path: '/access-requests', lazy: () => import('@/features/access/access-requests.route') },
               { path: '/workspace-picker', element: <WorkspacePicker /> },
               { path: '/deep/review/:id', element: <ReviewDeepLink /> },
               { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },

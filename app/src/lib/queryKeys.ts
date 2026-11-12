@@ -192,4 +192,9 @@ export const qk = {
   projectAccess: (projId: string) => ['access', 'project', projId] as const,
   assignableMembers: (wsId: string, projId: string) =>
     ['access', 'assignable', wsId, projId] as const,
+
+  // APP 020 — beta access requests. Not scoped to a workspace: an applicant
+  // has no workspace yet, which is the whole point of the queue.
+  accessRequests: (status: string) => ['access-requests', status] as const,
+  emailOutbox: (status: string) => ['email-outbox', status] as const,
 } as const

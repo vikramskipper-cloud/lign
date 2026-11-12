@@ -10,8 +10,8 @@ import '@/styles/auth-theme.css'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Where "request access" points. Placeholder until there is a real destination. */
-const REQUEST_ACCESS_HREF = '#'
+/** Where "request access" points — the public application form (APP 020). */
+const REQUEST_ACCESS_HREF = '/request-access'
 
 type FieldError = 'email' | 'password' | null
 
@@ -272,9 +272,9 @@ export function SignInScreen() {
 
         <p style={{ margin: '18px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--muted)' }}>
           Access is invite-only during the beta. Clients are added to a project by its lead —{' '}
-          <a className="auth-link" href={REQUEST_ACCESS_HREF}>
+          <Link className="auth-link" to={REQUEST_ACCESS_HREF}>
             request access
-          </a>
+          </Link>
           .
         </p>
 
