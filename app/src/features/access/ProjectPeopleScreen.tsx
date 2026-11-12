@@ -35,7 +35,9 @@ export function ProjectPeopleScreen() {
 
   const canManage = useCapability(projId, wsId, 'project.manage_access')
   const wsAccess = useWorkspaceAccess(wsId)
-  const canInviteStakeholder = Boolean(wsAccess.data?.['stakeholder.invite'])
+  const canInviteStakeholder = canManage
+  const externalRoles: ProjectRole[] = wsAccess.data?.['stakeholder.invite']
+    ? [...PROJECT_ROLES] : ['reviewer', 'approver']
 
   const participants = useProjectAccess(projId)
   const assignable = useAssignableMembers(wsId, projId)
@@ -208,6 +210,7 @@ export function ProjectPeopleScreen() {
           workspaceId={wsId}
           mode="stakeholder"
           projectId={projId}
+          allowedProjectRoles={externalRoles}
         />
       )}
     </div>

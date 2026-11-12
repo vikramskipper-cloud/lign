@@ -1,4 +1,4 @@
-# Studio and workspace leadership (APP 025)
+# Studio and workspace leadership (APP 025–026)
 
 The beta remains access-only. An approved studio owner activates their account,
 then invites architects through **Studio people**. Once an architect joins, the
@@ -10,7 +10,7 @@ owner can assign them to one or more workspaces without another invitation.
 | --- | --- |
 | Studio owner / administrator | Create workspaces, appoint workspace leads, assign architects, and oversee all studio workspaces and projects. |
 | Workspace lead | Oversee every project in their workspace, add existing studio architects to its team, create projects, and appoint project leads. |
-| Project lead | Manage their project's participants and design workflow. |
+| Project lead | Manage their project's participants and design workflow; invite external reviewers and approvers to their own project. |
 | Team member | Work on assigned projects according to their project role. Workspace membership alone does not expose other projects. |
 
 Workspace lead is the display name for the existing workspace `admin` role.
@@ -24,6 +24,16 @@ Use **Manage team** to change workspace assignments, and **Project team** to
 assign junior/senior architects to individual projects. Only studio leadership
 can appoint or change workspace leads. Replace a project's last active lead
 before demoting or removing them, including through workspace removal.
+
+In **Project people → Invite external**, a project lead can invite consultants
+as reviewers and clients as approvers. They receive only explicitly assigned
+project access, with no studio or workspace membership. Project leads cannot
+restore a workspace-revoked stakeholder or change an existing shared identity
+through an invitation. Workspace leadership retains its broader invitation and
+restoration authority. Assign the recipient to a specific review or approval
+request when their response is needed; the project role alone does not request
+a response. Email is queued, and copy-link delivery remains available while
+SendGrid setup is pending.
 
 ## Oversight
 
@@ -57,6 +67,8 @@ Local tests refuse hosted URLs and use synthetic accounts on port 58321:
 node tests/access/access-flow.mjs
 node tests/access/studio-leadership.mjs
 node tests/access/studio-browser.mjs
+node tests/access/project-external.mjs
+node tests/access/project-external-browser.mjs
 ```
 
 Use Node 22 or later. Save the isolated stack's status JSON to ignored

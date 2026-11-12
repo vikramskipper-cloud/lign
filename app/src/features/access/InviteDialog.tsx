@@ -30,16 +30,14 @@ interface Props {
   projectId?: string
   projectName?: string
   allowedWorkspaceRoles?: WorkspaceRole[]
+  allowedProjectRoles?: readonly ProjectRole[]
 }
 
 /**
  * Invite flow, copy-link delivery.
  *
- * There is no email infrastructure in this project, so the token is shown once
- * and the admin sends it themselves. That is a real constraint, not a
- * placeholder — the UI says so plainly rather than implying a mail is on its
- * way. Only the sha256 of this token ever reaches the database, which is also
- * why it cannot be shown again later.
+ * Invitations queue email after creation. Copy-link delivery remains available
+ * while the email sender is pending, and the token is shown only on creation.
  */
 export function InviteDialog({
   open,
@@ -49,6 +47,7 @@ export function InviteDialog({
   projectId,
   projectName,
   allowedWorkspaceRoles = WORKSPACE_ROLES,
+  allowedProjectRoles = PROJECT_ROLES,
 }: Props) {
   const [email, setEmail] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
@@ -60,6 +59,7 @@ export function InviteDialog({
   const inviteMember = useInviteMember(workspaceId)
   const inviteStakeholder = useInviteStakeholder(workspaceId)
   const pending = inviteMember.isPending || inviteStakeholder.isPending
+  const effectiveProjectRole = allowedProjectRoles.includes(projRole) ? projRole : allowedProjectRoles[0]
 
   const reset = () => {
     setEmail('')
@@ -87,7 +87,7 @@ export function InviteDialog({
           await inviteStakeholder.mutateAsync({
             email,
             projectId,
-            role: projRole,
+            role: effectiveProjectRole,
             displayName: displayName || null,
           }),
         )
@@ -130,7 +130,7 @@ export function InviteDialog({
                 </Button>
               </div>
               <p className="text-xs text-[--color-text-muted]">
-                Copy it now — only a hash is stored, so this link cannot be shown again. If you
+                Copy it now — this link cannot be shown again here. If you
                 lose it, revoke the invitation and send a new one.
               </p>
             </div>
@@ -187,7 +187,7 @@ export function InviteDialog({
                 <select
                   id="invite-role"
                   className="h-9 w-full rounded-[--radius-md] border border-[--color-border] bg-[--color-surface] px-2 text-sm"
-                  value={mode === 'member' ? wsRole : projRole}
+                  value={mode === 'member' ? wsRole : effectiveProjectRole}
                   disabled={pending}
                   onChange={(e) =>
                     mode === 'member'
@@ -195,7 +195,7 @@ export function InviteDialog({
                       : setProjRole(e.target.value as ProjectRole)
                   }
                 >
-                  {(mode === 'member' ? allowedWorkspaceRoles : PROJECT_ROLES).map((r) => (
+                  {(mode === 'member' ? allowedWorkspaceRoles : allowedProjectRoles).map((r) => (
                     <option key={r} value={r}>
                       {mode === 'member' ? WORKSPACE_ROLE_LABELS[r as WorkspaceRole] : PROJECT_ROLE_LABELS[r as ProjectRole]}
                     </option>

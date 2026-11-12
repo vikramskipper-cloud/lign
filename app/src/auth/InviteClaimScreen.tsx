@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/ui/card'
@@ -29,6 +30,7 @@ export function InviteClaimScreen() {
   const { token } = useParams<{ token: string }>()
   const { session, isLoading, user } = useSession()
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [state, setState] = React.useState<State>({ kind: 'idle' })
 
   const returnTo = `/invite/${token ?? ''}`
@@ -39,6 +41,11 @@ export function InviteClaimScreen() {
 
     const asMember = await supabase.rpc('accept_invitation', { p_token: token })
     if (!asMember.error) {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['access-check'] }),
+        qc.invalidateQueries({ queryKey: ['workspaces'] }),
+        qc.invalidateQueries({ queryKey: ['organizations'] }),
+      ])
       const { data } = await supabase
         .from('workspace_members')
         .select('workspace_id')
@@ -50,6 +57,10 @@ export function InviteClaimScreen() {
 
     const asStakeholder = await supabase.rpc('claim_stakeholder_invitation', { p_token: token })
     if (!asStakeholder.error) {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['access-check'] }),
+        qc.invalidateQueries({ queryKey: ['workspaces'] }),
+      ])
       const { data } = await supabase
         .from('stakeholders')
         .select('workspace_id')
@@ -62,7 +73,7 @@ export function InviteClaimScreen() {
     // Report the stakeholder error: if this token were a member invitation,
     // the first call would have succeeded or failed for the same reason.
     setState({ kind: 'error', message: humanizeError(asStakeholder.error) })
-  }, [token])
+  }, [token, qc])
 
   if (isLoading) return <LoadingPage label="Loading…" />
 
