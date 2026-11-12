@@ -3,7 +3,7 @@
 
 Three checks, all against the migration files as the reference:
 
-  1. FORWARD   every live object is CREATEd by some migration
+  1. FORWARD   every live object is CREATEd (or explicitly renamed) by a migration
                (catches objects made out-of-band via execute_sql or the dashboard)
   2. REVERSE   every object a migration creates is live, or explicitly DROPped
                by a later migration (catches out-of-band deletions)
@@ -55,6 +55,20 @@ def main(argv):
         return 2
     raw = {f: open(f, encoding="utf-8").read() for f in files}
     low = "\n".join(v.lower() for v in raw.values())
+    # Policy names can change without CREATE/DROP. APP 021 renamed the two
+    # platform-admin policies; treating a rename as drift misreports both ends.
+    policy_renames = re.findall(
+        r'alter\s+policy\s+"?([a-z0-9_]+)"?\s+on\s+(?:public\.)?'
+        r'"?([a-z0-9_]+)"?\s+rename\s+to\s+"?([a-z0-9_]+)"?', low)
+
+    def policy_origins(name, table):
+        sources = {name}
+        while True:
+            expanded = sources | {old for old, parent, new in policy_renames
+                                  if parent == table and new in sources}
+            if expanded == sources:
+                return sources
+            sources = expanded
 
     prod = collections.defaultdict(list)
     for line in open(argv[1], encoding="utf-8"):
@@ -76,6 +90,10 @@ def main(argv):
         for name, parent, _ in prod[kind]:
             if re.search(CREATE[kind].format(n=re.escape(name)), low, re.S):
                 counts["ok"] += 1
+            elif kind == "POLICY" and any(
+                    re.search(CREATE[kind].format(n=re.escape(source)), low, re.S)
+                    for source in policy_origins(name, parent) - {name}):
+                counts["ok-renamed"] += 1
             elif kind == "INDEX" and re.search(r"\b" + re.escape(name) + r"\b", low):
                 counts["ok-constraint"] += 1        # index backing a named constraint
             elif kind == "INDEX" and (name.endswith("_pkey") or name.endswith("_key")) and parent in tables:
@@ -95,9 +113,14 @@ def main(argv):
         live = {n for n, _, _ in prod[kind]}
         made = set(re.findall(HARVEST[kind], low))
         gone = made - live
-        unexplained = gone - dropped
+        renamed = set()
+        if kind == "POLICY":
+            for name, table, _ in prod[kind]:
+                renamed.update(policy_origins(name, table) - {name})
+        unexplained = gone - dropped - renamed
         print(f"  {kind:<9} created={len(made):>4}  live={len(made & live):>4}  "
-              f"dropped={len(gone & dropped):>3}  UNEXPLAINED={len(unexplained)}")
+              f"dropped={len(gone & dropped):>3}  renamed={len(gone & renamed):>3}  "
+              f"UNEXPLAINED={len(unexplained)}")
         for n in sorted(unexplained):
             problems.append(f"MISSING   {kind:<9} {n} (created by a migration, absent from the database)")
 
