@@ -183,10 +183,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const projectNav: Array<NavEntry & { capability: CapabilityKey }> = [
     { to: proj('overview'), label: 'Overview', icon: <LayoutDashboard size={15} />, capability: 'project.view' },
     { to: proj('brief'), label: 'Project brief', icon: <ClipboardList size={15} />, capability: 'project.view' },
+    { to: proj('requirements'), label: 'Requirements', icon: <ClipboardList size={15} />, capability: 'requirement.view' },
     { to: proj('designs'), label: 'Designs', icon: <Layers size={15} />, capability: 'asset.view' },
     { to: proj('deliverables'), label: 'Deliverables', icon: <Layers size={15} />, capability: 'project.view' },
     { to: proj('reviews'), label: 'Reviews', icon: <ClipboardCheck size={15} />, capability: 'review.view' },
-    { to: proj('requirements'), label: 'Requirements', icon: <ClipboardList size={15} />, capability: 'requirement.view' },
     { to: proj('releases'), label: 'Releases', icon: <Rocket size={15} />, capability: 'release.view' },
     { to: proj('people'), label: 'People', icon: <UserRound size={15} />, capability: 'project.view' },
   ]

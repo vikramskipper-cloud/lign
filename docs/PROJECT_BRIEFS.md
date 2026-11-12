@@ -1,5 +1,9 @@
 # Project briefs (APP 028)
 
+The project journey is **Project basics → Gather requirements → Review and agree → Design work**.
+The creation form collects the name, code, lead and optional description/approvers;
+disciplines, scope, budget, schedule and references belong in the brief.
+
 New projects open at **Project brief**. Existing projects can open it from the
 project sidebar or overview. The same journey supports interiors, architecture,
 product design, furniture and fashion: gather needs → clarify → reference →

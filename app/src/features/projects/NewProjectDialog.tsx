@@ -317,7 +317,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                 New project
               </h2>
               <p style={{ margin: '6px 0 0', fontSize: 13, color: C.helper, lineHeight: 1.5 }}>
-                In {workspace.data?.name ?? 'this workspace'}. Start with a brief, then add your team and design work.
+                In {workspace.data?.name ?? 'this workspace'}. Add the basics now; gather requirements in the project brief next.
               </p>
             </div>
             <button
@@ -504,8 +504,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                       style={field(false)}
                     />
                     <Helper>
-                      Discipline and target completion aren&apos;t stored yet — see the APP 014 report.
-                      Adding them here would discard what you typed.
+                      Next: choose disciplines and gather scope, budget, timing and references in the project brief.
                     </Helper>
                   </div>
                 )}
