@@ -24,6 +24,8 @@ import {
   useRemoveParticipant,
 } from './mutations'
 
+const ParticipantAccessEditor = React.lazy(() => import('./ParticipantAccessEditor').then(m => ({ default: m.ParticipantAccessEditor })))
+
 function initials(s: string) {
   return s.slice(0, 2).toUpperCase()
 }
@@ -151,11 +153,15 @@ export function ProjectPeopleScreen() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="truncate text-sm font-medium">{p.displayName}</span>
                     <RoleBadge scope="project" role={p.role} />
+                    {p.professionalLabel && <Badge className="max-w-full break-all">Professional: {p.professionalLabel}</Badge>}
+                    {p.canSubmitDeliverables && <Badge>Can submit deliverables</Badge>}
                     <Badge variant="neutral">{p.kind === 'stakeholder' ? 'External' : 'Internal'}</Badge>
                     {p.pending && <Badge variant="outline">Invitation not yet accepted</Badge>}
                   </div>
                   <div className="truncate text-xs text-[--color-text-muted]">{p.email}</div>
                   <p className="mt-1 text-xs text-[--color-text-muted]">{PROJECT_ROLE_DESCRIPTIONS[p.role]}</p>
+                  {p.canSubmitDeliverables && <p className="mt-1 text-xs text-[--color-text-muted]">Can submit their own draft deliverables for team review.</p>}
+                  {canManage && <React.Suspense fallback={<p className="text-xs">Loading access settings…</p>}><ParticipantAccessEditor person={p} workspaceId={wsId ?? ''} projectId={projId ?? ''} /></React.Suspense>}
                 </div>
 
                 {canManage ? (

@@ -51,6 +51,7 @@ interface Options {
   assetId: string
   /** Concurrency cap for byte-uploads (D8). */
   maxConcurrent?: number
+  hasPrimary?: boolean
 }
 
 interface QueueState {
@@ -69,32 +70,37 @@ export function useUploadQueue({
   projectId,
   assetId,
   maxConcurrent = 3,
+  hasPrimary = false,
 }: Options) {
   const qc = useQueryClient()
   const hash = useHashFile()
   const [state, setState] = React.useState<QueueState>({ items: [] })
   const activeRef = React.useRef(0)
   const stateRef = React.useRef(state)
-  React.useEffect(() => {
-    stateRef.current = state
-  }, [state])
+  // The scheduler runs in microtasks, before React commits a render. Update
+  // its state synchronously so a queued file starts exactly once.
+  const commit = React.useCallback((update: (previous: QueueState) => QueueState) => {
+    const next = update(stateRef.current)
+    stateRef.current = next
+    setState(next)
+  }, [])
 
   const patchItem = React.useCallback((id: string, patch: Partial<UploadItem>) => {
-    setState((prev) => ({
+    commit((prev) => ({
       items: prev.items.map((it) => (it.id === id ? { ...it, ...patch } : it)),
     }))
-  }, [])
+  }, [commit])
 
   const removeItem = React.useCallback((id: string) => {
-    setState((prev) => ({ items: prev.items.filter((it) => it.id !== id) }))
-  }, [])
+    commit((prev) => ({ items: prev.items.filter((it) => it.id !== id) }))
+  }, [commit])
 
   const enqueue = React.useCallback(
     (files: File[]) => {
-      const previouslyHasPrimary =
+      const previouslyHasPrimary = hasPrimary ||
         stateRef.current.items.some(
           (it) => it.role === 'primary' && (it.phase === 'done' || it.phase !== 'error'),
-        ) ?? false
+        )
       const additions: UploadItem[] = files.map((f, idx) => {
         const badMime = DENYLISTED_MIMES.has((f.type || '').toLowerCase())
         const tooLarge = f.size > MAX_UPLOAD_BYTES
@@ -116,17 +122,17 @@ export function useUploadQueue({
               : undefined,
         }
       })
-      setState((prev) => ({ items: [...prev.items, ...additions] }))
+      commit((prev) => ({ items: [...prev.items, ...additions] }))
       // Kick the scheduler
       queueMicrotask(pump)
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [commit, hasPrimary, versionId, projectId, assetId, maxConcurrent],
   )
 
   const setRole = React.useCallback(
     (id: string, role: FileRole) => {
-      setState((prev) => ({
+      commit((prev) => ({
         items: prev.items.map((it) => {
           if (it.id === id) return { ...it, role }
           // Enforce single-primary (D4): if we're assigning primary here, demote others.
@@ -135,7 +141,7 @@ export function useUploadQueue({
         }),
       }))
     },
-    [],
+    [commit],
   )
 
   const setDisplayName = React.useCallback((id: string, displayName: string) => {
@@ -149,8 +155,8 @@ export function useUploadQueue({
   }, [patchItem])
 
   const clearFinished = React.useCallback(() => {
-    setState((prev) => ({ items: prev.items.filter((it) => it.phase !== 'done') }))
-  }, [])
+    commit((prev) => ({ items: prev.items.filter((it) => it.phase !== 'done') }))
+  }, [commit])
 
   async function runOne(item: UploadItem) {
     try {
@@ -185,7 +191,9 @@ export function useUploadQueue({
             upsert: false,
             cacheControl: 'private, max-age=0',
           })
-        if (upErr) throw upErr
+        // A retry may find bytes that arrived before the previous response
+        // was lost. Finalization still verifies object presence and size.
+        if (upErr && String('statusCode' in upErr ? upErr.statusCode : '') !== '409') throw upErr
         patchItem(item.id, { progress: 1 })
       } else if (start.out_action === 'in_progress') {
         // Another client is uploading the same bytes. Poll finalize; the RPC

@@ -64,14 +64,17 @@ export function useInviteStakeholder(wsId: string) {
       projectId: string
       role: ProjectRole
       displayName?: string | null
+      professionalLabel?: string
+      canSubmitDeliverables?: boolean
     }): Promise<InviteResult & { stakeholderId: string }> => {
-      const { data, error } = await supabase.rpc('invite_stakeholder', {
+      const { data, error } = await supabase.rpc('invite_project_participant', {
         p_workspace_id: wsId,
         p_email: input.email.trim(),
         p_project_id: input.projectId,
         p_role: input.role,
         p_display_name: input.displayName?.trim() || null,
-        p_expires_in_days: 14,
+        p_professional_label: input.professionalLabel ?? '',
+        p_can_submit: input.role === 'reviewer' && Boolean(input.canSubmitDeliverables),
       })
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data

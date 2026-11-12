@@ -24,6 +24,7 @@ import {
 import { AnnotationTool } from '@/features/annotations/AnnotationTool'
 import { AnnotationTimeStrip } from '@/features/annotations/AnnotationTimeStrip'
 import { useWorkspaceHotkeys } from './useWorkspaceHotkeys'
+import { useVersionSubmission } from '@/features/deliverables/queries'
 
 export const DesignWorkspaceHandle = { crumb: 'Asset' }
 
@@ -56,6 +57,8 @@ export function DesignWorkspaceScreen() {
   const collections = useCollections(proj_id)
   const disciplines = useDisciplines(proj_id)
   const caps = useProjectCapabilities(proj_id ?? '', ws_id ?? '')
+  const sourceVersionId = v_id ?? asset.data?.current_version_id ?? versions.data?.[0]?.id
+  const versionSubmission = useVersionSubmission(sourceVersionId)
 
   const scopeCollection = React.useMemo<string | null | 'unfiled'>(() => {
     const from = searchParams.get('from')
@@ -184,12 +187,13 @@ export function DesignWorkspaceScreen() {
         versions={allVersions}
         currentVersionId={currentVersionId}
         canSetCurrent={Boolean(caps.data?.['asset.set_current'])}
-        canPublishVersion={Boolean(caps.data?.['version.publish'])}
-        canDiscardVersion={Boolean(caps.data?.['version.discard_draft'])}
+        canPublishVersion={Boolean(caps.data?.['version.publish']) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'accepted')}
+        canDiscardVersion={Boolean(caps.data?.['version.discard_draft']) && !versionSubmission.isLoading && !versionSubmission.isError && !versionSubmission.data}
         canCreateVersion={Boolean(caps.data?.['version.upload'])}
         neighbors={neighbors.data ?? []}
         scopeQuery={scopeQueryStr}
       />
+      {versionSubmission.data && <p className="border-b border-[--color-border] bg-[--color-surface-2] px-4 py-2 text-xs">This version belongs to a deliverable submission. <Link className="auth-link" to={`/workspace/${ws_id}/project/${proj_id}/deliverable/${versionSubmission.data.id}`}>Open submission and review history</Link>.</p>}
       <div className="flex flex-1 min-h-0">
         <main className="flex min-w-0 flex-1 flex-col">
           <ErrorBoundary>
@@ -208,8 +212,8 @@ export function DesignWorkspaceScreen() {
                 isDraft={activeVersion?.status === 'draft'}
                 fileIdParam={file_id}
                 scopeQuery={scopeQueryStr}
-                canAttach={Boolean(caps.data?.['version.upload'])}
-                canDetach={Boolean(caps.data?.['version.upload'])}
+                canAttach={Boolean(caps.data?.['version.upload']) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'draft')}
+                canDetach={Boolean(caps.data?.['version.upload']) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'draft')}
                 canAnnotate={canAnnotate}
                 authoringMode={authoringMode}
                 onAuthoringModeChange={setAuthoringMode}

@@ -36,7 +36,7 @@ function ExternalProjectAccess({ directory, stakeholderId, workspaceId }: {
   if (directory.isLoading) return <p className="text-xs">Loading project access…</p>
   if (directory.isError) return <p role="alert" className="text-xs">Project access unavailable. <button type="button" className="auth-link" onClick={() => void directory.refetch()}>Try again</button></p>
   const projects = directory.data?.people.flatMap((p) => p.projectRoles).filter((p) => p.source === 'external' && p.sourceId === stakeholderId) ?? []
-  return projects.length ? <>{projects.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-2"><Link className="auth-link text-xs" to={`/workspace/${workspaceId}/project/${p.projectId}/people`}>{p.projectName}</Link><RoleBadge scope="project" role={p.role} />{p.archived && <Badge variant="outline">Archived</Badge>}</div>)}</> : <p className="text-xs text-[--color-text-muted]">No current project assignments.</p>
+  return projects.length ? <>{projects.map((p) => <div key={p.id} className="flex flex-wrap items-center gap-2"><Link className="auth-link text-xs" to={`/workspace/${workspaceId}/project/${p.projectId}/people`}>{p.projectName}</Link><RoleBadge scope="project" role={p.role} />{p.professionalLabel && <Badge className="max-w-full break-all">Professional: {p.professionalLabel}</Badge>}{p.canSubmitDeliverables && <Badge>Can submit deliverables</Badge>}{p.archived && <Badge variant="outline">Archived</Badge>}</div>)}</> : <p className="text-xs text-[--color-text-muted]">No current project assignments.</p>
 }
 
 export function WorkspacePeopleScreen() {

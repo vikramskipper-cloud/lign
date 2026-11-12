@@ -212,6 +212,8 @@ export const router = createBrowserRouter([
                       { index: true, element: <Navigate to="overview" replace /> },
                       { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
                       { path: 'brief', lazy: () => import('@/features/briefs/brief.route'), handle: { crumb: 'Project brief' } },
+                      { path: 'deliverables', lazy: () => import('@/features/deliverables/deliverables.route'), handle: { crumb: 'Deliverables' } },
+                      { path: 'deliverable/:submission_id', lazy: () => import('@/features/deliverables/deliverables.route'), handle: { crumb: 'Deliverable submission' } },
                       { path: 'designs', element: <DesignsScreen />, handle: DesignsHandle },
                       { path: 'reviews', element: <ProjectReviewsScreen />, handle: ProjectReviewsHandle },
                       { path: 'review/:review_id', lazy: () => import('@/features/reviews/review-detail.route') },

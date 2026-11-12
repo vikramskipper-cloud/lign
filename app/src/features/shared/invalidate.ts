@@ -2,6 +2,8 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
 /** Invalidate every `qk.assets(projId, *)` variant regardless of filter shape. */
 export function invalidateAssetsForProject(qc: QueryClient, projId: string) {
+  qc.invalidateQueries({ queryKey: ['deliverable-submissions'] })
+  qc.invalidateQueries({ queryKey: ['deliverable-version'] })
   qc.invalidateQueries({
     predicate: (q) => {
       const k = q.queryKey as QueryKey
@@ -236,6 +238,7 @@ export function invalidateAllNeighbors(qc: QueryClient) {
  * is worse than an extra round trip.
  */
 export function invalidateAccess(qc: QueryClient, wsId?: string, projId?: string) {
+  qc.invalidateQueries({ queryKey: ['deliverable-submissions'] })
   qc.invalidateQueries({ queryKey: ['access-directory'] })
   qc.invalidateQueries({ queryKey: ['studio-overview'] })
   qc.invalidateQueries({ queryKey: ['workspaces'] })

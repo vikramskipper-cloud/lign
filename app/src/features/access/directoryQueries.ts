@@ -7,6 +7,7 @@ import type { WorkspaceRole, ProjectRole } from './queries'
 export interface DirectoryProject {
   id: string; projectId: string; projectName: string; projectStatus: string; archived: boolean
   workspaceId: string; role: ProjectRole; source: 'internal' | 'external'; sourceId: string; status: string
+  professionalLabel: string; canSubmitDeliverables: boolean
 }
 export interface DirectoryPerson {
   id: string; userId: string | null; name: string; email: string; internal: boolean

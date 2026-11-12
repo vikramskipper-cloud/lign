@@ -63,6 +63,8 @@ export interface ProjectParticipantRow {
   displayName: string
   email: string
   role: ProjectRole
+  professionalLabel: string
+  canSubmitDeliverables: boolean
   /** A stakeholder who has not yet claimed their invitation cannot act. */
   pending: boolean
 }
@@ -172,7 +174,7 @@ export function useProjectAccess(projId: string | undefined) {
       const { data, error } = await supabase
         .from('project_participants')
         .select(
-          `id, role, status, workspace_member_id, stakeholder_id,
+          `id, role, status, professional_label, can_submit_deliverables, workspace_member_id, stakeholder_id,
            workspace_member:workspace_members!project_participants_workspace_member_fk(
              id, profile:profiles!workspace_members_user_id_fkey(display_name, email)),
            stakeholder:stakeholders!project_participants_stakeholder_fk(
@@ -185,6 +187,8 @@ export function useProjectAccess(projId: string | undefined) {
       type Raw = {
         id: string
         role: string
+        professional_label: string
+        can_submit_deliverables: boolean
         workspace_member_id: string | null
         stakeholder_id: string | null
         workspace_member: { id: string; profile: { display_name: string; email: string } | null } | null
@@ -201,6 +205,8 @@ export function useProjectAccess(projId: string | undefined) {
               displayName: r.workspace_member.profile.display_name,
               email: r.workspace_member.profile.email,
               role: r.role as ProjectRole,
+              professionalLabel: r.professional_label,
+              canSubmitDeliverables: r.can_submit_deliverables,
               pending: false,
             }
           }
@@ -212,6 +218,8 @@ export function useProjectAccess(projId: string | undefined) {
               displayName: r.stakeholder.display_name ?? r.stakeholder.email,
               email: r.stakeholder.email,
               role: r.role as ProjectRole,
+              professionalLabel: r.professional_label,
+              canSubmitDeliverables: r.can_submit_deliverables,
               pending: r.stakeholder.user_id === null || r.stakeholder.status !== 'active',
             }
           }

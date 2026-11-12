@@ -34,10 +34,14 @@ interface Props {
  *   - in-flight uploads with per-file progress
  *   - "+ Add files" button and drag-drop target
  */
-export function UploadDock({ versionId, projectId, assetId, files, canAttach, canDetach }: Props) {
+export function UploadDock(props: Props) {
+  return <UploadDockBody key={props.versionId} {...props} />
+}
+
+function UploadDockBody({ versionId, projectId, assetId, files, canAttach, canDetach }: Props) {
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const [isDragOver, setIsDragOver] = React.useState(false)
-  const queue = useUploadQueue({ versionId, projectId, assetId })
+  const queue = useUploadQueue({ versionId, projectId, assetId, hasPrimary: files.some(f => f.role === 'primary') })
   const qc = useQueryClient()
 
   const detach = useMutation({

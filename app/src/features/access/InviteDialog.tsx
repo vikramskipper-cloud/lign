@@ -19,6 +19,8 @@ import { PROJECT_ROLES, WORKSPACE_ROLES } from './queries'
 import type { ProjectRole, WorkspaceRole } from './queries'
 import { inviteUrl, useInviteMember, useInviteStakeholder, type InviteResult } from './mutations'
 
+const InviteParticipantFields = React.lazy(() => import('./InviteParticipantFields').then(m => ({default:m.InviteParticipantFields})))
+
 type Mode = 'member' | 'stakeholder'
 
 interface Props {
@@ -51,6 +53,8 @@ export function InviteDialog({
 }: Props) {
   const [email, setEmail] = React.useState('')
   const [displayName, setDisplayName] = React.useState('')
+  const [professionalLabel, setProfessionalLabel] = React.useState('')
+  const [canSubmit, setCanSubmit] = React.useState(false)
   const [wsRole, setWsRole] = React.useState<WorkspaceRole>('member')
   const [projRole, setProjRole] = React.useState<ProjectRole>('reviewer')
   const [result, setResult] = React.useState<InviteResult | null>(null)
@@ -64,6 +68,8 @@ export function InviteDialog({
   const reset = () => {
     setEmail('')
     setDisplayName('')
+    setProfessionalLabel('')
+    setCanSubmit(false)
     setWsRole('member')
     setProjRole('reviewer')
     setResult(null)
@@ -89,6 +95,8 @@ export function InviteDialog({
             projectId,
             role: effectiveProjectRole,
             displayName: displayName || null,
+            professionalLabel,
+            canSubmitDeliverables: effectiveProjectRole === 'reviewer' && canSubmit,
           }),
         )
       }
@@ -207,6 +215,7 @@ export function InviteDialog({
                   </p>
                 )}
               </div>
+              {mode === 'stakeholder' && <React.Suspense fallback={<p className="text-xs">Loading invitation settings…</p>}><InviteParticipantFields label={professionalLabel} onLabel={setProfessionalLabel} canSubmit={canSubmit} onCanSubmit={setCanSubmit} showSubmission={effectiveProjectRole === 'reviewer'} disabled={pending}/></React.Suspense>}
             </div>
 
             <DialogFooter>
