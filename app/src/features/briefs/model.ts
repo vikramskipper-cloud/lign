@@ -4,6 +4,7 @@ export interface BriefItem {
   id: string; title: string; detail: string; kind: BriefKind
   priority: 'critical' | 'high' | 'medium' | 'low' | 'informational'
   source: 'client' | 'consultant' | 'internal_team' | 'other'
+  areaIds?: string[]; areaSnapshot?: {id:string;path:string;kind?:string}[]
   acceptance: string; appliesTo: string; ownerProfileId: string; resolution: string
 }
 export interface BriefDocument {

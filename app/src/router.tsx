@@ -219,6 +219,7 @@ export const router = createBrowserRouter([
                       { path: 'review/:review_id/round/:round_number', lazy: () => import('@/features/reviews/review-detail.route') },
                       { path: 'approvals', element: <ProjectApprovalsScreen />, handle: ProjectApprovalsHandle },
                       { path: 'approval/:approval_id', lazy: () => import('@/features/approvals/approval-detail.route') },
+                      { path: 'requirements/areas', lazy: () => import('@/features/areas/StructureScreen'), handle: { crumb: 'Spaces and zones' } },
                       { path: 'requirements', element: <ProjectRequirementsScreen />, handle: ProjectRequirementsHandle },
                       { path: 'requirement/:requirement_id', lazy: () => import('@/features/requirements/requirement-detail.route') },
                       { path: 'asset/:asset_id', lazy: () => import('@/features/design-workspace/route') },

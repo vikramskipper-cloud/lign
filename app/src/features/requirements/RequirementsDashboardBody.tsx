@@ -7,7 +7,7 @@ import { Button } from '@/ui/button'
 import { Input } from '@/ui/input'
 import { RequirementFilterBar } from './RequirementFilterBar'
 import { RequirementCard } from './RequirementCard'
-import { CreateRequirementDialog } from './CreateRequirementDialog'
+const CreateRequirementDialog=React.lazy(()=>import('./CreateRequirementDialog').then(m=>({default:m.CreateRequirementDialog})))
 import {
   useRequirementsDashboard,
   type RequirementCategoryKind,
@@ -176,13 +176,13 @@ export function RequirementsDashboardBody({
         </div>
       )}
 
-      {projectId && (
-        <CreateRequirementDialog
+      {projectId && composeOpen && (
+        <React.Suspense fallback={<p>Loading requirement form…</p>}><CreateRequirementDialog
           workspaceId={workspaceId}
           projectId={projectId}
           open={composeOpen}
           onOpenChange={setComposeOpen}
-        />
+        /></React.Suspense>
       )}
     </div>
   )

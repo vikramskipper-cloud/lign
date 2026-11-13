@@ -119,6 +119,7 @@ export function invalidateRequirementsLists(
   wsId?: string,
   projId?: string,
 ) {
+  qc.invalidateQueries({queryKey:['area-requirements']})
   qc.invalidateQueries({
     predicate: (q) => {
       const k = q.queryKey as QueryKey

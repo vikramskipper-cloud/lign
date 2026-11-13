@@ -1,3 +1,4 @@
+import * as React from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
@@ -21,6 +22,8 @@ import {
   useRequirementChain,
   useRequirementHistory,
 } from './queries'
+
+const RequirementAreaEditor=React.lazy(()=>import('@/features/areas/RequirementAreaEditor'))
 
 export const RequirementDetailHandle = { crumb: 'Requirement' }
 
@@ -208,6 +211,7 @@ export function RequirementDetailScreen() {
             </TabsList>
             <TabsContent value="overview" className="m-0 space-y-3 p-3">
               <OverviewTab detail={d} />
+              <React.Suspense fallback={<p>Loading area assignment…</p>}><RequirementAreaEditor projectId={proj_id} workspaceId={ws_id} requirementId={requirement_id}/></React.Suspense>
             </TabsContent>
             <TabsContent value="applicability" className="m-0 p-3">
               <RequirementApplicabilityEditor

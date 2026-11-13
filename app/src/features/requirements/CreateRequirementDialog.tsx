@@ -18,10 +18,13 @@ import type {
   RequirementSourceKind,
 } from './queries'
 
+const AreaPicker=React.lazy(()=>import('@/features/areas/AreaPicker'))
+
 interface Props {
   workspaceId: string
   projectId: string
   open: boolean
+  initialAreaIds?: string[]
   onOpenChange: (open: boolean) => void
 }
 
@@ -64,9 +67,11 @@ export function CreateRequirementDialog({
   projectId,
   open,
   onOpenChange,
+  initialAreaIds = [],
 }: Props) {
   const nav = useNavigate()
   const [title, setTitle] = React.useState('')
+  const [areaIds,setAreaIds]=React.useState<string[]>(initialAreaIds)
   const [description, setDescription] = React.useState('')
   const [sourceRef, setSourceRef] = React.useState('')
   const [priority, setPriority] = React.useState<RequirementPriority>('medium')
@@ -82,6 +87,7 @@ export function CreateRequirementDialog({
 
   const reset = () => {
     setTitle('')
+    setAreaIds(initialAreaIds)
     setDescription('')
     setSourceRef('')
     setPriority('medium')
@@ -92,10 +98,12 @@ export function CreateRequirementDialog({
 
   const submit = async (activate: boolean) => {
     if (!title.trim()) return
+    try {
     const r = await create.mutateAsync({
       workspaceId,
       projectId,
       title: title.trim(),
+      areaIds,
       description: description.trim() || null,
       sourceRef: sourceRef.trim() || null,
       priority,
@@ -109,11 +117,12 @@ export function CreateRequirementDialog({
     nav(
       `/workspace/${workspaceId}/project/${projectId}/requirement/${r.requirementId}`,
     )
+    } catch { /* The mutation displays the error; keep the entered draft. */ }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New requirement</DialogTitle>
           <DialogDescription>
@@ -122,8 +131,9 @@ export function CreateRequirementDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <FormRow label="Title">
+          <FormRow label="Title" htmlFor="requirement-title" required>
             <Input
+              id="requirement-title"
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -196,6 +206,7 @@ export function CreateRequirementDialog({
               </select>
             </FormRow>
           </div>
+          <React.Suspense fallback={<p>Loading area selection…</p>}><AreaPicker projectId={projectId} value={areaIds} onChange={setAreaIds} disabled={create.isPending}/></React.Suspense>
           <FormRow label="Source reference">
             <Input
               value={sourceRef}

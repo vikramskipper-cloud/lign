@@ -1,4 +1,4 @@
-import { useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { LoadingPage } from '@/ui/loading-page'
 import { RequirementsDashboardBody } from './RequirementsDashboardBody'
 import { useProjectRequirementMetrics } from './queries'
@@ -16,6 +16,7 @@ export function ProjectRequirementsScreen() {
       workspaceId={ws_id}
       projectId={proj_id}
       heading="Requirements"
+      subheading={<Link className="auth-link text-sm" to={`/workspace/${ws_id}/project/${proj_id}/requirements/areas`}>Project-wide requirements, spaces and zones</Link>}
       metricsSlot={
         metrics.data ? (
           <div className="flex flex-wrap gap-4 rounded-[--radius-md] border border-[--color-border] bg-[--color-surface] px-4 py-3 text-sm">

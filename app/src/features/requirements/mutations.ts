@@ -27,6 +27,7 @@ export interface CreateRequirementInput {
   workspaceId: string
   projectId: string
   title: string
+  areaIds?: string[]
   description?: string | null
   category?: string | null
   source?: string | null
@@ -52,10 +53,11 @@ export function useCreateRequirement(wsId: string, projId: string) {
     mutationFn: async (
       input: CreateRequirementInput,
     ): Promise<{ requirementId: string; code: string }> => {
-      const { data, error } = await supabase.rpc('create_requirement', {
+      const { data, error } = await supabase.rpc('create_requirement_with_areas', {
         p_project_id: input.projectId,
         p_workspace_id: input.workspaceId,
         p_title: input.title,
+        p_area_ids: input.areaIds??[],
         p_description: input.description ?? null,
         p_category: input.category ?? null,
         p_source: input.source ?? null,
@@ -75,6 +77,7 @@ export function useCreateRequirement(wsId: string, projId: string) {
     },
     onSuccess: () => {
       toast.success('Requirement created')
+      qc.invalidateQueries({queryKey:['area-requirements']})
       invalidateRequirementsLists(qc, wsId, projId)
       invalidateRequirementInbox(qc, wsId)
     },

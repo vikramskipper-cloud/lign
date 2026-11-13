@@ -11,6 +11,9 @@ project sidebar or overview. The same journey supports interiors, architecture,
 product design, furniture and fashion: gather needs → clarify → reference →
 review and agree → generate requirement drafts.
 
+See [Requirement hierarchy](REQUIREMENT_AREAS.md) for project-wide requirements,
+spaces/zones, inherited scope and preserved area paths in agreed revisions.
+
 ## Gather and clarify
 
 Start with shared questions about objectives, audience, deliverables, scope,
