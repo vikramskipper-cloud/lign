@@ -12,6 +12,7 @@ export function humanizeError(err: unknown): string {
 
   // Postgres: unique_violation
   if (code === '23505') {
+    if (msg.includes('projects_workspace_code_active_key') || msg.includes('PROJECT_CODE_TAKEN')) return 'That project code is already used in this workspace. Choose another code.'
     if (msg.includes('projects_workspace_slug_key')) return 'That slug is already used in this workspace.'
     if (msg.includes('collections_project_name_active_key')) return 'A collection with that name already exists in this project.'
     if (msg.includes('disciplines_project_name_active_key')) return 'A discipline with that name already exists in this project.'

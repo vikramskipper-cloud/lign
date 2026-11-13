@@ -10,6 +10,8 @@ import {
   type CreatedInvite,
 } from './newProject'
 import '@/styles/auth-theme.css'
+import type { ClientDetails } from './ClientDetailsFields'
+const ClientDetailsFields = React.lazy(() => import('./ClientDetailsFields'))
 
 /**
  * New project — one required field, everything else optional.
@@ -99,6 +101,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
   const [clients, setClients] = React.useState<ClientRow[]>([])
   const [clientDraft, setClientDraft] = React.useState('')
   const [description, setDescription] = React.useState('')
+  const [clientDetails, setClientDetails] = React.useState<ClientDetails>({clientCompany:'',clientContactName:'',clientEmail:'',clientPhone:''})
   const [more, setMore] = React.useState(false)
 
   const [errors, setErrors] = React.useState<{ name?: string; code?: string; client?: string }>({})
@@ -134,6 +137,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
   const reset = React.useCallback(() => {
     setName(''); setCode(''); setCodeTouched(false); setLeadMemberId(null)
     setClients([]); setClientDraft(''); setDescription(''); setMore(false)
+    setClientDetails({clientCompany:'',clientContactName:'',clientEmail:'',clientPhone:''})
     setErrors({}); setBanner(null); setConfirmDiscard(false); setAnnounce('')
     inFlight.current = false
   }, [])
@@ -154,7 +158,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
   }, [name, codeTouched])
 
   const dirty =
-    trimmedName.length > 0 || clients.length > 0 || clientDraft.trim().length > 0 ||
+    Object.values(clientDetails).some(v => v.trim()) || trimmedName.length > 0 || clients.length > 0 || clientDraft.trim().length > 0 ||
     description.trim().length > 0 || (codeTouched && code.trim().length > 0) ||
     Boolean(leadMemberId && leadMemberId !== myMemberId)
 
@@ -242,7 +246,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
     const codeValue = code.trim().toUpperCase()
     if (codeValue && !CODE_RE.test(codeValue)) {
       next.code = 'Letters, digits and dashes only (max 16), starting with a letter or digit.'
-    } else if (codeValue && availability.data && !availability.data.available) {
+    } else if (codeValue && probe === codeValue && availability.data && !availability.data.available) {
       next.code = `${codeValue} is already used by ${availability.data.conflictName}. Try ${suggestCode(codeValue)}.`
     }
     setErrors(next)
@@ -254,6 +258,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
     create.mutate(
       {
         name: trimmedName,
+        ...clientDetails,
         code: codeValue || null,
         description: description.trim() || null,
         leadMemberId: leadIsSomeoneElse ? effectiveLead : null,
@@ -411,6 +416,8 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
 
               <hr style={{ border: 0, borderTop: `1px solid ${C.divider}`, margin: 0 }} />
 
+              <React.Suspense fallback={<p>Loading client details…</p>}><ClientDetailsFields value={clientDetails} onChange={setClientDetails} disabled={busy} /></React.Suspense>
+
               {/* clients */}
               <div>
                 <Label htmlFor="np-client" optional>Client approver</Label>
@@ -466,7 +473,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                           <p style={{ margin: '3px 0 0', fontSize: 12, color: C.helper }}>
                             {c.memberName
                               ? `${c.memberName} is already in this workspace. They'll be added as an internal approver instead.`
-                              : 'Approver · invite sends on create'}
+                              : 'Approver · invitation queued on create'}
                           </p>
                         </div>
                         <button
@@ -518,7 +525,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
             >
               <p style={{ margin: 0, flex: 1, fontSize: 12.5, color: C.helper }}>
                 {externalCount > 0
-                  ? `${externalCount} invite ${externalCount === 1 ? 'email' : 'emails'} will be sent when you create.`
+                  ? `${externalCount} invitation ${externalCount === 1 ? 'email' : 'emails'} will be queued when you create.`
                   : ''}
               </p>
               <button

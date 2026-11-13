@@ -20,7 +20,7 @@ import { useProject } from '@/shell/queries'
 import { useAssets } from '@/features/designs/queries'
 import { useProjectCapabilities } from '@/lib/capabilities'
 import { humanizeError } from '@/features/shared/errors'
-import { EditProjectDialog } from './EditProjectDialog'
+const EditProjectDialog = React.lazy(() => import('./EditProjectDialog').then(m=>({default:m.EditProjectDialog})))
 import { relative, absolute } from '@/lib/formatDate'
 import { BriefStartCard } from '@/features/briefs/BriefStartCard'
 
@@ -115,6 +115,7 @@ export function ProjectOverviewScreen() {
         )}
       </div>
 
+      {(p.client_company||p.client_contact_name||p.client_email||p.client_phone)&&<section className="rounded-xl border border-[--color-border] p-5"><h2 className="font-semibold">Client details</h2><dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">{[['Company',p.client_company],['Contact',p.client_contact_name],['Email',p.client_email],['Phone',p.client_phone]].filter(([,v])=>v).map(([label,value])=><div key={label} className="min-w-0"><dt className="text-[--color-text-muted]">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl></section>}
       <BriefStartCard workspaceId={ws_id} projectId={proj_id} />
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
@@ -178,7 +179,7 @@ export function ProjectOverviewScreen() {
         </Card>
       </div>
 
-      <EditProjectDialog project={p} open={editOpen} onOpenChange={setEditOpen} />
+      {editOpen&&<React.Suspense fallback={null}><EditProjectDialog project={p} open={editOpen} onOpenChange={setEditOpen} /></React.Suspense>}
     </div>
   )
 }

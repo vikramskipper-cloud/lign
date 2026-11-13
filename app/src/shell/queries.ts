@@ -19,13 +19,17 @@ export interface ProjectRow {
   status: string
   description: string | null
   code: string | null
+  client_company: string | null
+  client_contact_name: string | null
+  client_email: string | null
+  client_phone: string | null
   archived_at: string | null
   created_at: string
   updated_at: string
 }
 
 const PROJECT_COLS =
-  'id, workspace_id, name, slug, status, description, code, archived_at, created_at, updated_at'
+  'id, workspace_id, name, slug, status, description, code, client_company, client_contact_name, client_email, client_phone, archived_at, created_at, updated_at'
 
 /** All workspaces the caller can see (via workspace_members RLS). */
 export function useWorkspaces() {

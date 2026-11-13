@@ -18,7 +18,6 @@ import { OrgInviteClaimScreen } from '@/auth/OrgInviteClaimScreen'
 import { DeepLinkResolver } from '@/auth/DeepLinkResolver'
 import { RootLayout } from '@/shell/RootLayout'
 import { WorkspaceLayout } from '@/shell/WorkspaceLayout'
-import { ProjectLayout } from '@/shell/ProjectLayout'
 import { NotFound } from '@/shell/NotFound'
 import { WorkspacePicker } from '@/routes/WorkspacePicker'
 import {
@@ -206,8 +205,8 @@ export const router = createBrowserRouter([
                   { path: 'settings', element: <WorkspaceSettingsScreen />, handle: WorkspaceSettingsScreen.handle },
                   {
                     path: 'project/:proj_id',
-                    element: <ProjectLayout />,
-                    handle: ProjectLayout.handle,
+                    lazy: () => import('@/shell/ProjectLayout'),
+                    handle: { navMode: 'project' },
                     children: [
                       { index: true, element: <Navigate to="overview" replace /> },
                       { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },

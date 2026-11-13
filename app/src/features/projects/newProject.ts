@@ -1,3 +1,4 @@
+import type { ClientDetails } from './ClientDetailsFields'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
@@ -30,7 +31,7 @@ export interface CreateProjectResult {
   invites: CreatedInvite[]
 }
 
-export interface CreateProjectInput {
+export interface CreateProjectInput extends ClientDetails {
   name: string
   code: string | null
   description: string | null
@@ -59,19 +60,21 @@ export function useCreateProject(workspaceId: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (input: CreateProjectInput): Promise<CreateProjectResult> => {
-      const { data, error } = await supabase.rpc('create_project_full', {
+      const { data, error } = await supabase.rpc('create_project_with_client', {
         p_workspace_id: workspaceId,
         p_name: input.name,
         p_code: input.code,
         p_description: input.description,
         p_lead_member_id: input.leadMemberId,
         p_client_emails: input.clientEmails,
+        p_client_company: input.clientCompany, p_client_contact_name: input.clientContactName,
+        p_client_email: input.clientEmail, p_client_phone: input.clientPhone,
       })
       if (error) {
         // The server distinguishes these two by errcode. Everything else is
         // surfaced as an unknown failure rather than as a raw database string.
-        if (error.code === '23505' && error.message?.includes('PROJECT_CODE_TAKEN')) {
-          throw new CodeTakenError(error.details ?? null)
+        if (error.code === '23505' && (error.message?.includes('PROJECT_CODE_TAKEN') || error.message?.includes('projects_workspace_code_active_key'))) {
+          throw new CodeTakenError(error.message?.includes('PROJECT_CODE_TAKEN') ? error.details ?? null : null)
         }
         if (error.code === '42501') throw new PermissionError()
         throw error
@@ -104,9 +107,8 @@ export function useCreateProject(workspaceId: string) {
 /**
  * Availability probe for the code field, on blur.
  *
- * Advisory only. projects.code has no unique index, so this cannot be the
- * guarantee — the RPC re-checks inside the transaction and is what actually
- * rejects. See the gap note in the APP 014 report.
+ * Advisory only. The database unique index is authoritative, including
+ * concurrent creates and edits.
  */
 export function useCodeAvailability(workspaceId: string, code: string) {
   const probe = code.trim().toUpperCase()

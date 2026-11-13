@@ -75,7 +75,7 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
     },
     onSuccess:async()=>{
       invalidateRequirementsLists(qc,workspaceId,projectId)
-      await Promise.all([qc.invalidateQueries({queryKey:['project-brief']}),qc.invalidateQueries({queryKey:['studio-overview']})])
+      await Promise.all([qc.invalidateQueries({queryKey:['project-setup']}),qc.invalidateQueries({predicate:q=>q.queryKey[0]==='project'&&q.queryKey[1]===projectId&&q.queryKey[2]==='capabilities'}),qc.invalidateQueries({queryKey:['project-brief']}),qc.invalidateQueries({queryKey:['studio-overview']})])
     },
     onError:(err)=>setError(humanizeError(err)),
   })

@@ -4,7 +4,9 @@ The project journey is **Project basics → Gather requirements → Review and a
 The creation form collects the name, code, lead and optional description/approvers;
 disciplines, scope, budget, schedule and references belong in the brief.
 
-New projects open at **Project brief**. Existing projects can open it from the
+New projects open at **Project brief**. Design work stays locked until an independent
+project approver agrees a brief revision; later working revisions retain that baseline.
+See [Project setup](PROJECT_SETUP.md) for client details, code uniqueness and enforcement. Existing projects can open it from the
 project sidebar or overview. The same journey supports interiors, architecture,
 product design, furniture and fashion: gather needs → clarify → reference →
 review and agree → generate requirement drafts.

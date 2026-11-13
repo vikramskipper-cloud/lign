@@ -1,4 +1,8 @@
-import { Navigate, Outlet, useParams } from 'react-router'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { useSession } from '@/auth/SessionProvider'
+import { Link, Navigate, Outlet, useLocation, useParams } from 'react-router'
 import { LoadingPage } from '@/ui/loading-page'
 import { useProject } from '@/shell/queries'
 import { useProjectCapabilities } from '@/lib/capabilities'
@@ -12,9 +16,19 @@ import { AccessDeniedPage } from '@/shell/AccessDenied'
 export function ProjectLayout() {
   const { ws_id, proj_id } = useParams<{ ws_id: string; proj_id: string }>()
 
+  const qc=useQueryClient()
+  const {user}=useSession()
+  const location=useLocation()
   const project = useProject(proj_id)
   const caps = useProjectCapabilities(proj_id ?? '', ws_id ?? '')
 
+  const section=location.pathname.split(`/project/${proj_id}/`)[1]?.split('/')[0]??''
+  const designSection=['designs','asset','deliverables','deliverable','reviews','review','approvals','approval','releases','release'].includes(section)
+  const ready=useQuery({
+    queryKey:['project-setup',user?.id,proj_id],enabled:Boolean(user&&proj_id&&caps.data?.['project.view']),refetchInterval:15000,
+    queryFn:async()=>{const {data,error}=await supabase.rpc('lign_project_ready_for_design',{p_project_id:proj_id});if(error)throw error;return Boolean(data)},
+  })
+  useEffect(()=>{if(ready.data)void qc.invalidateQueries({queryKey:['project',proj_id,'capabilities']})},[ready.data,proj_id,qc])
   if (project.isLoading || caps.isLoading) return <LoadingPage />
   if (project.isError || !project.data) return <Navigate to={`/workspace/${ws_id}/projects`} replace />
 
@@ -29,7 +43,14 @@ export function ProjectLayout() {
     return <AccessDeniedPage capability="project.view" />
   }
 
+  if(designSection){
+    if(ready.isLoading)return <LoadingPage />
+    if(ready.isError)return <div className="p-6"><p role="alert">Could not check brief agreement.</p><button className="auth-link mt-3" onClick={()=>void ready.refetch()}>Try again</button></div>
+    if(!ready.data)return <div className="mx-auto max-w-3xl space-y-3 p-6"><h1 className="text-xl font-semibold">Agree the brief before design work</h1><p>Gather requirements and references, then have the assigned approver agree the brief. Designs, deliverables, reviews and releases will become available.</p><p>Project people and requirements remain available during setup.</p><Link className="auth-link inline-block" to={`/workspace/${ws_id}/project/${proj_id}/brief`}>Open project brief</Link></div>
+  }
   return <Outlet />
 }
 
 ProjectLayout.handle = { navMode: 'project' as const }
+
+export const Component = ProjectLayout
