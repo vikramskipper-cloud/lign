@@ -18,7 +18,9 @@ A workspace has in-content Overview (leadership), Projects, Work queue and Team
 (leadership) navigation. Work queue exposes the existing Reviews, Approvals,
 Requirements and Releases screens. Workspace settings is a local header action.
 Entering a project removes the workspace header/tabs; only the project context
-remains, with its workspace accessible through the breadcrumb/picker.
+remains, with an explicit **Back to workspace** link returning to its workspace’s
+project list, alongside the workspace picker. This works on desktop/mobile and
+for externally assigned clients, including direct/deep-linked project pages.
 
 Project navigation has five sections, filtered by existing read capabilities:
 
