@@ -1,5 +1,7 @@
 # APP 033 — Organisation library
 
+The original authoring rules below are extended by [APP 034](APP_034_LIBRARY_REVIEW.md): internal members now submit private drafts for owner/admin approval, and projects import immutable published versions.
+
 The global **Library** destination belongs to the selected organisation. It holds reusable visual templates and reference collections, each with up to 100 image, document or URL references. Owners and admins create, edit and archive collections and references. Active internal members browse and preview them. External project stakeholders cannot browse the catalogue.
 
 Project leadership uses **Reference boards → Add from organisation library** to preview and import a collection, optionally into a space or zone. The server checks both active organisation membership and target project management, including that the workspace belongs to the same organisation. Templates become project mood boards; reference collections become project reference boards. Titles, descriptions and links are copied; votes, comments and brief selections start fresh. Source edits and archiving do not change existing project copies.
