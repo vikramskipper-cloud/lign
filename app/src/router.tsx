@@ -172,6 +172,7 @@ export const router = createBrowserRouter([
               { path: '/my-work', element: <HomeScreen /> },
               { path: '/org/:org_id/overview', lazy: () => import('@/features/oversight/overview.route'), handle: { crumb: 'Studio overview' } },
               { path: '/org/:org_id/access', lazy: () => import('@/features/access/directory.route'), handle: { crumb: 'Access directory' } },
+              { path: '/org/:org_id/library', lazy: () => import('@/features/library/LibraryScreen'), handle: { crumb: 'Library' } },
               { path: '/org/:org_id/people', element: <OrgPeopleScreen />, handle: OrgPeopleHandle },
               // Not org-scoped in the URL: access_requests has no
               // organization_id — an applicant belongs to nothing yet. The

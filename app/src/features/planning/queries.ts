@@ -3,7 +3,7 @@ import {useMutation,useQuery,useQueryClient} from '@tanstack/react-query'
 import {useSession} from '@/auth/SessionProvider'
 import {supabase} from '@/lib/supabase'
 import {humanizeError} from '@/features/shared/errors'
-export interface PlanningFile {id:string;path:string;name:string;mime:string;size:number}
+export interface PlanningFile {bucket?:string;id:string;path:string;name:string;mime:string;size:number}
 export interface ReferenceCard {id:string;title:string;description:string;url:string|null;boardId:string;boardTitle:string;areaId:string|null;areaPath:string|null;authorId:string;authorName:string;editVersion:number;selected:boolean;file:PlanningFile|null;preferences:{userId:string;name:string;choice:'shortlisted'|'liked'|'rejected';note:string;at:string}[];commentCount:number;canEdit?:boolean}
 export interface ReferenceBoard {id:string;title:string;kind:'moodboard'|'references'|'template';description:string;area_id:string|null;areaPath:string|null;edit_version:number;cardCount:number}
 export interface ProposalDocument {title:string;summary:string;scope:string;budget:string;timing:string;assumptions:string;sections:{id:string;title:string;concept:string;materials:string;areaId:string|null;areaSnapshot?:{id:string;path:string;kind:string}|null}[];referenceIds:string[];requirementIds:string[]}

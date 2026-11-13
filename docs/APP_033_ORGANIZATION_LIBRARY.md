@@ -1,0 +1,11 @@
+# APP 033 — Organisation library
+
+The global **Library** destination belongs to the selected organisation. It holds reusable visual templates and reference collections, each with up to 100 image, document or URL references. Owners and admins create, edit and archive collections and references. Active internal members browse and preview them. External project stakeholders cannot browse the catalogue.
+
+Project leadership uses **Reference boards → Add from organisation library** to preview and import a collection, optionally into a space or zone. The server checks both active organisation membership and target project management, including that the workspace belongs to the same organisation. Templates become project mood boards; reference collections become project reference boards. Titles, descriptions and links are copied; votes, comments and brief selections start fresh. Source edits and archiving do not change existing project copies.
+
+Files live in a private `organization-library` bucket. A checked reservation and finalisation verify uploader, MIME type and byte count. Registered objects cannot be overwritten or deleted through client storage policies. Import publishes only the collection's referenced files to the target project. Project access permits downloading those exact files, without catalogue access or access to unshared files. Publications remain for historical brief and proposal evidence after a working attachment is detached. Snapshots carry the storage bucket alongside immutable file identity. Replacing a project attachment with a project upload clears its current library attachment.
+
+Migration: `20261113070000_app_033_organization_library.sql`. All writes use checked RPCs; library tables expose select-only RLS. Existing proposal acceptance and detailed-design gates remain in place.
+
+Validation: `tests/access/organization-library.mjs` covers shared reuse across workspaces, authoring permissions, cross-tenant and guest denial, immutable files, independent project copies, source archive and card-specific detach. `tests/access/organization-library-browser.mjs` covers the owner authoring/upload/import flow, mobile layout, client image access and catalogue denial. `tests/access/navigation-browser.mjs` covers the additional global destination alongside existing workspace/project navigation.

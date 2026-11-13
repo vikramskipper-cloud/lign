@@ -28,7 +28,7 @@ select 'POLICY', policyname, tablename,
        ' using=' || coalesce(qual, '-') || ' check=' || coalesce(with_check, '-')
 from pg_policies where schemaname = 'public' or
  (schemaname = 'storage' and tablename = 'objects' and
-  (policyname like 'lign_files_%' or (policyname like 'brief_reference_%' or policyname in ('planning_upload','planning_download','planning_discard_unregistered'))))
+  (policyname like 'lign_files_%' or (policyname like 'brief_reference_%' or policyname in ('planning_upload','planning_download','planning_discard_unregistered','library_upload','library_download','library_discard'))))
 union all
 select 'TRIGGER', t.tgname, c.relname, pg_get_triggerdef(t.oid)
 from pg_trigger t
