@@ -117,7 +117,7 @@ export function RequirementDetailScreen() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 p-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <Link
             to={`/workspace/${ws_id}/project/${proj_id}/requirements`}
@@ -165,8 +165,8 @@ export function RequirementDetailScreen() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <aside className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <aside className="min-w-0 space-y-3 break-words">
           <MetadataCard
             requirement={r}
             metrics={d.metrics}
@@ -189,13 +189,13 @@ export function RequirementDetailScreen() {
           )}
         </aside>
 
-        <div className="lg:col-span-2 space-y-3">
+        <div className="min-w-0 space-y-3 lg:col-span-2">
           <Tabs
             value={tab}
             onValueChange={setTab}
             className="rounded-[--radius-md] border border-[--color-border] bg-[--color-surface]"
           >
-            <TabsList>
+            <div className="max-w-full overflow-x-auto"><TabsList className="w-max min-w-full justify-start">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="applicability">Applicability</TabsTrigger>
               <TabsTrigger value="assessments">
@@ -208,7 +208,7 @@ export function RequirementDetailScreen() {
               <TabsTrigger value="history">History</TabsTrigger>
               <TabsTrigger value="discussions">Discussions</TabsTrigger>
               <TabsTrigger value="traceability">Traceability</TabsTrigger>
-            </TabsList>
+            </TabsList></div>
             <TabsContent value="overview" className="m-0 space-y-3 p-3">
               <OverviewTab detail={d} />
               <React.Suspense fallback={<p>Loading area assignment…</p>}><RequirementAreaEditor projectId={proj_id} workspaceId={ws_id} requirementId={requirement_id}/></React.Suspense>

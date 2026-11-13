@@ -30,7 +30,7 @@ export function OverviewScreen() {
   const projects = data.workspaces.flatMap((w) => w.projects)
   const reviews = projects.reduce((n, p) => n + p.pendingReviews, 0)
   const approvals = projects.reduce((n, p) => n + p.pendingApprovals, 0)
-  const title = wsId ? data.workspaces[0]?.name ?? 'Workspace overview' : `${data.organizationName} overview`
+  const title = wsId ? 'Workspace overview' : `${data.organizationName} overview`
   const metrics = [
     { label: 'Workspaces', value: data.workspaces.length, icon: Building2 },
     { label: 'Projects', value: projects.length, icon: FolderOpen },

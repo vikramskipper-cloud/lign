@@ -19,7 +19,6 @@ import { DeepLinkResolver } from '@/auth/DeepLinkResolver'
 import { RootLayout } from '@/shell/RootLayout'
 import { WorkspaceLayout } from '@/shell/WorkspaceLayout'
 import { NotFound } from '@/shell/NotFound'
-import { WorkspacePicker } from '@/routes/WorkspacePicker'
 import {
 
 } from '@/routes/stubs'
@@ -178,7 +177,8 @@ export const router = createBrowserRouter([
               // organization_id — an applicant belongs to nothing yet. The
               // screen and RPC both require a LIGN platform administrator.
               { path: '/access-requests', lazy: () => import('@/features/access/access-requests.route') },
-              { path: '/workspace-picker', element: <WorkspacePicker /> },
+              { path: '/workspaces', lazy: () => import('@/shell/WorkspaceDirectory'), handle: { crumb: 'Workspaces' } },
+              { path: '/workspace-picker', element: <Alias to="/workspaces" /> },
               { path: '/deep/review/:id', element: <ReviewDeepLink /> },
               { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },
               { path: '/deep/approval/:id', element: <ApprovalDeepLink /> },

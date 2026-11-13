@@ -6,6 +6,8 @@ import { Link, Navigate, Outlet, useLocation, useParams } from 'react-router'
 import { LoadingPage } from '@/ui/loading-page'
 import { useProject } from '@/shell/queries'
 import { useProjectCapabilities } from '@/lib/capabilities'
+import {useWorkspace} from './queries'
+import {ProjectNavigation} from './ContextNavigation'
 import { AccessDeniedPage } from '@/shell/AccessDenied'
 
 /**
@@ -19,6 +21,7 @@ export function ProjectLayout() {
   const qc=useQueryClient()
   const {user}=useSession()
   const location=useLocation()
+  const workspace=useWorkspace(ws_id)
   const project = useProject(proj_id)
   const caps = useProjectCapabilities(proj_id ?? '', ws_id ?? '')
 
@@ -43,12 +46,13 @@ export function ProjectLayout() {
     return <AccessDeniedPage capability="project.view" />
   }
 
+  let content=<Outlet/>
   if(designSection){
-    if(ready.isLoading)return <LoadingPage />
-    if(ready.isError)return <div className="p-6"><p role="alert">Could not check brief agreement.</p><button className="auth-link mt-3" onClick={()=>void ready.refetch()}>Try again</button></div>
-    if(!ready.data?.designReady)return <div className="mx-auto max-w-3xl space-y-3 p-6"><h1 className="text-xl font-semibold">{ready.data?.briefReady?'Accept the proposal before detailed design':'Agree the brief before design work'}</h1><p>{ready.data?.briefReady?'Prepare the design proposal, review it internally and have the assigned approver accept its exact revision.':'Gather requirements and references, then have the assigned approver agree the brief before preparing a design proposal.'}</p><p>Project people, requirements and reference boards remain available.</p><Link className="auth-link inline-block" to={`/workspace/${ws_id}/project/${proj_id}/${ready.data?.briefReady?'proposal':'brief'}`}>{ready.data?.briefReady?'Open design proposal':'Open project brief'}</Link></div>
+    if(ready.isLoading)content=<LoadingPage />
+    else if(ready.isError)content=<div className="p-6"><p role="alert">Could not check brief agreement.</p><button className="auth-link mt-3" onClick={()=>void ready.refetch()}>Try again</button></div>
+    else if(!ready.data?.designReady)content=<div className="mx-auto max-w-3xl space-y-3 p-6"><h1 className="text-xl font-semibold">{ready.data?.briefReady?'Accept the proposal before detailed design':'Agree the brief before design work'}</h1><p>{ready.data?.briefReady?'Prepare the design proposal, review it internally and have the assigned approver accept its exact revision.':'Gather requirements and references, then have the assigned approver agree the brief before preparing a design proposal.'}</p><p>Project people, requirements and reference boards remain available.</p><Link className="auth-link inline-block" to={`/workspace/${ws_id}/project/${proj_id}/${ready.data?.briefReady?'proposal':'brief'}`}>{ready.data?.briefReady?'Open design proposal':'Open project brief'}</Link></div>
   }
-  return <Outlet />
+  return <><ProjectNavigation workspaceId={ws_id!} projectId={proj_id!} projectName={project.data.name} workspaceName={workspace.data?.name} caps={caps.data} journey={ready.data}/>{content}</>
 }
 
 ProjectLayout.handle = { navMode: 'project' as const }

@@ -8,7 +8,7 @@ export const emptyClientDetails = (): ClientDetails => ({clientCompany:'',client
 export default function ClientDetailsFields({value,onChange,disabled=false}:{value:ClientDetails;onChange:(value:ClientDetails)=>void;disabled?:boolean}) {
   return <fieldset className="space-y-3" disabled={disabled}>
     <legend className="text-sm font-medium">Client details (optional)</legend>
-    <p className="text-xs text-[--color-text-muted]">Record the client contact here. Portal access is assigned separately through project approvers and People.</p>
+    <p className="text-xs text-[--color-text-muted]">Record the client contact here. Portal access is assigned separately through project approvers and Team & access.</p>
     <div className="grid gap-3 sm:grid-cols-2">
       {([
         ['clientCompany','Client company','text',200],

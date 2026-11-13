@@ -407,7 +407,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                 </div>
                 <Helper>
                   The lead can upload versions, create releases and manage access. Hand it to someone else
-                  now, or later in People.
+                  now, or later in Team & access.
                 </Helper>
                 {leadIsSomeoneElse && (
                   <Helper>You&apos;ll be added as a contributor so you keep access after handing over.</Helper>

@@ -21,7 +21,7 @@ export const CORE_FIELDS = [
   field('budget', 'What budget or cost constraints apply?', 'Include the currency, what the budget covers, and anything not yet agreed.'),
   field('schedule', 'What timing or milestones matter?', 'Target dates, dependencies and any deadlines that are still assumptions.'),
   field('success', 'How will we judge success?', 'Describe the outcomes, references or checks the client and team should agree on.'),
-  field('stakeholders', 'Who should contribute and decide?', 'Identify the client decision-makers, team members and consultant reviewers. Assign their project access through People.'),
+  field('stakeholders', 'Who should contribute and decide?', 'Identify the client decision-makers, team members and consultant reviewers. Assign their project access through Team & access.'),
 ]
 export const BRIEF_TEMPLATES = [
   { id: 'interiors', label: 'Interiors', fields: [field('interiors_spaces','Spaces and activities','Which spaces are involved, who uses them, and for which activities?'),field('interiors_finishes','Finishes, furniture and services','Materials, lighting, furniture, services and existing conditions to consider.')] },

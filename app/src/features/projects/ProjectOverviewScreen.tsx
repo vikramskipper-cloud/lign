@@ -73,7 +73,7 @@ export function ProjectOverviewScreen() {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-xl font-semibold">{p.name}</h1>
+            <h1 className="truncate text-xl font-semibold">Project overview</h1>
             <StatusBadge status={p.status} />
           </div>
           {p.description && <p className="text-sm text-[--color-text-muted]">{p.description}</p>}
