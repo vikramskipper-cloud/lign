@@ -8,6 +8,7 @@ export interface BriefItem {
   acceptance: string; appliesTo: string; ownerProfileId: string; resolution: string
 }
 export interface BriefDocument {
+  referenceSelection?: import('@/features/planning/queries').ReferenceCard[]
   disciplines: string[]; fields: BriefField[]; items: BriefItem[]
   references: { id: string; label: string; url: string }[]
 }

@@ -1,5 +1,6 @@
 // Isolated backend checks. Run studio-leadership.mjs first. No hosted writes.
 import assert from 'node:assert/strict'
+import {ensureAcceptedProposal} from './agree-brief.mjs'
 import {readFileSync,writeFileSync,chmodSync} from 'node:fs'
 import {createRequire} from 'node:module'
 const require=createRequire(new URL('../../app/package.json',import.meta.url)),{createClient}=require('@supabase/supabase-js')
@@ -58,11 +59,12 @@ await transition('request_agreement');assert.equal(await ready(),false)
 let revision=(await read()).brief.current_revision_id
 ok(await client.rpc('respond_project_brief',{p_project_id:id,p_revision_id:revision,p_decision:'changes_requested',p_comment:'Clarify the sample'}));assert.equal(await ready(),false)
 await transition('request_agreement');revision=(await read()).brief.current_revision_id
-ok(await client.rpc('respond_project_brief',{p_project_id:id,p_revision_id:revision,p_decision:'agreed'}));assert.equal(await ready(),true)
+ok(await client.rpc('respond_project_brief',{p_project_id:id,p_revision_id:revision,p_decision:'agreed'}));assert.equal(await ready(),false)
+await ensureAcceptedProposal(lead,client,id,pp);assert.equal(await ready(),true)
 assert.equal(ok(await lead.rpc('lign_has_capability',{p_project_id:id,p_workspace_id:f.wsA,p_capability_key:'asset.create'})),true)
 const asset=ok(await lead.from('design_assets').insert({workspace_id:f.wsA,project_id:id,name:'Agreed design',created_by_profile_id:f.people.senior.userId}).select('id').single())
 ok(await lead.rpc('create_draft_version',{p_project_id:id,p_design_asset_id:asset.id}))
 await transition('revise');assert.equal(await ready(),true)
 ok(await lead.from('design_assets').insert({workspace_id:f.wsA,project_id:id,name:'Work under agreed baseline',created_by_profile_id:f.people.senior.userId}))
-console.log('PASS draft, awaiting agreement and requested changes block design APIs and direct writes; independent agreement unlocks design; later revisions preserve the baseline')
+console.log('PASS draft, awaiting agreement and requested changes block design APIs and direct writes; brief agreement unlocks proposal preparation, proposal acceptance unlocks design; later revisions preserve the baseline')
 writeFileSync(new URL('../../ops/.tmp/project-setup-fixture.json',import.meta.url),JSON.stringify({...f,setupProjectId:id}));chmodSync(new URL('../../ops/.tmp/project-setup-fixture.json',import.meta.url),0o600)

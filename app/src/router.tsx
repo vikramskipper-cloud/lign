@@ -210,6 +210,8 @@ export const router = createBrowserRouter([
                     children: [
                       { index: true, element: <Navigate to="overview" replace /> },
                       { path: 'overview', element: <ProjectOverviewScreen />, handle: ProjectOverviewHandle },
+                      { path: 'references', lazy: () => import('@/features/planning/ReferenceBoardsScreen'), handle: { crumb: 'Reference boards' } },
+                      { path: 'proposal', lazy: () => import('@/features/planning/ProposalScreen'), handle: { crumb: 'Design proposal' } },
                       { path: 'brief', lazy: () => import('@/features/briefs/brief.route'), handle: { crumb: 'Project brief' } },
                       { path: 'deliverables', lazy: () => import('@/features/deliverables/deliverables.route'), handle: { crumb: 'Deliverables' } },
                       { path: 'deliverable/:submission_id', lazy: () => import('@/features/deliverables/deliverables.route'), handle: { crumb: 'Deliverable submission' } },

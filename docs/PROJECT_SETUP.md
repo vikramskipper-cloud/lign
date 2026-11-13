@@ -1,6 +1,6 @@
 # Project setup (APP 030)
 
-Project basics → Gather requirements and references → Review and agree → Design.
+Project basics → Requirements and references → Brief agreement → Proposal acceptance → Detailed design.
 
 ## Client information
 
@@ -30,7 +30,9 @@ to also protect generated slug allocation. Availability checks are advisory.
 
 ## Brief agreement gate
 
-An immutable **agreed** decision on a project brief revision unlocks design work.
+An immutable **agreed** brief decision unlocks proposal preparation. APP 032 adds
+client acceptance of a reviewed proposal before detailed design is unlocked; see
+[Reference boards and proposals](REFERENCE_BOARDS_AND_PROPOSALS.md).
 No brief, draft, awaiting agreement and changes requested all remain locked until
 there is an agreed baseline. The existing independent approver rule still applies.
 People, project metadata, requirement planning and brief references remain usable
@@ -38,7 +40,7 @@ while setting up the project. A recorded client contact is not a brief approver.
 
 Project design routes display the gate and a link to the brief. Capabilities
 reject design, upload, review, approval, release and assessment writes before
-agreement; reviewer submission permission also requires agreement. Database
+both milestones; reviewer submission permission also requires both milestones. Database
 triggers on design assets, versions, reviews, approvals, releases and deliverable
 submissions protect direct table writes and definer paths. Existing authorization
 continues to apply after unlocking; agreement grants no new user role.

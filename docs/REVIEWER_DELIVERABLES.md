@@ -112,3 +112,6 @@ external installations.
 Commit/push GitHub `main` first, apply the exact migration file with recorded
 checksums and verify Vercel's automatic Git deployment, as in `ops/DEPLOYMENT.md`.
 SendGrid welcome/invitation delivery remains a separate pending integration.
+
+APP 032 requires an agreed brief and accepted design proposal before deliverable
+submission or other detailed design work. See [Reference boards and proposals](REFERENCE_BOARDS_AND_PROPOSALS.md).

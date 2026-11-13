@@ -184,6 +184,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { to: proj('overview'), label: 'Overview', icon: <LayoutDashboard size={15} />, capability: 'project.view' },
     { to: proj('brief'), label: 'Project brief', icon: <ClipboardList size={15} />, capability: 'project.view' },
     { to: proj('requirements'), label: 'Requirements', icon: <ClipboardList size={15} />, capability: 'requirement.view' },
+    { to: proj('references'), label: 'Reference boards', icon: <Layers size={15} />, capability: 'project.view' },
+    { to: proj('proposal'), label: 'Design proposal', icon: <ClipboardCheck size={15} />, capability: 'project.view' },
     { to: proj('designs'), label: 'Designs', icon: <Layers size={15} />, capability: 'asset.view' },
     { to: proj('deliverables'), label: 'Deliverables', icon: <Layers size={15} />, capability: 'project.view' },
     { to: proj('reviews'), label: 'Reviews', icon: <ClipboardCheck size={15} />, capability: 'review.view' },

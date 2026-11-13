@@ -1,11 +1,12 @@
 # Project briefs (APP 028)
 
-The project journey is **Project basics → Gather requirements → Review and agree → Design work**.
+The project journey is **Project basics → Requirements and references → Brief agreement → Proposal acceptance → Detailed design**.
 The creation form collects the name, code, lead and optional description/approvers;
 disciplines, scope, budget, schedule and references belong in the brief.
 
-New projects open at **Project brief**. Design work stays locked until an independent
-project approver agrees a brief revision; later working revisions retain that baseline.
+New projects open at **Project brief**. An independent project approver must agree the brief before proposal preparation;
+client acceptance of a reviewed proposal then unlocks detailed design. Later working
+revisions retain the immutable agreed/accepted baseline.
 See [Project setup](PROJECT_SETUP.md) for client details, code uniqueness and enforcement. Existing projects can open it from the
 project sidebar or overview. The same journey supports interiors, architecture,
 product design, furniture and fashion: gather needs → clarify → reference →
@@ -69,6 +70,8 @@ using the View selector. Brief agreement is distinct from design-version approva
 **Copy agreement link** shares the protected page with the assigned approver.
 The recipient signs in through the existing access-only beta route. This release
 does not introduce anonymous intake links or automatic brief email notifications.
+See [Reference boards and proposals](REFERENCE_BOARDS_AND_PROPOSALS.md) for visual
+collaboration, captured direction and the next acceptance milestone.
 SendGrid setup for welcome/invitation delivery remains pending separately.
 
 ## Requirements handoff

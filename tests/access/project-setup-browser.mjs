@@ -1,5 +1,6 @@
 // Local-only browser checks: create -> client details -> brief -> agreement -> design.
 import assert from 'node:assert/strict'
+import {ensureAcceptedProposal} from './agree-brief.mjs'
 import {readFileSync,mkdirSync} from 'node:fs'
 import {createRequire} from 'node:module'
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE??'playwright')
@@ -39,9 +40,11 @@ try{
  await rpcClick(owner,'save_project_brief','Save and start brief');await rpcClick(owner,'transition_project_brief','Review and request agreement')
  await owner.getByRole('link',{name:'Designs',exact:true}).click();await owner.getByRole('heading',{name:'Agree the brief before design work',exact:true}).waitFor()
  const client=await login(f.people.junior.email);await client.goto(project+'/brief?step=agreement');await client.getByLabel('I agree to this brief revision, including its requirements, preferences, assumptions and references.',{exact:true}).check();await rpcClick(client,'respond_project_brief','Agree this revision')
+ await owner.getByRole('heading',{name:'Accept the proposal before detailed design',exact:true}).waitFor()
+ const approverApi=createClient(config.API_URL,config.ANON_KEY,opts);ok(await approverApi.auth.signInWithPassword({email:f.people.junior.email,password:f.password}));const assigned=ok(await service.from('project_participants').select('id').eq('project_id',id).eq('workspace_member_id',junior.id).single()).id;await ensureAcceptedProposal(api,approverApi,id,assigned)
  await owner.getByRole('button',{name:'New asset',exact:true}).first().waitFor();assert.equal(await owner.getByRole('heading',{name:'Agree the brief before design work',exact:true}).count(),0)
  await owner.goto(project+'/brief?step=agreement');await rpcClick(owner,'transition_project_brief','Start a new revision');await owner.goto(project+'/designs');await owner.getByRole('button',{name:'New asset',exact:true}).first().waitFor()
- console.log('PASS actual brief gathering, independent agreement and design unlock; revising the brief preserves the agreed baseline')
+ console.log('PASS actual brief gathering, independent agreement, proposal acceptance and design unlock; revising the brief preserves the agreed baseline')
  await owner.goto(`${base}/workspace/${f.wsA}/projects`);await owner.setViewportSize({width:390,height:844});await owner.getByRole('button',{name:'New project',exact:true}).first().click();await owner.getByLabel('Client contact email',{exact:true}).waitFor();assert(await owner.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));mkdirSync('ops/.tmp',{recursive:true});await owner.screenshot({path:'ops/.tmp/project-setup-mobile.png',fullPage:true});assert.deepEqual(errors,[])
  console.log('PASS mobile creation form fits and no browser page errors')
 }catch(err){mkdirSync('ops/.tmp',{recursive:true});for(let i=0;i<contexts.length;i++){const p=contexts[i].pages()[0];if(p){console.log((await p.locator('body').innerText()).slice(-1800));await p.screenshot({path:`ops/.tmp/project-setup-error-${i}.png`,fullPage:true})}}throw err}finally{await browser.close()}

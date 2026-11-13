@@ -26,9 +26,9 @@ export function ProjectLayout() {
   const designSection=['designs','asset','deliverables','deliverable','reviews','review','approvals','approval','releases','release'].includes(section)
   const ready=useQuery({
     queryKey:['project-setup',user?.id,proj_id],enabled:Boolean(user&&proj_id&&caps.data?.['project.view']),refetchInterval:15000,
-    queryFn:async()=>{const {data,error}=await supabase.rpc('lign_project_ready_for_design',{p_project_id:proj_id});if(error)throw error;return Boolean(data)},
+    queryFn:async()=>{const {data,error}=await supabase.rpc('get_project_journey',{p_project_id:proj_id});if(error)throw error;return data as {briefReady:boolean;designReady:boolean}},
   })
-  useEffect(()=>{if(ready.data)void qc.invalidateQueries({queryKey:['project',proj_id,'capabilities']})},[ready.data,proj_id,qc])
+  useEffect(()=>{if(ready.data?.designReady)void qc.invalidateQueries({queryKey:['project',proj_id,'capabilities']})},[ready.data?.designReady,proj_id,qc])
   if (project.isLoading || caps.isLoading) return <LoadingPage />
   if (project.isError || !project.data) return <Navigate to={`/workspace/${ws_id}/projects`} replace />
 
@@ -46,7 +46,7 @@ export function ProjectLayout() {
   if(designSection){
     if(ready.isLoading)return <LoadingPage />
     if(ready.isError)return <div className="p-6"><p role="alert">Could not check brief agreement.</p><button className="auth-link mt-3" onClick={()=>void ready.refetch()}>Try again</button></div>
-    if(!ready.data)return <div className="mx-auto max-w-3xl space-y-3 p-6"><h1 className="text-xl font-semibold">Agree the brief before design work</h1><p>Gather requirements and references, then have the assigned approver agree the brief. Designs, deliverables, reviews and releases will become available.</p><p>Project people and requirements remain available during setup.</p><Link className="auth-link inline-block" to={`/workspace/${ws_id}/project/${proj_id}/brief`}>Open project brief</Link></div>
+    if(!ready.data?.designReady)return <div className="mx-auto max-w-3xl space-y-3 p-6"><h1 className="text-xl font-semibold">{ready.data?.briefReady?'Accept the proposal before detailed design':'Agree the brief before design work'}</h1><p>{ready.data?.briefReady?'Prepare the design proposal, review it internally and have the assigned approver accept its exact revision.':'Gather requirements and references, then have the assigned approver agree the brief before preparing a design proposal.'}</p><p>Project people, requirements and reference boards remain available.</p><Link className="auth-link inline-block" to={`/workspace/${ws_id}/project/${proj_id}/${ready.data?.briefReady?'proposal':'brief'}`}>{ready.data?.briefReady?'Open design proposal':'Open project brief'}</Link></div>
   }
   return <Outlet />
 }
