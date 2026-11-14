@@ -11,6 +11,7 @@ export interface BriefRevision {
   generatedCount:number
 }
 export interface ProjectBriefData {
+  organizationDisciplines?:string[]
   brief:{id:string;project_id:string;status:'draft'|'submitted'|'awaiting_agreement'|'agreed';document:BriefDocument;edit_version:number;revision_number:number;current_revision_id:string|null;respondent_participant_id:string|null}|null
   canManage:boolean;canEdit:boolean;canRespond:boolean;canComment:boolean;canGenerate:boolean
   approvers:{id:string;name:string;pending:boolean}[];owners:{id:string;name:string}[]

@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Link, useNavigate } from 'react-router'
 import { supabase } from '@/lib/supabase'
+import { DisciplineChoices } from '@/features/organization/DisciplineChoices'
 import { queryClient } from '@/lib/queryClient'
 import { AuthShell, Wordmark } from '@/auth/AuthShell'
 import { readActivationLink } from '@/auth/activation'
@@ -14,6 +15,8 @@ export function SetPasswordScreen() {
   const [confirmation, setConfirmation] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [busy, setBusy] = React.useState(false)
+  const [profile,setProfile]=React.useState<{needsProfile:boolean}|null>(null)
+  const [disciplines,setDisciplines]=React.useState<string[]>([])
   const [done, setDone] = React.useState(false)
   const inFlight = React.useRef(false)
   const verification = React.useRef<Promise<boolean> | null>(null)
@@ -39,6 +42,7 @@ export function SetPasswordScreen() {
     void verification.current.then((valid) => {
       if (!active) return
       setReady(valid)
+      if(valid)void supabase.rpc('get_activation_design_profile').then(({data,error})=>{if(!active)return;if(error)setError('Could not load your organisation setup. Refresh this page to try again.');else setProfile(data as {needsProfile:boolean})})
       if (!valid) setError('This link has expired or has already been used. Request a new password link below.')
     }).catch(() => {
       if (active) setError('Could not verify this link. Check your connection and open the email link again.')
@@ -48,7 +52,7 @@ export function SetPasswordScreen() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!ready || inFlight.current) return
+    if (!ready || !profile || inFlight.current) return
     if (password.length < 8) return setError('Use at least 8 characters for your password.')
     if (password !== confirmation) return setError('The passwords do not match.')
     inFlight.current = true
@@ -58,7 +62,7 @@ export function SetPasswordScreen() {
       const { error: passwordError } = await supabase.auth.updateUser({ password })
       // Retrying activation after a network failure may submit the same password.
       if (passwordError && passwordError.code !== 'same_password') throw passwordError
-      const { error: activationError } = await supabase.rpc('complete_approved_access')
+      const { error: activationError } = await supabase.rpc('complete_approved_access_profile',{p_disciplines:profile.needsProfile?disciplines:null})
       if (activationError) throw activationError
       // Require the normal sign-in step after setting the password.
       await supabase.auth.signOut()
@@ -97,7 +101,7 @@ export function SetPasswordScreen() {
                 <input id="new-password" className="auth-field" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} aria-describedby={error ? 'password-error' : undefined} />
                 <label htmlFor="confirm-password" style={{ display: 'block', marginTop: 16, marginBottom: 6 }}>Confirm password</label>
                 <input id="confirm-password" className="auth-field" type="password" autoComplete="new-password" required minLength={8} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} disabled={busy} />
-                <button className="auth-btn-primary" type="submit" style={{ marginTop: 24 }} disabled={busy}>{busy ? 'Setting up…' : 'Set password'}</button>
+                {profile?.needsProfile&&<div style={{marginTop:24}}><DisciplineChoices value={disciplines} onChange={setDisciplines} disabled={busy}/></div>}<button className="auth-btn-primary" type="submit" style={{ marginTop: 24 }} disabled={busy||!profile}>{busy ? 'Setting up…' : 'Set password'}</button>
               </>
             )}
             <p style={{ marginTop: 20 }}><Link className="auth-link" to="/reset-password">Request a new password link</Link></p>

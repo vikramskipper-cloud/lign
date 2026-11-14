@@ -8,6 +8,7 @@ import { useAccessCheck } from '@/auth/useAccessCheck'
 import { AuthShell, BuildString, Wordmark } from '@/auth/AuthShell'
 import { FullPageLoader } from '@/ui/full-page-loader'
 import { persistLastWorkspace } from '@/shell/WorkspaceSwitcher'
+import { DisciplineChoices } from '@/features/organization/DisciplineChoices'
 import { useMyOrganizations } from '@/shell/orgQueries'
 import '@/styles/auth-theme.css'
 
@@ -15,7 +16,7 @@ import '@/styles/auth-theme.css'
  * An account that can open no workspace but can do something about it. Two
  * shapes arrive here, and they need different copy:
  *
- *   1. An APPROVED APPLICANT founding their company. One name creates the
+ *   1. An APPROVED APPLICANT founding their company. A name and discipline defaults create the
  *      organisation and its first workspace; asking someone to distinguish the
  *      two before they have seen either is how first runs get abandoned.
  *   2. An org owner/admin whose organisation has no workspace yet. The
@@ -49,6 +50,7 @@ export function CreateWorkspaceScreen() {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
+  const [disciplines,setDisciplines]=React.useState<string[]>([])
   const [name, setName] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const nameRef = React.useRef<HTMLInputElement>(null)
@@ -68,10 +70,10 @@ export function CreateWorkspaceScreen() {
 
   const create = useMutation({
     mutationFn: async (workspaceName: string): Promise<string> => {
-      const { data, error: rpcError } = await supabase.rpc('create_workspace', {
+      const { data, error: rpcError } = await supabase.rpc(targetOrgId?'create_workspace':'create_workspace_with_design_profile', {
         p_name: workspaceName,
         p_slug: slugify(workspaceName) || 'workspace',
-        p_organization_id: targetOrgId,
+        ...(targetOrgId?{p_organization_id:targetOrgId}:{p_disciplines:disciplines}),
       })
       if (rpcError) throw rpcError
       return data as string
@@ -207,6 +209,7 @@ export function CreateWorkspaceScreen() {
               : <>You&apos;ll be the owner of both.</>}
           </p>
 
+          {!targetOrgId&&<div style={{marginTop:24}}><DisciplineChoices value={disciplines} onChange={setDisciplines} disabled={busy}/></div>}
           <button
             type="submit"
             className="auth-btn-primary"

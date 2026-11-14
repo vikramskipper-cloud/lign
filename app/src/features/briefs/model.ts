@@ -30,5 +30,5 @@ export const BRIEF_TEMPLATES = [
   { id: 'furniture', label: 'Furniture design', fields: [field('furniture_fit','Items, dimensions and fit','Which items are needed, their dimensions, quantities and intended setting?'),field('furniture_build','Materials, finishes and assembly','Material and finish references, hardware, durability, assembly and delivery constraints.')] },
   { id: 'fashion', label: 'Fashion design', fields: [field('fashion_collection','Collection, audience and sizing','Garments, occasion, audience, fit references, size ranges and quantities.'),field('fashion_construction','Fabric and construction','Fabric, trims, construction, sampling, production and care expectations.')] },
 ]
-export const newBriefDocument = (): BriefDocument => ({ disciplines: [], fields: CORE_FIELDS.map(f=>({...f})), items: [], references: [] })
+export const newBriefDocument = (disciplines:string[]=[]): BriefDocument => {const selected=BRIEF_TEMPLATES.filter(t=>disciplines.includes(t.id));return {disciplines:selected.map(t=>t.id),fields:[...CORE_FIELDS,...selected.flatMap(t=>t.fields)].map(f=>({...f})),items:[],references:[]}}
 export const newBriefItem = (): BriefItem => ({ id:crypto.randomUUID(),title:'',detail:'',kind:'mandatory',priority:'medium',source:'client',acceptance:'',appliesTo:'',ownerProfileId:'',resolution:'' })

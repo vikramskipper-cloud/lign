@@ -34,7 +34,7 @@ try{
   assert.equal(creationResponse.status(),200,await creationResponse.text())
   await owner.waitForURL(u=>/\/project\/[^/]+\/brief$/.test(u.pathname))
   const projectId=new URL(owner.url()).pathname.split('/')[4]
-  await owner.getByLabel(industry,{exact:true}).check()
+  await owner.getByText('Adjust questions for this project',{exact:true}).click();await owner.getByLabel(industry,{exact:true}).check()
   await owner.getByLabel(question,{exact:true}).fill(answer)
   await owner.getByLabel('What should this project achieve?',{exact:true}).fill(`${industry}: an agreed design outcome.`)
   await owner.getByLabel('What should we deliver?',{exact:true}).fill('The agreed designs, specifications and reference samples.')
