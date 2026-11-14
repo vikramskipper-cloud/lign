@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { qk } from '@/lib/queryKeys'
 
 export interface CommentRow {
+  audience?:'internal'|'shared'
   id: string
   workspace_id: string
   parent_comment_id: string | null
@@ -23,7 +24,7 @@ export interface CommentRow {
 }
 
 const SELECT = `
-  id, workspace_id, parent_comment_id, body, author_profile_id, resolved_at, deleted_at,
+  id, workspace_id, parent_comment_id, audience, body, author_profile_id, resolved_at, deleted_at,
   target_version_id, target_annotation_id, target_review_id, target_change_id,
   target_decision_id, target_design_asset_id, target_approval_request_id,
   created_at, updated_at,

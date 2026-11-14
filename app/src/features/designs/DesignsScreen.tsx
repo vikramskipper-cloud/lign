@@ -13,6 +13,8 @@ import { useAssets } from './queries'
 import { AssetGrid } from './AssetGrid'
 import { CreateAssetDialog } from './CreateAssetDialog'
 
+const InternalReviewQueue=React.lazy(()=>import('@/features/version-access/InternalReviewQueue'))
+
 export const DesignsHandle = { crumb: 'Designs' }
 
 type CollectionFilter = string | null | 'unfiled'
@@ -91,6 +93,7 @@ export function DesignsScreen() {
       />
 
       <div className="flex flex-1 min-w-0 flex-col">
+        <React.Suspense fallback={null}><InternalReviewQueue workspaceId={ws_id} projectId={proj_id}/></React.Suspense>
         <div className="flex items-center gap-2 border-b border-[--color-border] p-3">
           <DisciplineFilter
             workspaceId={ws_id}

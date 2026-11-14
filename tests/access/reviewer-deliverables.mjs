@@ -42,7 +42,7 @@ const directory=ok(await owner.rpc('get_access_directory',{p_organization_id:f.o
 const role=directory.people.find(p=>p.email===people.consultant.email).projectRoles[0]
 assert.equal(role.professionalLabel,'Structural consultant');assert.equal(role.canSubmitDeliverables,true);assert.equal(role.role,'reviewer')
 console.log('PASS professional labels and submission access are project-scoped, leadership-controlled and atomically invited; reviewer role capabilities stay unchanged')
-await ensureAcceptedProposal(lead,client,f.pA1,people.client.participantId)
+await ensureAcceptedProposal(lead,client,f.pA1,people.client.participantId,owner)
 const asset=ok(await owner.from('design_assets').insert({workspace_id:f.wsA,project_id:f.pA1,name:'Structural package',created_by_profile_id:f.people.owner.userId}).select('id').single())
 const ordinary=ok(await owner.rpc('create_draft_version',{p_project_id:f.pA1,p_design_asset_id:asset.id}))
 const submissionId=ok(await consultant.rpc('create_deliverable_submission',{p_project_id:f.pA1,p_title:'Structural drawings',p_asset_id:asset.id,p_notes:'Review the proposed structure.'}))

@@ -45,7 +45,7 @@ export function useVersionPresence(versionId: string | null): PresencePeer[] {
     // Keying the channel by profile id means a user with the same version open
     // in three tabs is one peer, not three.
     const channel: RealtimeChannel = supabase.channel(versionPresenceChannel(versionId), {
-      config: { presence: { key: myId } },
+      config: { private:true, presence: { key: myId } },
     })
 
     const sync = () => {

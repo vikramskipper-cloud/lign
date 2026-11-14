@@ -24,6 +24,7 @@ export type TimePosition = { t: number }
 export type AnnotationPosition = PointPosition | RegionPosition | TimePosition | Record<string, unknown>
 
 export interface AnnotationRow {
+  audience?:'internal'|'shared'
   id: string
   workspace_id: string
   asset_version_id: string
@@ -40,7 +41,7 @@ export interface AnnotationRow {
 }
 
 const SELECT = `
-  id, workspace_id, asset_version_id, version_file_id, author_profile_id,
+  id, workspace_id, audience, asset_version_id, version_file_id, author_profile_id,
   anchor_kind, page_number, position, status, resolved_at, archived_at,
   created_at, updated_at
 `

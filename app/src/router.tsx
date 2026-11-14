@@ -65,6 +65,8 @@ import {
   ProjectReleasesHandle,
 } from '@/features/releases/ProjectReleasesScreen'
 
+function VersionDeepLink(){return <DeepLinkResolver kind="version"/>}
+
 function ReviewDeepLink() {
   return <DeepLinkResolver kind="review" />
 }
@@ -181,6 +183,7 @@ export const router = createBrowserRouter([
               { path: '/access-requests', lazy: () => import('@/features/access/access-requests.route') },
               { path: '/workspaces', lazy: () => import('@/shell/WorkspaceDirectory'), handle: { crumb: 'Workspaces' } },
               { path: '/workspace-picker', element: <Alias to="/workspaces" /> },
+              { path: '/deep/version/:id', element: <VersionDeepLink/> },
               { path: '/deep/review/:id', element: <ReviewDeepLink /> },
               { path: '/deep/reviewer/:id', element: <ReviewerDeepLink /> },
               { path: '/deep/approval/:id', element: <ApprovalDeepLink /> },

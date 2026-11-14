@@ -15,6 +15,8 @@
 
 select kind, name, parent, regexp_replace(coalesce(def,''), '[\n\t ]+', ' ', 'g') as def
 from (
+select 'VIEW' as kind, viewname as name, ''::text as parent, definition as def from pg_views where schemaname='public'
+union all
 select 'TABLE' as kind, c.relname as name, ''::text as parent,
        string_agg(a.attname || ' ' || format_type(a.atttypid, a.atttypmod), ', ' order by a.attnum) as def
 from pg_class c
@@ -26,7 +28,7 @@ union all
 select 'POLICY', policyname, tablename,
        cmd || ' roles=' || array_to_string(roles, '+') ||
        ' using=' || coalesce(qual, '-') || ' check=' || coalesce(with_check, '-')
-from pg_policies where schemaname = 'public' or
+from pg_policies where schemaname = 'public' or (schemaname='realtime' and policyname in ('vp_presence_read','vp_presence_write')) or
  (schemaname = 'storage' and tablename = 'objects' and
   (policyname like 'lign_files_%' or (policyname like 'brief_reference_%' or policyname in ('planning_upload','planning_download','planning_discard_unregistered','library_upload','library_download','library_discard'))))
 union all

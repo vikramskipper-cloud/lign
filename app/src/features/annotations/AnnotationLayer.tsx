@@ -1,3 +1,5 @@
+import {useContext} from 'react'
+import {DesignAudience} from '@/features/version-access/queries'
 import * as React from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -44,6 +46,7 @@ export function AnnotationLayer({
   const [searchParams, setSearchParams] = useSearchParams()
   const focusedId = searchParams.get('annotation')
   const navigate = useNavigate()
+  const audience=useContext(DesignAudience)
   const qc = useQueryClient()
   const { user } = useSession()
   const containerRef = React.useRef<HTMLDivElement | null>(null)
@@ -66,6 +69,7 @@ export function AnnotationLayer({
           asset_version_id: versionId,
           version_file_id: versionFileId,
           author_profile_id: user.id,
+          audience,
           anchor_kind: row.anchor_kind,
           position: row.position,
           status: 'active',

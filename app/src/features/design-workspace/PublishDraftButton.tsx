@@ -19,6 +19,7 @@ import { useVersionFiles } from '@/features/files/queries'
 import type { AssetVersionRow } from './queries'
 
 interface Props {
+  showButton?:boolean
   workspaceId: string
   projectId: string
   assetId: string
@@ -33,6 +34,7 @@ interface Props {
  */
 export function PublishDraftButton({
   projectId,
+  showButton=true,
   assetId,
   version,
   currentVersionId,
@@ -82,7 +84,7 @@ export function PublishDraftButton({
 
   return (
     <>
-      <Button
+      {showButton&&<Button
         size="sm"
         onClick={() => publish.mutate()}
         disabled={disabled}
@@ -90,7 +92,7 @@ export function PublishDraftButton({
       >
         <CheckCircle2 className="mr-1 h-4 w-4" />
         Publish
-      </Button>
+      </Button>}
 
       <Dialog open={followUpOpen} onOpenChange={setFollowUpOpen}>
         <DialogContent>

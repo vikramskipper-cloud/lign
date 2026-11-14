@@ -162,7 +162,7 @@ export function CommentThreadCard({
               {headerLabel}
             </span>
           )}
-          <StateBadge state={resolved ? 'resolved' : 'open'} />
+          <StateBadge state={resolved ? 'resolved' : 'open'} /><span className="text-xs text-[--color-text-muted]">{root.audience==='shared'?'Client-visible':'Internal'}</span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

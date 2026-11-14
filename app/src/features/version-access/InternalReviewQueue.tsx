@@ -1,0 +1,12 @@
+import {useInfiniteQuery} from '@tanstack/react-query'
+import {Link} from 'react-router'
+import {useSession} from '@/auth/SessionProvider'
+import {supabase} from '@/lib/supabase'
+interface Page {internal:boolean;pending:number;items:{id:string;project_id:string;design_asset_id:string;sequence:number;name:string;project_name:string;author_name:string;submitted_at:string}[];nextCursor:string|null}
+export default function InternalReviewQueue({workspaceId,projectId}:{workspaceId:string;projectId?:string}){
+ const {user}=useSession(),query=useInfiniteQuery({queryKey:['internal-review-queue',user?.id,workspaceId,projectId],enabled:Boolean(user&&workspaceId),initialPageParam:null as string|null,refetchInterval:15000,queryFn:async({pageParam})=>{const r=await supabase.rpc('get_design_review_queue',{p_workspace_id:workspaceId,p_project_id:projectId??null,p_after:pageParam,p_limit:30});if(r.error)throw r.error;return r.data as Page},getNextPageParam:p=>p.nextCursor??undefined})
+ if(query.isLoading)return null
+ if(query.isError)return <p className="px-4 py-2 text-sm" role="alert">Internal review queue unavailable. <button className="auth-link" onClick={()=>void query.refetch()}>Retry</button></p>
+ if(!query.data?.pages[0]?.internal)return null
+ return <details className="lign-warm m-3 rounded-xl border border-[#e5ddd3] bg-[#fffaf2] p-4"><summary className="auth-link cursor-pointer text-sm font-semibold">Internal sign-off queue · {query.data.pages[0].pending} awaiting review</summary><p className="my-2 text-xs text-[#786b60]">A different project lead or inherited workspace/organisation leader must approve each version before it can be shared with clients.</p><ul className="space-y-2">{query.data.pages.flatMap(p=>p.items).map(v=><li key={v.id} className="rounded-lg border border-[#e5ddd3] bg-[#fffdf9] p-3 text-sm"><Link className="auth-link" to={`/workspace/${workspaceId}/project/${v.project_id}/asset/${v.design_asset_id}/v/${v.id}`}>{v.name} · v{v.sequence}</Link><p className="mt-1 text-xs text-[#786b60]">{v.project_name} · Submitted by {v.author_name} · {new Date(v.submitted_at).toLocaleString()}</p></li>)}</ul>{!query.data.pages[0].pending&&<p className="text-xs">No design versions are awaiting internal sign-off.</p>}{query.hasNextPage&&<button className="auth-link mt-3 text-xs" disabled={query.isFetchingNextPage} onClick={()=>void query.fetchNextPage()}>Load more pending versions</button>}</details>
+}

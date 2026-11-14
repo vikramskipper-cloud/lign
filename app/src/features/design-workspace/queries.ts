@@ -28,6 +28,7 @@ export function useAssetVersions(assetId: string | undefined) {
   return useQuery({
     queryKey: assetId ? qk.assetVersions(assetId) : ['asset', 'none', 'versions'],
     enabled: Boolean(assetId),
+    refetchInterval:15000,
     queryFn: async (): Promise<AssetVersionRow[]> => {
       const { data, error } = await supabase
         .from('asset_versions')

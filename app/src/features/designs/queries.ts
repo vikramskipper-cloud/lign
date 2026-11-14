@@ -59,6 +59,7 @@ export function useAsset(assetId: string | undefined) {
   return useQuery({
     queryKey: assetId ? qk.asset(assetId) : ['asset', 'none'],
     enabled: Boolean(assetId),
+    refetchInterval:15000,
     queryFn: async (): Promise<AssetRow | null> => {
       const { data, error } = await supabase
         .from('design_assets')

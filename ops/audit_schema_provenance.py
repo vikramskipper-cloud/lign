@@ -27,8 +27,9 @@ import os
 import re
 import sys
 
-KINDS = ["TABLE", "POLICY", "TRIGGER", "FUNCTION", "INDEX"]
+KINDS = ["VIEW", "TABLE", "POLICY", "TRIGGER", "FUNCTION", "INDEX"]
 CREATE = {
+    "VIEW": r"create\s+(?:or\s+replace\s+)?view\s+(?:public\.)?{n}\b",
     "TABLE":    r"create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?\"?{n}\"?\b",
     "POLICY":   r'create\s+policy\s+"?{n}"?',
     "TRIGGER":  r"create\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+{n}\b",
@@ -36,6 +37,7 @@ CREATE = {
     "INDEX":    r"create\s+(?:unique\s+)?index\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?{n}\b",
 }
 HARVEST = {
+    "VIEW": r"create\s+(?:or\s+replace\s+)?view\s+(?:public\.)?([a-z0-9_]+)\b",
     "TABLE":    r"create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?\"?([a-z0-9_]+)\"?",
     "POLICY":   r'create\s+policy\s+"?([a-z0-9_]+)"?',
     "TRIGGER":  r"create\s+(?:or\s+replace\s+)?trigger\s+\"?([a-z0-9_]+)\"?",

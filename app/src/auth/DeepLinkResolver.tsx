@@ -8,6 +8,7 @@ import { EmptyState } from '@/ui/empty-state'
 import { Link } from 'react-router'
 
 type Kind =
+  | 'version'
   | 'review'
   | 'approval'
   | 'comment'
@@ -27,6 +28,7 @@ export function DeepLinkResolver({ kind }: { kind: Kind }) {
   const { id } = useParams<{ id: string }>()
   if (kind === 'comment') return <CommentDeepLink id={id ?? ''} />
   if (kind === 'annotation') return <AnnotationDeepLink id={id ?? ''} />
+  if (kind === 'version') return <ResolveByVersion versionId={id??''}/>
   if (kind === 'review') return <ReviewDeepLinkResolver id={id ?? ''} />
   if (kind === 'reviewer') return <ReviewerDeepLinkResolver id={id ?? ''} />
   if (kind === 'approval') return <ApprovalDeepLinkResolver id={id ?? ''} />

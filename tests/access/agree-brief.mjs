@@ -10,7 +10,7 @@ export async function ensureAgreedBrief(lead,approver,projectId,participantId){
 }
 
 // Design-focused fixtures pass both milestones through the real checked RPCs.
-export async function ensureAcceptedProposal(lead,approver,projectId,participantId){
+export async function ensureAcceptedProposal(lead,approver,projectId,participantId,internalReviewer=lead){
  const ok=r=>{if(r.error)throw r.error;return r.data}
  if(ok(await lead.rpc('lign_project_ready_for_design',{p_project_id:projectId})))return
  await ensureAgreedBrief(lead,approver,projectId,participantId)
@@ -20,7 +20,7 @@ export async function ensureAcceptedProposal(lead,approver,projectId,participant
  const document={title:'Design workflow proposal',summary:'Proceed under the agreed brief',scope:'The agreed design deliverables',budget:'To be confirmed',timing:'As agreed',assumptions:'No additional scope',sections:[{id:'concept',title:'Concept direction',concept:'Develop the agreed direction',materials:'As agreed',areaId:null}],referenceIds:[card],requirementIds:[]}
  let state=ok(await lead.rpc('get_project_proposal',{p_project_id:projectId}))
  ok(await lead.rpc('save_project_proposal',{p_project_id:projectId,p_document:document,p_brief_revision_id:revision,p_respondent_id:participantId,p_expected_version:state.working?.edit_version??0}))
- for(const action of ['submit','request_acceptance']){state=ok(await lead.rpc('get_project_proposal',{p_project_id:projectId}));ok(await lead.rpc('transition_project_proposal',{p_project_id:projectId,p_expected_version:state.working.edit_version,p_action:action}))}
+ for(const action of ['submit','request_acceptance']){state=ok(await lead.rpc('get_project_proposal',{p_project_id:projectId}));ok(await (action==='request_acceptance'?internalReviewer:lead).rpc('transition_project_proposal',{p_project_id:projectId,p_expected_version:state.working.edit_version,p_action:action}))}
  state=ok(await approver.rpc('get_project_proposal',{p_project_id:projectId}))
  ok(await approver.rpc('respond_project_proposal',{p_project_id:projectId,p_revision_id:state.currentRevisionId,p_decision:'accepted'}))
 }

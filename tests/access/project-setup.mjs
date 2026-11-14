@@ -60,7 +60,7 @@ let revision=(await read()).brief.current_revision_id
 ok(await client.rpc('respond_project_brief',{p_project_id:id,p_revision_id:revision,p_decision:'changes_requested',p_comment:'Clarify the sample'}));assert.equal(await ready(),false)
 await transition('request_agreement');revision=(await read()).brief.current_revision_id
 ok(await client.rpc('respond_project_brief',{p_project_id:id,p_revision_id:revision,p_decision:'agreed'}));assert.equal(await ready(),false)
-await ensureAcceptedProposal(lead,client,id,pp);assert.equal(await ready(),true)
+await ensureAcceptedProposal(lead,client,id,pp,owner);assert.equal(await ready(),true)
 assert.equal(ok(await lead.rpc('lign_has_capability',{p_project_id:id,p_workspace_id:f.wsA,p_capability_key:'asset.create'})),true)
 const asset=ok(await lead.from('design_assets').insert({workspace_id:f.wsA,project_id:id,name:'Agreed design',created_by_profile_id:f.people.senior.userId}).select('id').single())
 ok(await lead.rpc('create_draft_version',{p_project_id:id,p_design_asset_id:asset.id}))

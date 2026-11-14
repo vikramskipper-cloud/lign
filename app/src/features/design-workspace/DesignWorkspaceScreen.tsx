@@ -26,6 +26,9 @@ import { AnnotationTimeStrip } from '@/features/annotations/AnnotationTimeStrip'
 import { useWorkspaceHotkeys } from './useWorkspaceHotkeys'
 import { useVersionSubmission } from '@/features/deliverables/queries'
 
+import {DesignAudience,useVersionAccess} from '@/features/version-access/queries'
+const VersionAccessPanel=React.lazy(()=>import('@/features/version-access/VersionAccessPanel'))
+
 export const DesignWorkspaceHandle = { crumb: 'Asset' }
 
 function pickActiveFile(
@@ -57,8 +60,11 @@ export function DesignWorkspaceScreen() {
   const collections = useCollections(proj_id)
   const disciplines = useDisciplines(proj_id)
   const caps = useProjectCapabilities(proj_id ?? '', ws_id ?? '')
-  const sourceVersionId = v_id ?? asset.data?.current_version_id ?? versions.data?.[0]?.id
+  const sourceVersionId = v_id ?? versions.data?.find(v=>v.id===asset.data?.current_version_id)?.id ?? versions.data?.[0]?.id
   const versionSubmission = useVersionSubmission(sourceVersionId)
+  const versionAccess=useVersionAccess(sourceVersionId)
+  const [sharedFeedback,setSharedFeedback]=React.useState(false)
+  React.useEffect(()=>setSharedFeedback(false),[sourceVersionId])
 
   const scopeCollection = React.useMemo<string | null | 'unfiled'>(() => {
     const from = searchParams.get('from')
@@ -159,10 +165,14 @@ export function DesignWorkspaceScreen() {
     if (match) activeVersion = match
     else versionMismatch = true
   } else if (currentVersionId) {
-    activeVersion = allVersions.find((v) => v.id === currentVersionId) ?? null
+    activeVersion = allVersions.find((v) => v.id === currentVersionId) ?? allVersions[0] ?? null
   } else if (allVersions.length > 0) {
     activeVersion = allVersions[0] ?? null
   }
+
+  if(versionAccess.isError&&(versionAccess.error as {code?:string}).code==='42501')return <VersionNotFound workspaceId={ws_id} projectId={proj_id} assetId={asset_id}/>
+
+  const editableDraft=activeVersion?.status==='draft'&&Boolean(versionAccess.data&&['draft','changes_requested'].includes(versionAccess.data.stage))
 
   const scopeQuery = new URLSearchParams()
   const from = searchParams.get('from')
@@ -177,7 +187,7 @@ export function DesignWorkspaceScreen() {
   const canAnnotate = Boolean(caps.data?.['annotation.create'])
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <DesignAudience.Provider value={versionAccess.data?.internal===false?'shared':sharedFeedback&&versionAccess.data?.internal?'shared':'internal'}><div className="flex h-full min-h-0 flex-col">
       <VersionBar
         workspaceId={ws_id}
         projectId={proj_id}
@@ -187,12 +197,13 @@ export function DesignWorkspaceScreen() {
         versions={allVersions}
         currentVersionId={currentVersionId}
         canSetCurrent={Boolean(caps.data?.['asset.set_current'])}
-        canPublishVersion={Boolean(caps.data?.['version.publish']) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'accepted')}
-        canDiscardVersion={Boolean(caps.data?.['version.discard_draft']) && !versionSubmission.isLoading && !versionSubmission.isError && !versionSubmission.data}
+        canPublishVersion={Boolean(versionAccess.data?.canPublish) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'accepted')}
+        canDiscardVersion={Boolean(caps.data?.['version.discard_draft']) && !versionAccess.data?.history.length && !versionSubmission.isLoading && !versionSubmission.isError && !versionSubmission.data}
         canCreateVersion={Boolean(caps.data?.['version.upload'])}
         neighbors={neighbors.data ?? []}
         scopeQuery={scopeQueryStr}
       />
+      {activeVersion&&<React.Suspense fallback={null}><VersionAccessPanel key={activeVersion.id} version={activeVersion} sharedFeedback={sharedFeedback} onSharedFeedback={setSharedFeedback}/></React.Suspense>}
       {versionSubmission.data && <p className="border-b border-[--color-border] bg-[--color-surface-2] px-4 py-2 text-xs">This version belongs to a deliverable submission. <Link className="auth-link" to={`/workspace/${ws_id}/project/${proj_id}/deliverable/${versionSubmission.data.id}`}>Open submission and review history</Link>.</p>}
       <div className="flex flex-1 min-h-0">
         <main className="flex min-w-0 flex-1 flex-col">
@@ -209,7 +220,7 @@ export function DesignWorkspaceScreen() {
                 projectId={proj_id}
                 assetId={asset.data.id}
                 versionId={activeVersion?.id ?? null}
-                isDraft={activeVersion?.status === 'draft'}
+                isDraft={editableDraft}
                 fileIdParam={file_id}
                 scopeQuery={scopeQueryStr}
                 canAttach={Boolean(caps.data?.['version.upload']) && !versionSubmission.isLoading && !versionSubmission.isError && (!versionSubmission.data || versionSubmission.data.stage === 'draft')}
@@ -231,7 +242,7 @@ export function DesignWorkspaceScreen() {
             disciplines={disciplines.data ?? []}
             versions={allVersions}
             activeVersionId={activeVersion?.id ?? null}
-            isDraft={activeVersion?.status === 'draft'}
+            isDraft={editableDraft}
             activeFileIdParam={file_id ?? null}
             canEditAsset={Boolean(caps.data?.['asset.edit'])}
             canArchiveAsset={Boolean(caps.data?.['asset.archive'])}
@@ -246,7 +257,7 @@ export function DesignWorkspaceScreen() {
           />
         </AsyncBoundary>
       </div>
-    </div>
+    </div></DesignAudience.Provider>
   )
 }
 

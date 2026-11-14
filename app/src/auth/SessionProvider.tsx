@@ -14,7 +14,7 @@ const SessionContext = React.createContext<SessionContextValue | null>(null)
 
 /**
  * Wraps the whole app. Reads the current session on mount and subscribes to
- * auth state changes. On SIGNED_OUT it clears the React Query cache so no
+ * auth state changes. On sign-out or a change of user it clears the React Query cache so no
  * stale server data survives the session switch.
  */
 export function SessionProvider({ children }: { children: React.ReactNode }) {
@@ -23,18 +23,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let mounted = true
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setSession(data.session)
-      setIsLoading(false)
-    })
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+    let authEventReceived=false
+    let currentUserId:string|null|undefined
+    const applySession=(next:Session|null)=>{
+      const nextId=next?.user.id??null
+      if(currentUserId!==undefined&&currentUserId!==nextId)queryClient.clear()
+      currentUserId=nextId
       setSession(next)
-      if (event === 'SIGNED_OUT') {
-        queryClient.clear()
-      }
+      setIsLoading(false)
+    }
+    supabase.auth.getSession().then(({data})=>{
+      if(!mounted||authEventReceived)return
+      applySession(data.session)
+    })
+    const {data:sub}=supabase.auth.onAuthStateChange((event,next)=>{
+      if(!mounted)return
+      authEventReceived=true
+      if(event==='SIGNED_OUT')queryClient.clear()
+      applySession(next)
     })
 
     return () => {

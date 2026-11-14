@@ -1,3 +1,5 @@
+import {useContext} from 'react'
+import {DesignAudience} from '@/features/version-access/queries'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
@@ -40,6 +42,7 @@ export function AnnotationTimeStrip({
   duration,
   canAnnotate,
 }: Props) {
+  const audience=useContext(DesignAudience)
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -58,6 +61,7 @@ export function AnnotationTimeStrip({
           asset_version_id: versionId,
           version_file_id: versionFileId,
           author_profile_id: user.id,
+          audience,
           anchor_kind: 'time',
           position: { t } as TimePosition,
           status: 'active',

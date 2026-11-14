@@ -71,9 +71,9 @@ export function VersionBar({
         />
       </div>
       <PresenceStack versionId={activeVersion?.id ?? null} />
-      {isDraftActive && activeVersion && (
+      {activeVersion && (
         <div className="flex items-center gap-1">
-          {canDiscardVersion && (
+          {isDraftActive&&canDiscardVersion && (
             <DiscardDraftButton
               workspaceId={workspaceId}
               projectId={projectId}
@@ -82,8 +82,10 @@ export function VersionBar({
               scopeQuery={scopeQuery}
             />
           )}
-          {canPublishVersion && (
+          {(
             <PublishDraftButton
+              key={activeVersion.id}
+              showButton={Boolean(canPublishVersion&&isDraftActive)}
               workspaceId={workspaceId}
               projectId={projectId}
               assetId={assetId}

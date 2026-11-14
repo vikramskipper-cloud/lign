@@ -14,6 +14,8 @@ import { useProjectParticipants, type Participant } from '@/features/participant
 import { MentionPicker } from './MentionPicker'
 import { cn } from '@/lib/cn'
 
+import {DesignAudience} from '@/features/version-access/queries'
+
 interface Target {
   workspaceId: string
   projectId: string
@@ -50,6 +52,7 @@ export function CommentComposer({
   onSubmitted,
   onCancel,
 }: Props) {
+  const audience=React.useContext(DesignAudience)
   const qc = useQueryClient()
   const { user } = useSession()
   const [body, setBody] = React.useState('')
@@ -74,6 +77,7 @@ export function CommentComposer({
         workspace_id: target.workspaceId,
         parent_comment_id: parentCommentId ?? null,
         body: trimmed,
+        audience,
         author_profile_id: user.id,
       }
       if (target.scope.kind === 'version') {
