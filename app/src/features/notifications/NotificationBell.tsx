@@ -1,78 +1,24 @@
-import * as React from 'react'
+import { useEffect } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { Bell } from 'lucide-react'
-import { useParams } from 'react-router'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Button } from '@/ui/button'
-import { cn } from '@/lib/cn'
-import { NotificationBadge } from './NotificationBadge'
-import { NotificationCenter } from './NotificationCenter'
-import { useNotificationBadgeCount } from './queries'
+import { useNavigationContext } from '@/shell/navigationContext'
+import { useOrganizationBadge } from './organizationQueries'
 
-/**
- * APP 010 §14.1 / §13: bell icon + unread badge in the top bar.
- * Click toggles the Notification Center popover. Hotkey N (workspace scope).
- */
+/** The global bell and sidebar Inbox always use the same organisation scope. */
 export function NotificationBell() {
-  const { ws_id } = useParams<{ ws_id?: string }>()
-  const [open, setOpen] = React.useState(false)
-  const q = useNotificationBadgeCount(ws_id)
-  const count = q.data?.total_unread ?? 0
-  const critical = q.data?.has_critical ?? false
-
-  // Hotkey N toggles popover; Shift+N is handled in useWorkspaceHotkeys → route change.
-  React.useEffect(() => {
-    if (!ws_id) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return
-      const t = e.target
-      if (t instanceof HTMLElement) {
-        const tag = t.tagName
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
-        if (t.isContentEditable) return
-      }
-      if (e.key === 'n' || e.key === 'N') {
-        e.preventDefault()
-        setOpen((v) => !v)
-      }
+  const { organizationId } = useNavigationContext()
+  const query = useOrganizationBadge(organizationId)
+  const navigate = useNavigate()
+  const to = organizationId ? `/org/${organizationId}/inbox` : '/my-work'
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'n' || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && (['INPUT','TEXTAREA','SELECT'].includes(target.tagName) || target.isContentEditable)) return
+      event.preventDefault(); navigate(to)
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [ws_id])
-
-  if (!ws_id) {
-    return (
-      <Button variant="ghost" size="icon" aria-label="Notifications" disabled>
-        <Bell className="h-4 w-4" />
-      </Button>
-    )
-  }
-
-  return (
-    <DropdownMenu.Root open={open} onOpenChange={setOpen}>
-      <DropdownMenu.Trigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Notifications (${count} unread)`}
-          className="relative"
-        >
-          <Bell className={cn('h-4 w-4', critical && 'text-[--color-state-blocked]')} />
-          {count > 0 && (
-            <span className="absolute -right-0.5 -top-0.5">
-              <NotificationBadge count={count} variant={critical ? 'critical' : 'default'} />
-            </span>
-          )}
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 rounded-[--radius-md] border border-[--color-border] bg-[--color-surface] p-0 shadow-[--shadow-md]"
-        >
-          <NotificationCenter wsId={ws_id} onNavigate={() => setOpen(false)} />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  )
+    window.addEventListener('keydown',handler)
+    return () => window.removeEventListener('keydown',handler)
+  }, [to,navigate])
+  return <Link to={to} className="relative inline-flex h-9 w-9 items-center justify-center rounded-md" aria-label={`Notifications (${query.data ?? 0} unread)`}><Bell size={17}/>{Boolean(query.data)&&<span className="absolute -right-1 -top-1 rounded-full bg-[#c54b20] px-1 text-[10px] text-white">{Math.min(query.data!,99)}</span>}</Link>
 }

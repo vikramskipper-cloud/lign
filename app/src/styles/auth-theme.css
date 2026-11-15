@@ -416,3 +416,5 @@
 .context-breadcrumb .context-back-link { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; color: var(--link); font-weight: 500; }
 .context-breadcrumb .context-back-link:hover { color: var(--link-hover); text-decoration: underline; }
 @media(max-width:639px) { .context-breadcrumb .context-back-link { min-height: 44px; } }
+
+.context-page-guidance{font-size:12px;line-height:1.6;color:var(--muted);margin:12px 0 0;max-width:850px}

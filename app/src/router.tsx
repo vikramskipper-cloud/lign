@@ -8,7 +8,6 @@ import { ResetPasswordScreen } from '@/auth/ResetPasswordScreen'
 import { NoAccessScreen } from '@/auth/NoAccessScreen'
 import { CreateWorkspaceScreen } from '@/auth/CreateWorkspaceScreen'
 import { AccountHome } from '@/features/oversight/AccountHome'
-import { HomeScreen } from '@/features/home/HomeScreen'
 import { OrgPeopleScreen, OrgPeopleHandle } from '@/features/workspaces/OrgPeopleScreen'
 import { WorkspacePeopleScreen } from '@/features/access/WorkspacePeopleScreen'
 import { WorkspaceSettingsScreen } from '@/features/access/WorkspaceSettingsScreen'
@@ -102,7 +101,7 @@ function NotificationDeepLink() {
  * Without this, first run painted three layouts in a row: the warm sign-in
  * page, then RootLayout's full header and rail with a spinner inside it, then
  * the two-column /welcome page — because the needsWorkspace test lived inside
- * HomeScreen, one level BELOW the chrome. Hoisting it above RootLayout means
+ * AccountHome, one level BELOW the chrome. Hoisting it above RootLayout means
  * the chrome is never built for an account about to be sent elsewhere.
  */
 function RequireWorkspace() {
@@ -171,7 +170,8 @@ export const router = createBrowserRouter([
             element: <RootLayout />,
             children: [
               { path: '/dashboard', element: <AccountHome /> },
-              { path: '/my-work', element: <HomeScreen /> },
+              { path: '/my-work', lazy: () => import('@/features/oversight/MyWorkScreen') },
+              { path: '/org/:org_id/inbox', lazy: () => import('@/features/notifications/OrganizationInbox') },
               { path: '/org/:org_id/overview', lazy: () => import('@/features/oversight/overview.route'), handle: { crumb: 'Studio overview' } },
               { path: '/org/:org_id/access', lazy: () => import('@/features/access/directory.route'), handle: { crumb: 'Access directory' } },
               { path: '/org/:org_id/settings', lazy: () => import('@/features/organization/OrganizationSettings'), handle: { crumb: 'Organisation settings' } },

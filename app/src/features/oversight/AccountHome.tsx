@@ -3,7 +3,6 @@ import { useMyOrganizations } from '@/shell/orgQueries'
 import { useActiveWorkspaceId } from '@/shell/useActiveWorkspace'
 import { useWorkspaces } from '@/shell/queries'
 import { useWorkspaceAccess } from '@/lib/capabilities'
-import { HomeScreen } from '@/features/home/HomeScreen'
 import { FullPageLoader } from '@/ui/full-page-loader'
 
 /** Owners land on studio oversight; workspace leads land on their workspace. */
@@ -18,5 +17,5 @@ export function AccountHome() {
   const org = adminOrgs.find((o) => o.id === currentOrg) ?? adminOrgs[0]
   if (org) return <Navigate to={`/org/${org.id}/overview`} replace />
   if (workspaceId && access.data?.['workspace.manage']) return <Navigate to={`/workspace/${workspaceId}/overview`} replace />
-  return <HomeScreen />
+  return <Navigate to={`/my-work${currentOrg ? '?org='+currentOrg : ''}`} replace />
 }

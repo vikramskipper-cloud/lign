@@ -197,7 +197,7 @@ export function invalidateNotifications(qc: QueryClient, wsId?: string) {
     predicate: (q) => {
       const k = q.queryKey as QueryKey
       if (!Array.isArray(k) || k[0] !== 'notification') return false
-      if (!wsId) return true
+      if (!wsId || k[1] === 'organization-inbox' || k[1] === 'organization-badge') return true
       // wsId lives at index 2 for inbox/unread/center/badge/inbox-facets keys.
       if (typeof k[2] === 'string' && k[2] === wsId) return true
       // qk.notification(id) has no wsId — always invalidate on wsId-scoped calls too.

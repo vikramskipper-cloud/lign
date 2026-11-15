@@ -1,10 +1,9 @@
 import * as React from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { MoreVertical, Pencil, Archive, Layers } from 'lucide-react'
+import { MoreVertical, Pencil, Archive } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
 import { EmptyState } from '@/ui/empty-state'
 import { LoadingPage } from '@/ui/loading-page'
 import {
@@ -15,18 +14,18 @@ import {
 } from '@/ui/dropdown-menu'
 import { StatusBadge } from '@/features/shared/StatusBadge'
 import { supabase } from '@/lib/supabase'
-import { qk, type AssetFilters } from '@/lib/queryKeys'
+import { qk } from '@/lib/queryKeys'
 import { useProject } from '@/shell/queries'
-import { useAssets } from '@/features/designs/queries'
 import { useProjectCapabilities } from '@/lib/capabilities'
 import { humanizeError } from '@/features/shared/errors'
 const EditProjectDialog = React.lazy(() => import('./EditProjectDialog').then(m=>({default:m.EditProjectDialog})))
 import { relative, absolute } from '@/lib/formatDate'
-import { BriefStartCard } from '@/features/briefs/BriefStartCard'
+import { useProjectSummary, orderAttention, activityLabel } from '@/features/oversight/hub'
+import { AttentionList } from '@/features/oversight/AttentionList'
+import '@/features/oversight/overview.css'
 
 export const ProjectOverviewHandle = { crumb: 'Overview' }
 
-const EMPTY_FILTERS: AssetFilters = { collection: null, discipline: null, search: '' }
 
 export function ProjectOverviewScreen() {
   const { ws_id, proj_id } = useParams<{ ws_id: string; proj_id: string }>()
@@ -34,7 +33,7 @@ export function ProjectOverviewScreen() {
   const qc = useQueryClient()
   const project = useProject(proj_id)
   const caps = useProjectCapabilities(proj_id ?? '', ws_id ?? '')
-  const assets = useAssets(proj_id, EMPTY_FILTERS)
+  const summary = useProjectSummary(proj_id)
   const [editOpen, setEditOpen] = React.useState(false)
 
   const archive = useMutation({
@@ -64,16 +63,18 @@ export function ProjectOverviewScreen() {
   }
 
   const p = project.data
-  const activeAssets = (assets.data ?? []).slice(0, 6)
+  const data = summary.data
+  const base = `/workspace/${ws_id}/project/${proj_id}/`
+  const next = data && orderAttention(data.actions)[0]
   const canEdit = Boolean(caps.data?.['project.edit'])
   const canArchive = Boolean(caps.data?.['project.archive'])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="overview-page">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="truncate text-xl font-semibold">Project overview</h1>
+            <h1>Project overview</h1>
             <StatusBadge status={p.status} />
           </div>
           {p.description && <p className="text-sm text-[--color-text-muted]">{p.description}</p>}
@@ -115,83 +116,53 @@ export function ProjectOverviewScreen() {
         )}
       </div>
 
-      {(p.client_company||p.client_contact_name||p.client_email||p.client_phone)&&<section className="rounded-xl border border-[--color-border] p-5"><h2 className="font-semibold">Client details</h2><dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">{[['Company',p.client_company],['Contact',p.client_contact_name],['Email',p.client_email],['Phone',p.client_phone]].filter(([,v])=>v).map(([label,value])=><div key={label} className="min-w-0"><dt className="text-[--color-text-muted]">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl></section>}
-      <BriefStartCard workspaceId={ws_id} projectId={proj_id} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Recent design assets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {assets.isLoading ? (
-              <p className="text-sm text-[--color-text-muted]">Loading…</p>
-            ) : activeAssets.length === 0 ? (
-              <EmptyState
-                icon={<Layers className="h-6 w-6" />}
-                title="No design assets yet"
-                description="Head to Designs to create your first asset."
-                action={
-                  <Button asChild size="sm" variant="secondary">
-                    <Link to={`/workspace/${ws_id}/project/${proj_id}/designs`}>Go to Designs</Link>
-                  </Button>
-                }
-              />
-            ) : (
-              <ul className="space-y-1.5">
-                {activeAssets.map((a) => (
-                  <li key={a.id}>
-                    <Link
-                      to={`/workspace/${ws_id}/project/${proj_id}/asset/${a.id}`}
-                      className="flex items-center justify-between rounded-[--radius-sm] px-2 py-1.5 text-sm hover:bg-[--color-surface-2]"
-                    >
-                      <span className="truncate">{a.name}</span>
-                      <span
-                        className="ml-2 shrink-0 text-xs text-[--color-text-subtle]"
-                        title={absolute(a.updated_at)}
-                      >
-                        {relative(a.updated_at)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Project</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <Row label="Slug" value={<span className="font-mono">{p.slug}</span>} />
-            <Row label="Code" value={p.code || <Muted>—</Muted>} />
-            <Row label="Created" value={<span title={absolute(p.created_at)}>{relative(p.created_at)}</span>} />
-            <Row
-              label="Assets"
-              value={
-                <span>
-                  {assets.data?.length ?? 0} total
-                </span>
-              }
-            />
-          </CardContent>
-        </Card>
-      </div>
+      {summary.isLoading && <p role="status" className="overview-panel overview-muted">Checking the project phase and pending decisions…</p>}
+      {summary.isError && <div role="alert" className="overview-panel"><p>Could not load the project summary.</p><button className="auth-link mt-3" onClick={() => void summary.refetch()}>Try again</button></div>}
+      {data && <>
+        <section className="overview-panel overview-phase" aria-label="Current phase and next action">
+          <p className="overview-eyebrow">Current phase · {data.phase}</p>
+          <h2>{next ? next.title : data.internal ? data.designReady ? 'Continue detailed design' : 'Review the project brief' : 'Your shared project work'}</h2>
+          <p className="overview-muted">{next ? `${next.canAct ? 'Ready for your action' : 'Waiting on'} · ${next.responsible}` : data.internal ? 'No pending decisions. Open the project work to continue.' : 'Only work shared with you and decisions assigned to you appear here.'}</p>
+          <Link className="overview-button overview-primary" to={next?.to ?? (data.designReady ? data.internal ? base + 'designs' : data.shared[0]?.to ?? base + 'brief' : base + 'brief')}>{next ? next.canAct ? 'Take action' : 'View pending item' : data.designReady && data.internal ? 'Open design work' : data.shared.length ? 'View shared version' : 'Open project brief'}</Link>
+          <ol className="overview-journey" aria-label="Project journey">
+            <li aria-current={!data.briefReady ? 'step' : undefined}>{data.briefReady ? '✓ ' : ''}Requirements & brief agreement</li>
+            <li aria-current={data.briefReady && !data.designReady ? 'step' : undefined}>{data.designReady ? '✓ ' : ''}Proposal acceptance</li>
+            <li aria-current={data.designReady ? 'step' : undefined}>Detailed design & decisions</li>
+          </ol>
+        </section>
+        <section className="overview-panel" aria-label="Pending decisions">
+          <div className="overview-section-heading"><h2>Pending decisions & next steps</h2><span className="overview-small">{data.actions.filter(a => a.canAct).length} need your action · {data.actions.length} total</span></div>
+          <AttentionList items={data.actions} empty="No pending decisions for this project." />
+        </section>
+        <div className="overview-grid">
+          <section className="overview-panel" aria-label="Shared and accepted work">
+            <h2>Shared & accepted work</h2>
+            <p className="overview-muted">Brief: {data.accepted.brief ? 'Agreed' : 'Not yet agreed'} · Proposal: {data.accepted.proposal ? 'Accepted' : 'Not yet accepted'}</p>
+            {data.accepted.briefRevision && <p className="mt-2 text-sm"><Link className="auth-link" to={base + 'brief?step=agreement&revision='+data.accepted.briefRevision.id}>View agreed brief · r{data.accepted.briefRevision.number}</Link></p>}
+            {data.accepted.proposalRevision && <p className="mt-2 text-sm"><Link className="auth-link" to={base + 'proposal?revision='+data.accepted.proposalRevision.id}>View accepted proposal · r{data.accepted.proposalRevision.number}</Link></p>}
+            <ul className="overview-action-list">{data.shared.map(version => <li key={version.id}>
+              <Link className="overview-action-title" to={version.to}>{version.name} · v{version.revision}</Link>
+              <p className="overview-small">{version.decisionStatus ? `Approval: ${version.decisionStatus.replaceAll('_',' ')} · ` : 'No design approval request · '}Shared {relative(version.at)}{version.recipients ? ` · ${version.recipients}` : ''}</p>
+            </li>)}</ul>
+            {!data.shared.length && <p className="overview-muted">{data.internal ? 'No design versions have been shared with project participants yet.' : 'No design versions are currently shared with you.'}</p>}
+          </section>
+          <section className="overview-panel" aria-label="Project essentials">
+            <div className="overview-section-heading"><h2>Project essentials</h2><Link className="auth-link text-sm" to={base + 'people'}>Team & access</Link></div>
+            <p className="overview-muted">Project lead: {data.lead}</p>
+            {(p.client_company || p.client_contact_name) && <p className="overview-muted">Client: {[p.client_company, p.client_contact_name].filter(Boolean).join(' · ')}</p>}
+            <details className="overview-details mt-4"><summary>Client contact & project details</summary><dl>
+              {[['Email',p.client_email],['Phone',p.client_phone],['Project code',p.code],['Created',absolute(p.created_at)]].filter(([,value]) => value).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+            </dl></details>
+          </section>
+        </div>
+        <section className="overview-panel" aria-label="Recent project activity">
+          <h2>Recent activity</h2>
+          {!data.activity.length && <p className="overview-muted">Project updates will appear here as work progresses.</p>}
+          <ul className="overview-action-list">{data.activity.map(event => <li key={event.id}><p className="text-sm">{event.actor} · {activityLabel(event.eventType)}{event.subject ? ` · ${event.subject}` : ''}</p><p className="overview-small">{relative(event.at)}</p></li>)}</ul>
+        </section>
+      </>}
 
       {editOpen&&<React.Suspense fallback={null}><EditProjectDialog project={p} open={editOpen} onOpenChange={setEditOpen} /></React.Suspense>}
     </div>
   )
-}
-
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="text-xs text-[--color-text-muted]">{label}</span>
-      <span className="truncate">{value}</span>
-    </div>
-  )
-}
-function Muted({ children }: { children: React.ReactNode }) {
-  return <span className="text-[--color-text-subtle]">{children}</span>
 }

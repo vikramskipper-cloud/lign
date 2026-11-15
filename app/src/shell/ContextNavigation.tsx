@@ -17,13 +17,27 @@ const groups:{key:string;label:string;items:{path:string;label:string;cap:Capabi
  {key:'review',label:'Review & delivery',items:[{path:'reviews',label:'Reviews',cap:'review.view',aliases:['review'],gate:'design'},{path:'approvals',label:'Approvals',cap:'approval.view',aliases:['approval'],gate:'design'},{path:'releases',label:'Releases',cap:'release.view',aliases:['release'],gate:'design'}]},
  {key:'people',label:'Team & access',items:[{path:'people',label:'Team & access',cap:'project.view'}]},
 ]
+const pageGuidance: Record<string,string> = {
+ 'overview': 'Current phase, next steps and decisions for this project.',
+ 'brief': 'Gather the project requirements and agree the brief before preparing a proposal.',
+ 'requirements/areas': 'Organise the brief into spaces, zones or other parts of your project.',
+ 'references': 'Explore mood boards and references, then select what belongs in the brief.',
+ 'requirements': 'Track the agreed requirements and link them to design evidence.',
+ 'proposal': 'Prepare the response to the brief, review it internally and request client acceptance.',
+ 'designs': 'Create design files and versions. Get independent internal sign-off before publishing and sharing an exact version.',
+ 'deliverables': 'Consultants submit their work here for the project team to review and accept.',
+ 'reviews': 'Internal sign-off clears a version for sharing. Design reviews collect feedback from assigned reviewers.',
+ 'approvals': 'Request a decision from assigned approvers on an exact, internally approved design version.',
+ 'releases': 'Assemble issued design packages and their supporting evidence after review and approval.',
+ 'people': 'Assign project responsibilities and control internal or external access.',
+}
 export function ProjectNavigation({workspaceId,projectId,projectName,workspaceName,caps,journey}:{workspaceId:string;projectId:string;projectName:string;workspaceName?:string;caps:CapabilityMap;journey?:{briefReady:boolean;designReady:boolean}}){
  const {pathname}=useLocation(),base=`/workspace/${workspaceId}/project/${projectId}/`,part=pathname.slice(base.length)
  const match=groups.flatMap(g=>g.items.map(i=>({group:g.key,item:i}))).sort((a,b)=>b.item.path.length-a.item.path.length).find(x=>[x.item.path,...x.item.aliases??[]].some(p=>part===p||part.startsWith(p+'/')))
  const available=groups.map(g=>({...g,items:g.items.filter(i=>caps[i.cap])})).filter(g=>g.items.length),active=available.find(g=>g.key===match?.group)??available[0]
  const lock=(gate?:'brief'|'design')=>gate&&journey&&!journey.briefReady?'Agree the project brief first':gate==='design'&&journey&&!journey.designReady?'Accept the design proposal first':undefined
  const primary=available.map(g=>({key:g.key,label:g.label,to:base+g.items[0].path,locked:g.items.every(i=>Boolean(lock(i.gate)))?lock(g.items[0].gate):undefined}))
- return <header className="context-header"><div className="context-breadcrumb"><Link className="context-back-link" to={`/workspace/${workspaceId}/projects`}><ArrowLeft size={14} aria-hidden="true"/>Back to workspace</Link><span aria-hidden="true">·</span><WorkspaceSwitcher currentWorkspaceId={workspaceId} currentName={workspaceName}/></div><div className="context-title-row"><div><p className="context-eyebrow">Project</p><div className="context-entity-title"><h2>{projectName}</h2><ProjectBreadcrumbSwitcher workspaceId={workspaceId} currentProjectId={projectId} currentName={projectName} iconOnly/></div></div><span className="context-phase">{journey?journey.designReady?'Detailed design':journey.briefReady?'Design proposal':'Requirements & references':'Checking phase…'}</span></div><NavigationRow items={primary} active={active?.key??'overview'} label="Project sections" primary/>{active&&active.items.length>1&&<NavigationRow items={active.items.map(i=>({key:i.path,label:i.label,to:base+i.path,locked:lock(i.gate)}))} active={match?.item.path??active.items[0].path} label="Project pages"/>}</header>
+ return <header className="context-header"><div className="context-breadcrumb"><Link className="context-back-link" to={`/workspace/${workspaceId}/projects`}><ArrowLeft size={14} aria-hidden="true"/>Back to workspace</Link><span aria-hidden="true">·</span><WorkspaceSwitcher currentWorkspaceId={workspaceId} currentName={workspaceName}/></div><div className="context-title-row"><div><p className="context-eyebrow">Project</p><div className="context-entity-title"><h2>{projectName}</h2><ProjectBreadcrumbSwitcher workspaceId={workspaceId} currentProjectId={projectId} currentName={projectName} iconOnly/></div></div><span className="context-phase">{journey?journey.designReady?'Detailed design':journey.briefReady?'Design proposal':'Requirements & references':'Checking phase…'}</span></div><NavigationRow items={primary} active={active?.key??'overview'} label="Project sections" primary/>{active&&active.items.length>1&&<NavigationRow items={active.items.map(i=>({key:i.path,label:i.label,to:base+i.path,locked:lock(i.gate)}))} active={match?.item.path??active.items[0].path} label="Project pages"/>}<p className="context-page-guidance">{pageGuidance[match?.item.path??'overview']}</p></header>
 }
 export function WorkspaceNavigation({workspaceId,name,canManage,canSeeTeam}:{workspaceId:string;name:string;canManage:boolean;canSeeTeam:boolean}){
  const {pathname}=useLocation(),base=`/workspace/${workspaceId}/`,part=pathname.slice(base.length),queues=['reviews','approvals','requirements','releases'],inQueue=queues.includes(part)

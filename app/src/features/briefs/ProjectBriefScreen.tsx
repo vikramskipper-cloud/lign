@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useBlocker, useParams } from 'react-router'
+import { Link, useBlocker, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -45,13 +45,14 @@ export function ProjectBriefScreen() {
 }
 
 function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspaceId:string;projectId:string}) {
+  const [params]=useSearchParams()
   const qc=useQueryClient()
   const [document,setDocument]=React.useState<BriefDocument>(()=>data.brief?.document??newBriefDocument(data.organizationDisciplines))
   const [respondent,setRespondent]=React.useState(data.brief?.respondent_participant_id??'')
   const [loadedVersion,setLoadedVersion]=React.useState(data.brief?.edit_version??0)
   const [dirty,setDirty]=React.useState(false)
   const [tab,setTab]=React.useState(()=>['brief','requirements','references','agreement'].includes(new URLSearchParams(window.location.search).get('step')??'')?new URLSearchParams(window.location.search).get('step')!:'brief')
-  const [historyId,setHistoryId]=React.useState('')
+  const [historyId,setHistoryId]=React.useState(()=>data.revisions.some(r=>r.id===params.get('revision'))?params.get('revision')!:'')
   const [error,setError]=React.useState<string|null>(null)
   const [note,setNote]=React.useState('')
   const [decisionComment,setDecisionComment]=React.useState('')

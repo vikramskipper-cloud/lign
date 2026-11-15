@@ -1,5 +1,5 @@
 import {useEffect,useId,useState} from 'react'
-import {Link,useBlocker,useParams} from 'react-router'
+import {Link,useBlocker,useParams,useSearchParams} from 'react-router'
 import {useQuery,useQueryClient} from '@tanstack/react-query'
 import {useSession} from '@/auth/SessionProvider'
 import {useProjectAreas} from '@/features/areas/queries'
@@ -18,8 +18,9 @@ export function Component(){const {ws_id:workspaceId='',proj_id:projectId=''}=us
  return <ProposalEditor key={projectId} data={query.data} projectId={projectId} workspaceId={workspaceId} reload={()=>void query.refetch()}/>
 }
 function ProposalEditor({data,projectId,workspaceId,reload}:{data:ProposalData;projectId:string;workspaceId:string;reload:()=>void}){
+ const [params]=useSearchParams()
  const {user}=useSession(),qc=useQueryClient(),areas=useProjectAreas(projectId),action=usePlanningAction(projectId)
- const [document,setDocument]=useState<ProposalDocument>(()=>data.working?.document??emptyProposal()),[briefId,setBriefId]=useState(data.working?.brief_revision_id??data.agreedBriefs[0]?.id??''),[respondent,setRespondent]=useState(data.working?.respondent_id??''),[version,setVersion]=useState(data.working?.edit_version??0),[dirty,setDirty]=useState(false),[historyId,setHistoryId]=useState(''),[reviewNote,setReviewNote]=useState(''),[responseNote,setResponseNote]=useState(''),[confirmed,setConfirmed]=useState(false),[uploading,setUploading]=useState(false),[fileError,setFileError]=useState('')
+ const [document,setDocument]=useState<ProposalDocument>(()=>data.working?.document??emptyProposal()),[briefId,setBriefId]=useState(data.working?.brief_revision_id??data.agreedBriefs[0]?.id??''),[respondent,setRespondent]=useState(data.working?.respondent_id??''),[version,setVersion]=useState(data.working?.edit_version??0),[dirty,setDirty]=useState(false),[historyId,setHistoryId]=useState(()=>data.revisions.some(r=>r.id===params.get('revision'))?params.get('revision')!:''),[reviewNote,setReviewNote]=useState(''),[responseNote,setResponseNote]=useState(''),[confirmed,setConfirmed]=useState(false),[uploading,setUploading]=useState(false),[fileError,setFileError]=useState('')
  useEffect(()=>{if(!dirty){setDocument(data.working?.document??emptyProposal());setBriefId(data.working?.brief_revision_id??data.agreedBriefs[0]?.id??'');setRespondent(data.working?.respondent_id??'');setVersion(data.working?.edit_version??0)}},[data.working,data.agreedBriefs,dirty])
  const revisionId=historyId||(data.status==='awaiting_acceptance'||data.status==='accepted'?data.currentRevisionId:!data.canPrepare?data.revisions[0]?.id:null)
  const revision=useQuery({queryKey:['proposal-revision',user?.id,revisionId],enabled:Boolean(revisionId),queryFn:()=>planningRpc<ProposalRevision>('get_proposal_revision',{p_revision_id:revisionId})})
