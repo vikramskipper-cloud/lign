@@ -52,6 +52,9 @@ try {
     .getByLabel('Collection title', { exact: true })
     .fill(`Browser template ${stamp}`)
   await create
+    .getByLabel('Collection category', { exact: true })
+    .selectOption('templates_guides')
+  await create
     .getByLabel('Description', { exact: true })
     .fill('Reusable material directions')
   await create
@@ -63,10 +66,10 @@ try {
   await p.getByRole('button', { name: 'Add link or note', exact: true }).click()
   const add = p.getByRole('dialog')
   await add
-    .getByLabel('Reference title', { exact: true })
+    .getByLabel('Item title', { exact: true })
     .fill('Browser natural oak')
   await add
-    .getByLabel('Reference details', { exact: true })
+    .getByLabel('Item details', { exact: true })
     .fill('Warm natural finish')
   await add
     .getByLabel('Source URL', { exact: true })
@@ -88,7 +91,7 @@ try {
     await route.continue()
   }
   await p.route('**/storage/v1/object/organization-library/**', uploadRoute)
-  await add.getByRole('button', { name: 'Add reference', exact: true }).click()
+  await add.getByRole('button', { name: 'Add item', exact: true }).click()
   await started
   p.once('dialog', (d) => void d.dismiss())
   await p
@@ -175,14 +178,12 @@ try {
     .waitFor()
   await p.goto(`${base}/org/${lib.org}/library?collection=${collection}`)
   await p.getByRole('button', { name: 'Start a revision', exact: true }).click()
-  await p.getByRole('button', { name: 'Edit reference', exact: true }).click()
+  await p.getByRole('button', { name: 'Edit item', exact: true }).click()
   const edit = p.getByRole('dialog')
   await edit
-    .getByLabel('Reference title', { exact: true })
+    .getByLabel('Item title', { exact: true })
     .fill('Updated library original')
-  await edit
-    .getByRole('button', { name: 'Save reference', exact: true })
-    .click()
+  await edit.getByRole('button', { name: 'Save item', exact: true }).click()
   await p
     .getByRole('heading', { name: 'Updated library original', exact: true })
     .waitFor()

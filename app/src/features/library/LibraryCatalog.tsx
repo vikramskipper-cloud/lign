@@ -6,6 +6,7 @@ import {
   Layers,
   LayoutTemplate,
   Palette,
+  Package,
   Search,
 } from 'lucide-react'
 import { useSession } from '@/auth/SessionProvider'
@@ -14,35 +15,22 @@ import { Button } from '@/features/planning/PlanningButton'
 import { help, panel, type PlanningFile } from '@/features/planning/queries'
 import { useLibraryCatalog, type Collection, type LibraryView } from './queries'
 import { statusLabel } from './LibraryReviewControls'
+import {
+  libraryCategories,
+  libraryCategory,
+  libraryCategoryLabel,
+} from './libraryModel'
+const categoryIcons = {
+  inspiration: Palette,
+  materials_products: Package,
+  details_solutions: FileImage,
+  templates_guides: LayoutTemplate,
+}
 export const libraryKinds = [
-  { id: 'all', label: 'All types', icon: Layers, description: '' },
-  {
-    id: 'template',
-    label: 'Templates',
-    icon: LayoutTemplate,
-    description: 'Reusable starting points',
-  },
-  {
-    id: 'moodboard',
-    label: 'Mood boards',
-    icon: Palette,
-    description: 'Visual directions and palettes',
-  },
-  {
-    id: 'references',
-    label: 'References',
-    icon: BookOpen,
-    description: 'Inspiration, research and sources',
-  },
-  {
-    id: 'designs',
-    label: 'Designs',
-    icon: FileImage,
-    description: 'Design examples and details',
-  },
+  { id: 'all', label: 'All categories', icon: Layers, description: '' },
+  ...libraryCategories.map((c) => ({ ...c, icon: categoryIcons[c.id] })),
 ]
-export const kindLabel = (kind: string) =>
-  libraryKinds.find((k) => k.id === kind)?.label ?? kind
+export const kindLabel = libraryCategoryLabel
 export function LibraryCover({
   file,
   kind,
@@ -69,7 +57,8 @@ export function LibraryCover({
         return result.data.signedUrl
       },
     })
-  const Icon = libraryKinds.find((k) => k.id === kind)?.icon ?? BookOpen
+  const Icon =
+    libraryKinds.find((k) => k.id === libraryCategory(kind))?.icon ?? BookOpen
   return (
     <div className="flex h-40 items-center justify-center overflow-hidden rounded-t-xl bg-[#eee8df]">
       {url.data ? (
@@ -112,7 +101,9 @@ export function LibraryCatalog({
 }) {
   const [search, setSearch] = useState(initialSearch),
     [debounced, setDebounced] = useState(initialSearch),
-    [kind, setKind] = useState(initialKind),
+    [kind, setKind] = useState(
+      initialKind === 'all' ? 'all' : libraryCategory(initialKind),
+    ),
     [tag, setTag] = useState(initialTag),
     [stage, setStage] = useState('all'),
     [offset, setOffset] = useState(0)
@@ -331,12 +322,12 @@ export function LibraryCatalog({
               </h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-[#786b60]">
                 {search || kind !== 'all' || tag || stage !== 'all'
-                  ? 'Try a different search, content type or tag.'
+                  ? 'Try a different search, category or tag.'
                   : view === 'review'
                     ? 'Submitted collections will appear here for review.'
                     : view === 'published'
                       ? 'Create a collection, add files or links, then submit it for approval. Published content will be available to every workspace.'
-                      : 'Group related files, links and notes into a collection. Choose a type and add tags so your team can find it later.'}
+                      : 'Group related files, links and notes into a collection. Choose a category and add tags so your team can find it later.'}
               </p>
               {view !== 'review' && (
                 <Button className="mt-4" onClick={onNew}>

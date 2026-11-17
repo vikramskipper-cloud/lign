@@ -25,6 +25,7 @@ import { CollectionForm, ItemForm } from './LibraryEditors'
 import { ReviewControls, statusLabel } from './LibraryReviewControls'
 import { LibraryCatalog, kindLabel } from './LibraryCatalog'
 import { LibraryUpload } from './LibraryUpload'
+import { libraryLayout, type LibraryLayout } from './libraryModel'
 export function Component() {
   return (
     <LibrarySaveGuard>
@@ -117,7 +118,7 @@ function LibraryPage() {
         : editor?.type === 'upload'
           ? 'Add files'
           : editor?.item
-            ? 'Edit reference'
+            ? 'Edit item'
             : 'Add a link or note'
   return (
     <div className="lign-warm mx-auto max-w-6xl space-y-5 p-5 md:p-7">
@@ -232,6 +233,8 @@ function LibraryPage() {
             retry={() => void items.refetch()}
             canEdit={canEdit}
             focusedId={params.get('item') ?? ''}
+            layout={libraryLayout(params.get('layout'))}
+            setLayout={(layout) => update({ layout }, true)}
             edit={(item) => setEditor({ type: 'item', item })}
             upload={() => setEditor({ type: 'upload' })}
             add={() => setEditor({ type: 'item' })}
@@ -308,6 +311,8 @@ function LibraryContents({
   retry,
   canEdit,
   focusedId,
+  layout,
+  setLayout,
   edit,
   upload,
   add,
@@ -318,13 +323,14 @@ function LibraryContents({
   retry: () => void
   canEdit: boolean
   focusedId: string
+  layout: LibraryLayout
+  setLayout: (layout: LibraryLayout) => void
   edit: (item: LibraryItem) => void
   upload: () => void
   add: () => void
 }) {
   const [search, setSearch] = useState(''),
-    [format, setFormat] = useState('all'),
-    [layout, setLayout] = useState('grid')
+    [format, setFormat] = useState('all')
   const visible = items.filter(
     (item) =>
       (!search ||
@@ -408,19 +414,32 @@ function LibraryContents({
               <option value="notes">Notes</option>
             </select>
           </label>
-          <div className="flex gap-1 pb-1" aria-label="Content layout">
-            {['grid', 'list'].map((value) => (
+          <div
+            className="flex flex-wrap gap-1 pb-1"
+            aria-label="Content layout"
+          >
+            {(['grid', 'list', 'moodboard'] as const).map((value) => (
               <button
                 key={value}
                 aria-pressed={layout === value}
                 className={`rounded-lg px-3 py-2 text-sm ${layout === value ? 'bg-[#3a332d] text-white' : 'border border-[#e5ddd3]'}`}
                 onClick={() => setLayout(value)}
               >
-                {value === 'grid' ? 'Grid' : 'List'}
+                {value === 'grid'
+                  ? 'Grid'
+                  : value === 'list'
+                    ? 'List'
+                    : 'Mood board'}
               </button>
             ))}
           </div>
         </div>
+      )}
+      {layout === 'moodboard' && (
+        <p className={help}>
+          A visual arrangement of this collection’s items. Use it for any
+          category; files, links and notes stay together.
+        </p>
       )}
       {loading ? (
         <p role="status">Loading content…</p>
@@ -463,7 +482,9 @@ function LibraryContents({
           className={
             layout === 'grid'
               ? 'grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3'
-              : 'space-y-3'
+              : layout === 'moodboard'
+                ? 'columns-1 gap-4 sm:columns-2 xl:columns-3'
+                : 'space-y-3'
           }
         >
           {visible.map((item) => (
@@ -471,8 +492,12 @@ function LibraryContents({
               key={item.id}
               id={`library-item-${item.id}`}
               tabIndex={-1}
-              className={`${panel} min-w-0 ${item.id === focusedId ? 'ring-2 ring-[#b64d24]' : ''}`}
+              className={`${panel} min-w-0 ${layout === 'moodboard' ? 'mb-4 break-inside-avoid' : ''} ${item.id === focusedId ? 'ring-2 ring-[#b64d24]' : ''}`}
             >
+              {layout === 'moodboard' &&
+                item.file?.mime.startsWith('image/') && (
+                  <FilePreview file={item.file} />
+                )}
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="break-words text-base font-semibold">
@@ -493,7 +518,7 @@ function LibraryContents({
                     className="auth-link shrink-0 text-sm"
                     onClick={() => edit(item)}
                   >
-                    Edit reference
+                    Edit item
                   </button>
                 )}
               </div>
@@ -503,7 +528,10 @@ function LibraryContents({
                 </p>
               )}
               {item.file &&
-                (layout === 'grid' ? (
+                !(
+                  layout === 'moodboard' && item.file.mime.startsWith('image/')
+                ) &&
+                (layout !== 'list' ? (
                   <FilePreview file={item.file} />
                 ) : (
                   <details>

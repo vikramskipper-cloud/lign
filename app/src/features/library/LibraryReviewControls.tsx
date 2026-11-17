@@ -63,7 +63,7 @@ export function ReviewControls({
               ? 'This submission is locked while it is reviewed. Withdraw it to make further edits.'
               : collection.status === 'published'
                 ? 'Start a revision to propose changes. The current published version stays available until the revision is approved.'
-                : 'Add references and save your changes, then submit the collection for owner/admin approval.'}
+                : 'Add items and save your changes, then submit the collection for owner/admin approval.'}
           </p>
           <div className="flex flex-wrap gap-2">
             {collection.canEdit && (
@@ -96,7 +96,7 @@ export function ReviewControls({
             <div className="space-y-3 border-t border-[#e5ddd3] pt-3">
               <h3 className="font-semibold">Review this submission</h3>
               <p className={help}>
-                Check the collection title, description, references and attached
+                Check the collection title, description, items and attached
                 files below before publishing.
               </p>
               <label className="block text-sm">

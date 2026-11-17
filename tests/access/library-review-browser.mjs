@@ -46,8 +46,8 @@ try {
     .getByLabel('Collection title', { exact: true })
     .fill(title)
   await dialog(author)
-    .getByLabel('Collection type', { exact: true })
-    .selectOption('moodboard')
+    .getByLabel('Collection category', { exact: true })
+    .selectOption('materials_products')
   await dialog(author).getByLabel('Tags', { exact: true }).fill('timber, calm')
   author.once('dialog', (d) => d.dismiss())
   await dialog(author)
@@ -121,16 +121,16 @@ try {
     .getByRole('button', { name: 'Add link or note', exact: true })
     .click()
   await dialog(author)
-    .getByLabel('Reference title', { exact: true })
+    .getByLabel('Item title', { exact: true })
     .fill('Member material palette')
   await dialog(author)
-    .getByLabel('Reference details', { exact: true })
+    .getByLabel('Item details', { exact: true })
     .fill('A calm warm direction')
   await dialog(author)
     .getByLabel('Source URL', { exact: true })
     .fill('https://example.com/palette-' + stamp)
   await dialog(author)
-    .getByRole('button', { name: 'Add reference', exact: true })
+    .getByRole('button', { name: 'Add item', exact: true })
     .click()
   await author
     .getByRole('heading', { name: 'Member material palette', exact: true })
@@ -156,6 +156,13 @@ try {
   await author
     .getByText('Preview & download · ' + fileName, { exact: true })
     .click()
+  await author.getByRole('button', { name: 'Mood board', exact: true }).click()
+  assert.equal(new URL(author.url()).searchParams.get('layout'), 'moodboard')
+  await author.getByRole('img', { name: fileName, exact: true }).waitFor()
+  await author.reload()
+  await author
+    .getByRole('button', { name: 'Mood board', exact: true, pressed: true })
+    .waitFor()
   // Closing a dirty editor and navigating away both preserve edits when declined.
   await author
     .getByRole('button', { name: 'Collection settings', exact: true })
@@ -212,7 +219,7 @@ try {
   )
   assert.equal(
     await author
-      .getByRole('button', { name: 'Edit reference', exact: true })
+      .getByRole('button', { name: 'Edit item', exact: true })
       .count(),
     0,
   )
@@ -245,14 +252,12 @@ try {
       exact: true,
     }),
   })
-  await card
-    .getByRole('button', { name: 'Edit reference', exact: true })
-    .click()
+  await card.getByRole('button', { name: 'Edit item', exact: true }).click()
   await dialog(author)
-    .getByLabel('Reference details', { exact: true })
+    .getByLabel('Item details', { exact: true })
     .fill('Timber from a sustainable source.')
   await dialog(author)
-    .getByRole('button', { name: 'Save reference', exact: true })
+    .getByRole('button', { name: 'Save item', exact: true })
     .click()
   await author
     .getByRole('button', { name: 'Submit for review', exact: true })
@@ -276,9 +281,7 @@ try {
     .getByRole('heading', { name: `Material-${stamp}`, exact: true })
     .waitFor()
   assert.equal(
-    await lead
-      .getByRole('button', { name: 'Edit reference', exact: true })
-      .count(),
+    await lead.getByRole('button', { name: 'Edit item', exact: true }).count(),
     0,
   )
   assert(new URL(lead.url()).searchParams.get('item'))
@@ -294,13 +297,13 @@ try {
         exact: true,
       }),
     })
-    .getByRole('button', { name: 'Edit reference', exact: true })
+    .getByRole('button', { name: 'Edit item', exact: true })
     .click()
   await dialog(author)
-    .getByLabel('Reference title', { exact: true })
+    .getByLabel('Item title', { exact: true })
     .fill('Pending new palette')
   await dialog(author)
-    .getByRole('button', { name: 'Save reference', exact: true })
+    .getByRole('button', { name: 'Save item', exact: true })
     .click()
   await author
     .getByRole('heading', { name: 'Pending new palette', exact: true })
@@ -328,7 +331,7 @@ try {
     .getByRole('button', { name: `Open ${title}`, exact: true })
     .waitFor()
   await author
-    .getByRole('button', { name: 'Mood boards', exact: false })
+    .getByRole('button', { name: 'Materials & products', exact: false })
     .click()
   await author.getByLabel('Tag', { exact: true }).selectOption('timber')
   await author

@@ -12,6 +12,7 @@ import {
   type LibraryItem,
 } from './queries'
 import { useLibraryDirty } from './LibraryActivity'
+import { libraryCategories } from './libraryModel'
 export function CollectionForm({
   org,
   collection,
@@ -22,7 +23,7 @@ export function CollectionForm({
   onSaved: (id: string) => void
 }) {
   const [title, setTitle] = useState(collection?.title ?? ''),
-    [kind, setKind] = useState(collection?.kind ?? 'template'),
+    [kind, setKind] = useState(collection?.kind ?? 'inspiration'),
     [description, setDescription] = useState(collection?.description ?? ''),
     [tags, setTags] = useState(collection?.tags?.join(', ') ?? ''),
     [version, setVersion] = useState(collection?.edit_version ?? 0),
@@ -76,19 +77,27 @@ export function CollectionForm({
         />
       </label>
       <label className="block text-sm">
-        Collection type
+        Collection category
         <select
-          aria-label="Collection type"
+          aria-label="Collection category"
           className="auth-field mt-1 w-full"
           value={kind}
           onChange={(e) => setKind(e.target.value as Collection['kind'])}
           disabled={action.busy}
         >
-          <option value="template">Template</option>
-          <option value="references">Reference collection</option>
-          <option value="moodboard">Mood board</option>
-          <option value="designs">Design collection</option>
+          {libraryCategories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.label}
+            </option>
+          ))}
         </select>
+        <span className={help}>
+          {
+            libraryCategories.find((category) => category.id === kind)
+              ?.description
+          }
+          . Use tags for style, discipline or application.
+        </span>
       </label>
       <label className="block text-sm">
         Description
@@ -229,7 +238,7 @@ export function ItemForm({
       }}
     >
       <label className="block text-sm">
-        Reference title
+        Item title
         <input
           className="auth-field mt-1 w-full"
           required
@@ -240,9 +249,9 @@ export function ItemForm({
         />
       </label>
       <label className="block text-sm">
-        Reference details
+        Item details
         <textarea
-          aria-label="Reference details"
+          aria-label="Item details"
           className="auth-field mt-1 w-full"
           maxLength={5000}
           value={description}
@@ -287,14 +296,14 @@ export function ItemForm({
       )}
       {item && item.edit_version !== version && (
         <p role="alert" className="text-sm text-[#8a4a17]">
-          A newer saved reference is available. Your edits are preserved. Close
-          and reopen the editor to reload it.
+          A newer saved item is available. Your edits are preserved. Close and
+          reopen the editor to reload it.
         </p>
       )}
       <Button
         disabled={action.busy || Boolean(item && item.edit_version !== version)}
       >
-        {action.busy ? 'Saving…' : item ? 'Save reference' : 'Add reference'}
+        {action.busy ? 'Saving…' : item ? 'Save item' : 'Add item'}
       </Button>
       {item && (
         <button
@@ -304,7 +313,7 @@ export function ItemForm({
           onClick={async () => {
             if (
               window.confirm(
-                'Archive this reference? Existing project copies remain available.',
+                'Archive this item? Existing project copies remain available.',
               ) &&
               (await save(true)).ok
             ) {
@@ -313,7 +322,7 @@ export function ItemForm({
             }
           }}
         >
-          Archive reference
+          Archive item
         </button>
       )}
       {action.error && (

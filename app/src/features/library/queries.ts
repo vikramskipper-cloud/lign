@@ -5,10 +5,11 @@ import { supabase } from '@/lib/supabase'
 import { humanizeError } from '@/features/shared/errors'
 import { planningRpc, type PlanningFile } from '@/features/planning/queries'
 import { LibraryActivity } from './LibraryActivity'
+import { libraryCategory, type LibraryCategory } from './libraryModel'
 export interface Collection {
   id: string
   title: string
-  kind: 'template' | 'references' | 'moodboard' | 'designs'
+  kind: LibraryCategory
   description: string
   tags?: string[]
   edit_version: number
@@ -27,6 +28,15 @@ export interface Collection {
     tags?: string[]
     revision: number
   } | null
+}
+function normalizeCollection<T extends Collection>(c: T): T {
+  return {
+    ...c,
+    kind: libraryCategory(c.kind),
+    published: c.published
+      ? { ...c.published, kind: libraryCategory(c.published.kind) }
+      : c.published,
+  }
 }
 export interface LibraryItem {
   id: string
@@ -47,7 +57,10 @@ export function useLibrary(org: string, publishedOnly = false) {
       planningRpc<{ canManage: boolean; collections: Collection[] }>(
         publishedOnly ? 'get_published_library' : 'get_organization_library',
         { p_organization_id: org },
-      ),
+      ).then((data) => ({
+        ...data,
+        collections: data.collections.map(normalizeCollection),
+      })),
   })
 }
 export function useLibraryItems(id: string, draft = false) {
@@ -180,6 +193,9 @@ export function useLibraryCatalog(
         p_tag: filters.tag,
         p_stage: filters.stage,
         p_offset: filters.offset,
-      }),
+      }).then((data) => ({
+        ...data,
+        collections: data.collections.map(normalizeCollection),
+      })),
   })
 }
