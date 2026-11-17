@@ -162,6 +162,12 @@ try {
     .getByRole('heading', { name: 'Browser natural oak', exact: true })
     .waitFor()
   await p.getByRole('img', { name: 'Oak.png', exact: true }).waitFor()
+  await p
+    .getByRole('button', { name: 'Share with client', exact: true })
+    .click()
+  await p
+    .getByRole('button', { name: 'Copy client review link', exact: true })
+    .waitFor()
   const board = new URL(p.url()).searchParams.get('board')
   assert(board)
   const client = await login(f.people.client)

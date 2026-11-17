@@ -375,6 +375,12 @@ try {
       .count(),
     0,
   )
+  await lead
+    .getByRole('button', { name: 'Share with client', exact: true })
+    .click()
+  await lead
+    .getByRole('button', { name: 'Copy client review link', exact: true })
+    .waitFor()
   assert.deepEqual(errors, [])
   console.log(
     'PASS collection browse/type/tag search, draft privacy, guarded forms, batch upload partial retry, formats/layout, owner review/resubmission/publication, approved item search/deep link, revision-safe import and mobile',
