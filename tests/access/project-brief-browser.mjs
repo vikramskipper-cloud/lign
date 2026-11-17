@@ -62,6 +62,7 @@ try{
  const item=client.getByRole('region',{name:'Brief item 1',exact:true})
  await item.getByLabel('Item title',{exact:true}).fill('Reception seats eight')
  await item.getByLabel('Details',{exact:true}).fill('Allow visitors to wait comfortably.')
+ await item.getByText('Additional item details',{exact:true}).click()
  await item.getByLabel('Applies to',{exact:true}).fill('Reception seating')
  await item.getByLabel('How will we check this?',{exact:true}).fill('Count eight seats in the agreed furniture layout.')
  await client.getByRole('tab',{name:'3. References',exact:true}).click()

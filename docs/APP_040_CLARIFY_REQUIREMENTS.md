@@ -1,0 +1,13 @@
+# APP 040 — Clarify requirements
+
+The second brief step now starts with a compact explanation and counts for requirements, preferences, assumptions and questions, including unresolved questions. Optional project areas are expandable and support spaces, zones, products, components or user-defined labels through the existing area workflow. Whole-project scope remains the default.
+
+One type selector and Add an item control create a focused, expanded editor. Saved items begin as compact summaries with kind, title, scope and responsibility. Titles, acceptance checks or question resolutions, and responsible people are prominent. Priority, source and free-text scope notes remain available under Additional item details. Search and type/clarification filters narrow the list. Open items remain visible as their titles change, preventing a matching search from removing the editor mid-entry. Removing an item offers Undo until the next save, permission change or step exit.
+
+Inline guidance identifies missing titles, missing acceptance checks, unresolved questions and unavailable responsible team members. These checks explain the existing agreement rules; partial drafts remain allowed where the existing save RPC permits them. Assumptions retain their separate kind; answering a question preserves its type and stored answer. Filters do not mutate saved data.
+
+Save and continue to references persists the working document before changing steps and retains edits after rejected saves. Back to overall needs keeps local draft state. The embedded area editor reports unsaved form changes: continuation and brief saving are disabled until the area is saved/cancelled, switching steps asks before discarding it, and route/unload guards include area drafts. Area controls are disabled while a brief save is pending. Empty clarification notes are collapsed on this step.
+
+Read-only and historical items use text rather than disabled editing forms, with no add/remove controls. Historical scopes continue to use immutable area snapshots, even after a later draft renames an area. Existing checked RPCs, limits, roles and agreement transitions are unchanged. No database migration is needed.
+
+Validation: `tests/access/clarify-requirements-browser.mjs` covers optional area editing and discard guards, four item types, structured scopes and metadata, filtering during edits, remove/undo, rejected-save preservation, saved continuation, read-only access, historical area snapshots, and desktop/mobile layout. The existing full brief browser journey checks client contribution, references, review, exact-revision agreement and preservation of prior agreements. All fixtures are local; hosted smoke is read-only.
