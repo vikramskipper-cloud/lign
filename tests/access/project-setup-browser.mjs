@@ -37,7 +37,7 @@ try{
  await owner.getByRole('tab',{name:'2. Clarify requirements',exact:true}).click();await owner.getByRole('button',{name:'Add an item',exact:true}).click()
  const item=owner.getByRole('region',{name:'Brief item 1',exact:true});await item.getByLabel('Item title',{exact:true}).fill('Sample quality');await item.getByLabel('How will we check this?',{exact:true}).fill('Client accepts the sample')
  await owner.getByRole('tab',{name:'4. Review and agree',exact:true}).click();await owner.getByLabel('Client / brief approver',{exact:true}).selectOption({label:'Studio junior'})
- await rpcClick(owner,'save_project_brief','Save and start brief');await rpcClick(owner,'transition_project_brief','Review and request agreement')
+ await rpcClick(owner,'save_project_brief','Save draft');await rpcClick(owner,'transition_project_brief','Review and request agreement')
  await owner.getByRole('link',{name:'Design',exact:true}).click();await owner.getByRole('link',{name:'Design assets',exact:true}).click();await owner.getByRole('heading',{name:'Agree the brief before design work',exact:true}).waitFor()
  const client=await login(f.people.junior.email);await client.goto(project+'/brief?step=agreement');await client.getByLabel('I agree to this brief revision, including its requirements, preferences, assumptions and references.',{exact:true}).check();await rpcClick(client,'respond_project_brief','Agree this revision')
  await owner.getByRole('heading',{name:'Accept the proposal before detailed design',exact:true}).waitFor()

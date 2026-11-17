@@ -13,6 +13,7 @@ import { relative } from '@/lib/formatDate'
 import { useProjectBrief, type ProjectBriefData, type BriefFile } from './queries'
 import { BRIEF_TEMPLATES, newBriefDocument, newBriefItem, type BriefDocument, type BriefItem, type BriefField } from './model'
 import { BRIEF_STATUS_LABELS } from './status'
+import GatherNeedsStep from './GatherNeedsStep'
 
 const BriefReferenceSelection=React.lazy(()=>import('@/features/planning/BriefReferenceSelection'))
 const AreaPicker=React.lazy(()=>import('@/features/areas/AreaPicker'))
@@ -58,6 +59,7 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
   const [decisionComment,setDecisionComment]=React.useState('')
   const [confirmedRevision,setConfirmedRevision]=React.useState('')
   const [uploading,setUploading]=React.useState(false)
+  const saveInFlight=React.useRef(false)
   const currentVersion=data.brief?.edit_version??0
   const confirmationId=data.brief?.current_revision_id??''
   const confirmed=confirmedRevision!==''&&confirmedRevision===confirmationId
@@ -79,7 +81,7 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
     },
     onSuccess:async()=>{
       invalidateRequirementsLists(qc,workspaceId,projectId)
-      await Promise.all([qc.invalidateQueries({queryKey:['project-areas']}),qc.invalidateQueries({queryKey:['area-requirements']}),qc.invalidateQueries({queryKey:['requirement-areas']}),qc.invalidateQueries({queryKey:['project-setup']}),qc.invalidateQueries({predicate:q=>q.queryKey[0]==='project'&&q.queryKey[1]===projectId&&q.queryKey[2]==='capabilities'}),qc.invalidateQueries({queryKey:['project-brief']}),qc.invalidateQueries({queryKey:['studio-overview']})])
+      await Promise.all([qc.invalidateQueries({queryKey:['project-areas']}),qc.invalidateQueries({queryKey:['area-requirements']}),qc.invalidateQueries({queryKey:['requirement-areas']}),qc.invalidateQueries({queryKey:['project-setup']}),qc.invalidateQueries({predicate:q=>q.queryKey[0]==='project'&&q.queryKey[1]===projectId&&q.queryKey[2]==='capabilities'}),qc.invalidateQueries({queryKey:['project-brief']}),qc.invalidateQueries({queryKey:['studio-overview']}),qc.invalidateQueries({queryKey:['overview-project']}),qc.invalidateQueries({queryKey:['overview-hub']})])
     },
     onError:(err)=>setError(humanizeError(err)),
   })
@@ -108,8 +110,19 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
     catch{return {ok:false,result:null}}
   }
   const save=async()=>{
-    const result=await run('save_project_brief',{p_project_id:projectId,p_document:document,p_expected_version:loadedVersion,p_respondent_participant_id:respondent||null})
-    if(result.ok){setDirty(false);toast.success('Brief saved')}
+    if(saveInFlight.current)return false
+    if(stale){setError('Load the latest brief before saving your changes.');return false}
+    saveInFlight.current=true
+    try {
+      const result=await run('save_project_brief',{p_project_id:projectId,p_document:document,p_expected_version:loadedVersion,p_respondent_participant_id:respondent||null})
+      if(result.ok){setDirty(false);toast.success('Brief saved')}
+      return result.ok
+    } finally {saveInFlight.current=false}
+  }
+  const continueToRequirements=async()=>{
+    if(canEditDocument&&(dirty||!data.brief)&&!await save())return
+    setTab('requirements')
+    window.requestAnimationFrame(()=>window.document.querySelector<HTMLElement>('[role="tab"][data-state="active"]')?.focus())
   }
   const transition=async(action:string)=>{
     const result=await run('transition_project_brief',{p_project_id:projectId,p_expected_version:loadedVersion,p_action:action})
@@ -132,15 +145,16 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
     }catch(err){setError(humanizeError(err))}finally{setUploading(false)}
   }
   return <div className="lign-warm mx-auto w-full max-w-5xl space-y-5 p-5 md:p-7">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="auth-display text-3xl">Project brief</h1><p className="mt-2 text-sm text-[--color-text-muted]">After project setup, gather requirements and references here, then review and agree the brief before design work.</p></div><div className="flex flex-wrap items-center gap-2"><Badge>{history?`Revision ${history.number}`:data.brief?BRIEF_STATUS_LABELS[data.brief.status]:'New brief'}</Badge>{dirty&&<Badge variant="warning">Unsaved changes</Badge>}{canEditDocument&&<Button onClick={()=>void save()} disabled={stale||busy}>{busy?'Working…':data.brief?'Save draft':'Save and start brief'}</Button>}</div></div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="auth-display text-3xl">Project brief</h1><p className="mt-2 text-sm text-[--color-text-muted]">Capture the overall needs first, then organise requirements and references. Agree the brief before preparing the design proposal.</p></div><div className="flex flex-wrap items-center gap-2"><Badge>{history?`Revision ${history.number}`:data.brief?BRIEF_STATUS_LABELS[data.brief.status]:'New brief'}</Badge>{dirty&&<Badge variant="warning">Unsaved changes</Badge>}{canEditDocument&&<Button onClick={()=>void save()} disabled={stale||busy}>{busy?'Working…':'Save draft'}</Button>}</div></div>
+    {!history&&<p role="status" className={help}>{mutation.isPending?'Working…':dirty?'Changes are not saved yet.':data.brief?'All changes saved.':'Draft not saved yet. You can save it at any point.'}</p>}
     {error&&<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {stale&&<p role="alert" className="text-sm">Someone saved a newer version. Your edits are preserved here. <button type="button" className="auth-link" onClick={()=>{if(window.confirm('Discard your edits and load the latest brief?'))setDirty(false)}}>Reload latest brief</button></p>}
-    {data.brief&&<div className="flex flex-wrap items-center gap-3"><label htmlFor="brief-history" className="text-sm">View</label><select id="brief-history" className="auth-field max-w-full sm:w-auto" value={historyId} disabled={dirty||busy} onChange={e=>{setHistoryId(e.target.value);setConfirmedRevision('')}}><option value="">Current working brief</option>{data.revisions.map(r=><option key={r.id} value={r.id}>Revision {r.number} · {r.decision?.decision==='agreed'?'Agreed':r.decision?.decision==='changes_requested'?'Changes requested':r.id===data.brief?.current_revision_id&&data.brief.status==='awaiting_agreement'?'Awaiting agreement':'Withdrawn'}</option>)}</select></div>}
+    {data.brief&&data.revisions.length>0&&<div className="flex flex-wrap items-center gap-3"><label htmlFor="brief-history" className="text-sm">View</label><select id="brief-history" className="auth-field max-w-full sm:w-auto" value={historyId} disabled={dirty||busy} onChange={e=>{setHistoryId(e.target.value);setConfirmedRevision('')}}><option value="">Current working brief</option>{data.revisions.map(r=><option key={r.id} value={r.id}>Revision {r.number} · {r.decision?.decision==='agreed'?'Agreed':r.decision?.decision==='changes_requested'?'Changes requested':r.id===data.brief?.current_revision_id&&data.brief.status==='awaiting_agreement'?'Awaiting agreement':'Withdrawn'}</option>)}</select></div>}
     <Tabs value={tab} onValueChange={setTab}>
       <TabsList className="h-auto w-full flex-wrap justify-start gap-1"><TabsTrigger value="brief">1. Gather needs</TabsTrigger><TabsTrigger value="requirements">2. Clarify requirements</TabsTrigger><TabsTrigger value="references">3. References</TabsTrigger><TabsTrigger value="agreement">4. Review and agree</TabsTrigger></TabsList>
       <TabsContent value="brief" className="space-y-5">
+        <GatherNeedsStep projectId={projectId} workspaceId={workspaceId} document={shownDocument} data={data} respondent={history?.respondent_participant_id??respondent} editable={editable} busy={busy} stale={stale} dirty={dirty} history={Boolean(history)} change={changeField} update={mutateDocument} next={()=>void continueToRequirements()} go={setTab} assign={id=>{setRespondent(id);setDirty(true)}}/>
         <details className={panel}><summary className="auth-link cursor-pointer font-medium">Adjust questions for this project</summary><p className={help}>Your organisation’s disciplines set the starting questions for new briefs. Combine disciplines here only when this project needs a different scope. Templates add questions; existing answers stay in place when a template is deselected. Edit or remove optional questions below.</p><div className="flex flex-wrap gap-4">{BRIEF_TEMPLATES.map(t=><label key={t.id} className="flex items-center gap-2 text-sm"><input type="checkbox" disabled={!editable} checked={shownDocument.disciplines.includes(t.id)} onChange={e=>mutateDocument(d=>({...d,disciplines:e.target.checked?[...d.disciplines,t.id]:d.disciplines.filter(id=>id!==t.id),fields:e.target.checked?[...d.fields,...t.fields.filter(f=>!d.fields.some(existing=>existing.id===f.id)).map(f=>({...f}))]:d.fields}))} />{t.label}</label>)}</div></details>
-        <section className={panel} aria-label="Brief questions">{shownDocument.fields.map(f=><div key={f.id} className="space-y-2 border-b border-[--color-border] pb-4 last:border-b-0"><TextField id={`brief-${f.id}`} label={f.label} hint={f.help} value={f.answer} disabled={!editable} onChange={answer=>changeField(f.id,{answer})} />{editable&&<details><summary className="auth-link cursor-pointer text-xs">Edit this question</summary><div className="mt-2 space-y-2"><label className="block text-xs">Question label<input className="auth-field mt-1" maxLength={200} value={f.label} onChange={e=>changeField(f.id,{label:e.target.value})} /></label><label className="block text-xs">Guidance<input className="auth-field mt-1" maxLength={500} value={f.help} onChange={e=>changeField(f.id,{help:e.target.value})} /></label>{!['objective','deliverables'].includes(f.id)&&<Button variant="ghost" size="sm" onClick={()=>mutateDocument(d=>({...d,fields:d.fields.filter(field=>field.id!==f.id)}))}>Remove question</Button>}</div></details>}</div>)}{editable&&<Button variant="secondary" onClick={()=>mutateDocument(d=>({...d,fields:[...d.fields,{id:crypto.randomUUID(),label:'Additional question',help:'',answer:''}]}))}>Add a question</Button>}</section>
       </TabsContent>
       <TabsContent value="requirements" className="space-y-4">{!history?<React.Suspense fallback={<p>Loading spaces and zones…</p>}><AreaManager projectId={projectId}/></React.Suspense>:<p className={help}>Area names below are preserved from this brief revision.</p>}<div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Requirements, preferences and unknowns</h2><p className={help}>Separate commitments from preferences, assumptions and open questions. Describe how requirements will be checked.</p></div>{editable&&<Button variant="secondary" onClick={()=>mutateDocument(d=>({...d,items:[...d.items,newBriefItem()]}))}>Add an item</Button>}</div>
         {shownDocument.items.length===0&&<p className={panel}>Add the needs that matter to this project. Resolve open questions before requesting agreement.</p>}
@@ -152,6 +166,8 @@ function BriefEditor({data,workspaceId,projectId}:{data:ProjectBriefData;workspa
         {shownRevision&&<div className="space-y-2 text-sm"><p>Revision {shownRevision.number} · reviewed by project leadership {relative(shownRevision.created_at)}</p>{shownRevision.decision?<><p><strong>{shownRevision.decision.decision==='agreed'?'Agreed':'Changes requested'}</strong> by {shownRevision.decision.actorName} · {relative(shownRevision.decision.created_at)}</p>{shownRevision.decision.comment&&<p className="whitespace-pre-wrap">{shownRevision.decision.comment}</p>}</>:<p className={help}>{shownRevision.id===data.brief?.current_revision_id&&data.brief.status==='awaiting_agreement'?'Waiting for the assigned approver.':'This request is no longer current.'}</p>}{shownRevision.decision?.decision==='agreed'&&data.canGenerate&&data.canManage&&<><Button variant="secondary" disabled={busy} onClick={async()=>{const result=await run('generate_brief_requirements',{p_project_id:projectId,p_revision_id:shownRevision.id});if(result.ok)toast.success(`${result.result} new draft requirements created`)}}>Create draft requirements</Button><p className={help}>{shownRevision.generatedCount} drafts generated from this revision. Repeating this action does not duplicate them. New revisions create separate drafts for the team to review and supersede where needed.</p><Link className="auth-link" to={`/workspace/${workspaceId}/project/${projectId}/requirements?view=all&status=draft`}>Review and activate requirements</Link></>}</div>}
       </section></TabsContent>
     </Tabs>
-    <section className={panel} aria-label="Brief clarification"><h2 className="font-semibold">Clarification notes</h2><p className={help}>Discuss unknowns here, then record the agreed answer in the brief before requesting agreement.</p>{data.notes.length===0&&<p className={help}>No clarification notes yet.</p>}{data.notes.map(n=><div key={n.id} className="border-t border-[--color-border] pt-3"><p className={help}>{n.authorName} · {relative(n.created_at)}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{n.body}</p></div>)}{data.canComment&&<><TextField id="brief-note" label="Add a clarification note" value={note} onChange={setNote} disabled={busy} /><Button variant="secondary" disabled={!note.trim()||busy} onClick={async()=>{const result=await run('add_project_brief_note',{p_project_id:projectId,p_body:note});if(result.ok)setNote('')}}>Post note</Button></>}</section>
+    <details className={panel} open={tab!=='brief'||undefined}><summary className="auth-link cursor-pointer font-medium">Clarification notes ({data.notes.length})</summary>
+    <section className="mt-4 space-y-4" aria-label="Brief clarification"><p className={help}>Discuss unknowns here, then record the agreed answer in the brief before requesting agreement.</p>{data.notes.length===0&&<p className={help}>No clarification notes yet.</p>}{data.notes.map(n=><div key={n.id} className="border-t border-[--color-border] pt-3"><p className={help}>{n.authorName} · {relative(n.created_at)}</p><p className="mt-1 whitespace-pre-wrap break-words text-sm">{n.body}</p></div>)}{data.canComment&&<><TextField id="brief-note" label="Add a clarification note" value={note} onChange={setNote} disabled={busy} /><Button variant="secondary" disabled={!note.trim()||busy} onClick={async()=>{const result=await run('add_project_brief_note',{p_project_id:projectId,p_body:note});if(result.ok)setNote('')}}>Post note</Button></>}</section>
+    </details>
   </div>
 }

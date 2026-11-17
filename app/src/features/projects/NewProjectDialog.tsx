@@ -225,7 +225,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
     setAnnounce(
       member
         ? `${raw} added. ${member.name} is already in this workspace and will be added as an internal approver.`
-        : `${raw} added as an external approver. Invite sends on create.`,
+        : `${raw} added as an external approver. An invite link will be ready to copy after creation.`,
     )
   }
 
@@ -267,7 +267,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
       {
         onSuccess: (result) => {
           onOpenChange(false)
-          toast.success('Project created')
+          toast.success('Project created — start with the brief')
           surfaceInvites(result.invites)
           navigate(`/workspace/${workspaceId}/project/${result.projectId}/brief`)
         },
@@ -473,7 +473,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                           <p style={{ margin: '3px 0 0', fontSize: 12, color: C.helper }}>
                             {c.memberName
                               ? `${c.memberName} is already in this workspace. They'll be added as an internal approver instead.`
-                              : 'Approver · invitation queued on create'}
+                              : 'Approver · invite link ready after creation'}
                           </p>
                         </div>
                         <button
@@ -511,7 +511,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                       style={field(false)}
                     />
                     <Helper>
-                      Next: choose disciplines and gather scope, budget, timing and references in the project brief.
+                      Next: capture the overall project needs. Your organisation’s disciplines provide the starting questions.
                     </Helper>
                   </div>
                 )}
@@ -525,7 +525,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
             >
               <p style={{ margin: 0, flex: 1, fontSize: 12.5, color: C.helper }}>
                 {externalCount > 0
-                  ? `${externalCount} invitation ${externalCount === 1 ? 'email' : 'emails'} will be queued when you create.`
+                  ? `${externalCount} invite ${externalCount === 1 ? 'link' : 'links'} will be ready to copy after creation. No email is sent.`
                   : ''}
               </p>
               <button

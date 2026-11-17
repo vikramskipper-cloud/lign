@@ -13,7 +13,7 @@ ok(await ownerApi.auth.signInWithPassword({email:f.people.owner.email,password:f
 const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_PATH}),contexts=[],errors=[]
 const base='http://127.0.0.1:5179'
 async function login(email){const c=await browser.newContext({viewport:{width:1280,height:900}});contexts.push(c);const p=await c.newPage();p.setDefaultTimeout(20000);p.on('pageerror',e=>errors.push(e.message));await p.goto(base+'/sign-in');await p.getByLabel('Work email').fill(email);await p.getByLabel('Password',{exact:true}).fill(f.password);await p.getByRole('button',{name:'Sign in',exact:true}).click();await p.waitForURL(u=>u.pathname!=='/sign-in');return p}
-async function save(page,initial=false){const response=page.waitForResponse(r=>r.url().endsWith('/rpc/save_project_brief'));await page.getByRole('button',{name:initial?'Save and start brief':'Save draft',exact:true}).click();assert.equal((await response).status(),200);await page.getByRole('button',{name:'Save draft',exact:true}).waitFor();await page.getByText('Unsaved changes',{exact:true}).waitFor({state:'hidden'})}
+async function save(page){const response=page.waitForResponse(r=>r.url().endsWith('/rpc/save_project_brief'));await page.getByRole('button',{name:'Save draft',exact:true}).click();assert.equal((await response).status(),200);await page.getByRole('button',{name:'Save draft',exact:true}).waitFor();await page.getByText('Unsaved changes',{exact:true}).waitFor({state:'hidden'})}
 try{
  const owner=await login(f.people.owner.email)
  const created=[]
@@ -28,21 +28,21 @@ try{
   await dialog.getByLabel('Project name',{exact:true}).fill(`${industry} brief ${Date.now()}`)
   await dialog.getByLabel('Project code').fill(`B${Date.now().toString(36).toUpperCase()}${created.length}`)
   await dialog.getByLabel('Project lead',{exact:true}).selectOption({label:'Studio senior'})
-  const creation=owner.waitForResponse(r=>r.url().endsWith('/rpc/create_project_full'))
+  const creation=owner.waitForResponse(r=>r.url().endsWith('/rpc/create_project_with_client'))
   await dialog.getByRole('button',{name:'Create project',exact:true}).click()
   const creationResponse=await creation
   assert.equal(creationResponse.status(),200,await creationResponse.text())
   await owner.waitForURL(u=>/\/project\/[^/]+\/brief$/.test(u.pathname))
   const projectId=new URL(owner.url()).pathname.split('/')[4]
   await owner.getByText('Adjust questions for this project',{exact:true}).click();await owner.getByLabel(industry,{exact:true}).check()
-  await owner.getByLabel(question,{exact:true}).fill(answer)
+  await owner.getByText(/^More project details/).click();await owner.getByLabel(question,{exact:true}).fill(answer)
   await owner.getByLabel('What should this project achieve?',{exact:true}).fill(`${industry}: an agreed design outcome.`)
   await owner.getByLabel('What should we deliver?',{exact:true}).fill('The agreed designs, specifications and reference samples.')
   if(industry==='Interiors'){
    await owner.getByLabel('Furniture design',{exact:true}).check()
    await owner.getByLabel('Items, dimensions and fit',{exact:true}).fill('Custom reception seating with supplied dimensions.')
   }
-  await save(owner,true)
+  await save(owner)
   const state=ok(await ownerApi.rpc('get_project_brief',{p_project_id:projectId}))
   assert(state.brief.document.fields.some(q=>q.answer===answer))
   created.push(projectId)
