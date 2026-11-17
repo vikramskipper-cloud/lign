@@ -1,51 +1,532 @@
-import {useContext,useState} from 'react'
-import {useParams,useSearchParams} from 'react-router'
-import {Button} from '@/features/planning/PlanningButton'
-import {planningRpc,panel,help,planningFileAccept} from '@/features/planning/queries'
+import { useContext, useEffect, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router'
+import { ArrowLeft, FilePlus2, Upload } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/ui/dialog'
+import { Button } from '@/features/planning/PlanningButton'
+import { panel, help } from '@/features/planning/queries'
 import FilePreview from '@/features/planning/FilePreview'
-import {useLibrary,useLibraryItems,useLibraryHistory,useLibraryAction,uploadLibrary,type Collection,type LibraryItem} from './queries'
-import {LibrarySaveGuard,LibrarySaving} from './LibraryActivity'
-function CollectionForm({org,collection,onSaved}:{org:string;collection?:Collection;onSaved:(id:string)=>void}){
- const [title,setTitle]=useState(collection?.title??''),[kind,setKind]=useState(collection?.kind??'template'),[description,setDescription]=useState(collection?.description??''),[tags,setTags]=useState(collection?.tags?.join(', ')??''),[version,setVersion]=useState(collection?.edit_version??0),action=useLibraryAction()
- return <form className="space-y-3" onSubmit={async e=>{e.preventDefault();const r=await action.run(()=>planningRpc<string>('save_library_draft',{p_organization_id:org,p_title:title,p_kind:kind,p_description:description,p_id:collection?.id??null,p_expected_version:version,p_tags:tags.split(',').map(t=>t.trim()).filter(Boolean)}));if(r.ok){if(collection)setVersion(v=>v+1);if(!collection){setTitle('');setDescription('');setTags('')}onSaved(r.data)}}}><label className="block text-sm">Collection title<input className="auth-field mt-1 w-full" required maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} disabled={action.busy}/></label><label className="block text-sm">Collection type<select aria-label="Collection type" className="auth-field mt-1 w-full" value={kind} onChange={e=>setKind(e.target.value as Collection['kind'])} disabled={action.busy}><option value="template">Template</option><option value="references">Reference collection</option><option value="moodboard">Mood board</option><option value="designs">Design collection</option></select></label><label className="block text-sm">Description<textarea aria-label="Description" className="auth-field mt-1 w-full" maxLength={3000} value={description} onChange={e=>setDescription(e.target.value)} disabled={action.busy}/></label><label className="block text-sm">Tags<input aria-label="Tags" className="auth-field mt-1 w-full" value={tags} maxLength={500} disabled={action.busy} placeholder="e.g. timber, residential, minimal" onChange={e=>setTags(e.target.value)}/><span className={help}>Comma-separated; up to 12 tags.</span></label>{collection&&collection.edit_version!==version&&<p role="alert" className="text-sm text-[#8a4a17]">Saved collection details have changed. Your edits are preserved. Close and reopen settings to load the latest version.</p>}<Button disabled={action.busy||Boolean(collection&&collection.edit_version!==version)}>{collection?'Save collection':'Create collection'}</Button>{collection&&!collection.published&&<button type="button" className="auth-link ml-3 text-sm" disabled={action.busy} onClick={async()=>{if(!window.confirm('Archive this collection? Existing project copies remain available.'))return;const r=await action.run(()=>planningRpc('save_library_collection',{p_organization_id:org,p_id:collection.id,p_title:collection.title,p_kind:collection.kind,p_description:collection.description,p_expected_version:collection.edit_version,p_archive:true}));if(r.ok)onSaved('')}}>Archive collection</button>}{action.error&&<p role="alert" className="text-sm text-red-700">{action.error}</p>}</form>
+import {
+  useLibrary,
+  useLibraryItems,
+  type LibraryItem,
+  type LibraryView,
+} from './queries'
+import {
+  LibrarySaveGuard,
+  LibrarySaving,
+  LibraryUnsaved,
+} from './LibraryActivity'
+import { CollectionForm, ItemForm } from './LibraryEditors'
+import { ReviewControls, statusLabel } from './LibraryReviewControls'
+import { LibraryCatalog, kindLabel } from './LibraryCatalog'
+import { LibraryUpload } from './LibraryUpload'
+export function Component() {
+  return (
+    <LibrarySaveGuard>
+      <LibraryPage />
+    </LibrarySaveGuard>
+  )
 }
-function ItemForm({org,collectionId,item,onSaved}:{org:string;collectionId:string;item?:LibraryItem;onSaved:()=>void}){
- const [title,setTitle]=useState(item?.title??''),[description,setDescription]=useState(item?.description??''),[url,setUrl]=useState(item?.url??''),[file,setFile]=useState<File|null>(null),[remove,setRemove]=useState(false),[version]=useState(item?.edit_version??0),action=useLibraryAction()
- const save=(archive=false)=>action.run(async()=>{const fileId=file?await uploadLibrary(org,file):remove?null:item?.file_id??null;return planningRpc('save_library_item',{p_collection_id:collectionId,p_title:title,p_description:description,p_url:url||null,p_id:item?.id??null,p_expected_version:version,p_file_id:fileId,p_archive:archive})})
- return <form className="space-y-3" onSubmit={async e=>{e.preventDefault();if((await save()).ok){if(!item){setTitle('');setDescription('');setUrl('');setFile(null);(e.target as HTMLFormElement).reset()}onSaved()}}}><label className="block text-sm">Reference title<input className="auth-field mt-1 w-full" required maxLength={200} value={title} disabled={action.busy} onChange={e=>setTitle(e.target.value)}/></label><label className="block text-sm">Reference details<textarea aria-label="Reference details" className="auth-field mt-1 w-full" maxLength={5000} value={description} disabled={action.busy} onChange={e=>setDescription(e.target.value)}/></label><label className="block text-sm">Source URL<input className="auth-field mt-1 w-full" type="url" maxLength={2000} value={url} disabled={action.busy} onChange={e=>setUrl(e.target.value)}/></label><label className="block text-sm">Image or document<input className="mt-2 block w-full text-sm" type="file" accept={planningFileAccept} disabled={action.busy} onChange={e=>setFile(e.target.files?.[0]??null)}/></label><p className={help}>PNG, JPEG, WebP, PDF, text, Word or Excel. Up to 50 MB per file.</p>{item?.file&&!file&&<label className="block text-sm"><input type="checkbox" checked={remove} disabled={action.busy} onChange={e=>setRemove(e.target.checked)}/> Remove current attachment</label>}{item&&item.edit_version!==version&&<p role="alert" className="text-sm text-[#8a4a17]">A newer saved reference is available. Your edits are preserved. Close and reopen the editor to reload it.</p>}<Button disabled={action.busy||Boolean(item&&item.edit_version!==version)}>{action.busy?'Saving…':item?'Save reference':'Add reference'}</Button>{item&&<button type="button" className="auth-link ml-3 text-sm" disabled={action.busy} onClick={async()=>{if(window.confirm('Archive this reference? Existing project copies remain available.')&&(await save(true)).ok)onSaved()}}>Archive reference</button>}{action.error&&<p role="alert" className="text-sm text-red-700">{action.error}</p>}</form>
+type Editor = {
+  type: 'create' | 'settings' | 'item' | 'upload'
+  item?: LibraryItem
+} | null
+function LibraryPage() {
+  const { org_id: org = '' } = useParams(),
+    [params, setParams] = useSearchParams(),
+    query = useLibrary(org)
+  const saving = useContext(LibrarySaving),
+    unsaved = useContext(LibraryUnsaved),
+    [editor, setEditor] = useState<Editor>(null)
+  const all = query.data?.collections ?? [],
+    id = params.get('collection') ?? '',
+    collection = all.find((c) => c.id === id)
+  const view = (
+    ['published', 'contributions', 'review'].includes(params.get('view') ?? '')
+      ? params.get('view')
+      : 'published'
+  ) as LibraryView
+  const published = Boolean(
+    collection?.published &&
+      (params.get('mode') === 'published' || !collection.canSeeDraft),
+  )
+  const draft = Boolean(collection?.canSeeDraft && !published),
+    items = useLibraryItems(collection?.id ?? '', draft)
+  const display = published ? collection?.published : collection,
+    canEdit = Boolean(draft && collection?.canEdit),
+    admin = Boolean(query.data?.canManage)
+  const update = (values: Record<string, string | null>, replace = false) => {
+    const next = new URLSearchParams(params)
+    for (const [key, value] of Object.entries(values)) {
+      if (value) next.set(key, value)
+      else next.delete(key)
+    }
+    setParams(next, { preventScrollReset: true, replace })
+  }
+  const choose = (nextId: string, item?: string, mode?: string) => {
+    update({
+      collection: nextId || null,
+      item: item ?? null,
+      mode: mode ?? (view === 'published' ? 'published' : 'working'),
+      ...(mode === 'working'
+        ? { view: 'contributions', q: null, kind: null, tag: null }
+        : {}),
+    })
+    setEditor(null)
+    window.scrollTo(0, 0)
+  }
+  const close = () => {
+    if (saving) return
+    if (unsaved && !window.confirm('Discard unsaved library changes?')) return
+    setEditor(null)
+  }
+  if (query.isLoading)
+    return (
+      <p role="status" className="p-6">
+        Loading library…
+      </p>
+    )
+  if (query.isError)
+    return (
+      <div className="p-6">
+        <h1 className="text-2xl">Library unavailable</h1>
+        <p role="alert">
+          This library is for active organisation members. Check your
+          organisation access or try again.
+        </p>
+        <button className="auth-link" onClick={() => void query.refetch()}>
+          Retry
+        </button>
+      </div>
+    )
+  const back = () => {
+    update({ collection: null, item: null, mode: null })
+    setEditor(null)
+    window.scrollTo(0, 0)
+  }
+  const editorTitle =
+    editor?.type === 'create'
+      ? 'New collection'
+      : editor?.type === 'settings'
+        ? 'Collection settings'
+        : editor?.type === 'upload'
+          ? 'Add files'
+          : editor?.item
+            ? 'Edit reference'
+            : 'Add a link or note'
+  return (
+    <div className="lign-warm mx-auto max-w-6xl space-y-5 p-5 md:p-7">
+      {!id ? (
+        <LibraryCatalog
+          key={view}
+          org={org}
+          collections={all}
+          admin={admin}
+          view={view}
+          setView={(v) => update({ view: v, tag: null })}
+          open={choose}
+          onNew={() => setEditor({ type: 'create' })}
+          initialSearch={params.get('q') ?? ''}
+          initialKind={params.get('kind') ?? 'all'}
+          initialTag={params.get('tag') ?? ''}
+          onFilters={(q, kind, tag) =>
+            update({ q, kind: kind === 'all' ? null : kind, tag }, true)
+          }
+        />
+      ) : !collection || !display ? (
+        <section className={panel}>
+          <button className="auth-link" onClick={back}>
+            ← Back to Library
+          </button>
+          <h1 className="mt-4 text-xl font-semibold">Collection unavailable</h1>
+          <p className={'mt-2 ' + help}>
+            It may have been archived or you may not have access to this
+            version.
+          </p>
+        </section>
+      ) : (
+        <>
+          <button
+            className="auth-link inline-flex items-center gap-2 text-sm"
+            onClick={back}
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Back to Library
+          </button>
+          <header className="space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-widest text-[#786b60]">
+                  {kindLabel(display.kind)}
+                </p>
+                <h1 className="auth-display mt-2 break-words text-3xl">
+                  {display.title}
+                </h1>
+              </div>
+              {canEdit && (
+                <button
+                  className="auth-link text-sm"
+                  onClick={() => setEditor({ type: 'settings' })}
+                >
+                  Collection settings
+                </button>
+              )}
+            </div>
+            {display.description && (
+              <p className="max-w-3xl whitespace-pre-wrap break-words text-sm text-[#786b60]">
+                {display.description}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-[#eee8df] px-3 py-1 text-xs font-semibold">
+                {published ? 'Published' : statusLabel[collection.status]}
+              </span>
+              <span className={help}>By {collection.authorName}</span>
+              {display.tags?.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full border border-[#e5ddd3] px-2 py-1 text-xs"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            {collection.canSeeDraft && collection.published && (
+              <label className="block max-w-sm text-sm">
+                Collection view
+                <select
+                  aria-label="Collection view"
+                  className="auth-field mt-1 w-full"
+                  value={published ? 'published' : 'working'}
+                  onChange={(e) => update({ mode: e.target.value, item: null })}
+                >
+                  <option value="published">
+                    Published revision {collection.published.revision}
+                  </option>
+                  <option value="working">
+                    {collection.status === 'published'
+                      ? 'Manage approved collection'
+                      : 'Working submission'}
+                  </option>
+                </select>
+              </label>
+            )}
+            <p className={help}>
+              {published || collection.status === 'published'
+                ? 'Use this approved collection from a project’s Reference boards → Add from organisation library. Project copies and client feedback stay independent.'
+                : collection.status === 'in_review'
+                  ? 'Submitted for review. Content is locked until it is withdrawn or changes are requested.'
+                  : 'Working collection. Add content, check the details, then submit it for approval below.'}
+            </p>
+          </header>
+          <LibraryContents
+            key={`${id}-${published}`}
+            items={items.data ?? []}
+            loading={items.isLoading}
+            error={items.isError}
+            retry={() => void items.refetch()}
+            canEdit={canEdit}
+            focusedId={params.get('item') ?? ''}
+            edit={(item) => setEditor({ type: 'item', item })}
+            upload={() => setEditor({ type: 'upload' })}
+            add={() => setEditor({ type: 'item' })}
+          />
+          {draft && (
+            <ReviewControls
+              key={id}
+              org={org}
+              collection={collection}
+              admin={admin}
+              onArchived={back}
+            />
+          )}
+        </>
+      )}
+      <Dialog
+        open={Boolean(editor)}
+        onOpenChange={(open) => {
+          if (!open) close()
+        }}
+      >
+        <DialogContent className="lign-warm max-h-[90dvh] max-w-[min(36rem,calc(100vw-2rem))] overflow-y-auto bg-[#fffdf9]">
+          <DialogTitle>{editorTitle}</DialogTitle>
+          <DialogDescription>
+            {editor?.type === 'create'
+              ? 'Group related content together. You can add files and links after creating the collection.'
+              : editor?.type === 'upload'
+                ? 'Add several files to this collection in one step.'
+                : 'Saved changes stay in the working collection until owner/admin approval.'}
+          </DialogDescription>
+          {editor?.type === 'create' ? (
+            <CollectionForm
+              org={org}
+              onSaved={(newId) => choose(newId, undefined, 'working')}
+            />
+          ) : editor?.type === 'settings' && collection ? (
+            <CollectionForm
+              key={collection.id}
+              org={org}
+              collection={collection}
+              onSaved={(savedId) => (savedId ? setEditor(null) : back())}
+            />
+          ) : editor?.type === 'upload' && collection ? (
+            <LibraryUpload
+              org={org}
+              collectionId={collection.id}
+              onDone={() => setEditor(null)}
+            />
+          ) : editor?.type === 'item' && collection ? (
+            <ItemForm
+              key={editor.item?.id ?? 'new'}
+              org={org}
+              collectionId={collection.id}
+              item={editor.item}
+              onSaved={() => setEditor(null)}
+            />
+          ) : null}
+          <button
+            className="auth-link justify-self-start text-sm"
+            disabled={saving}
+            onClick={close}
+          >
+            Cancel
+          </button>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
 }
-function ItemCard({item,org,collectionId,canManage}:{item:LibraryItem;org:string;collectionId:string;canManage:boolean}){const [editing,setEditing]=useState(false);return <article className={panel}><h3 className="text-lg font-semibold">{item.title}</h3><p className="whitespace-pre-wrap text-sm">{item.description}</p>{item.file&&<FilePreview file={item.file}/>} {item.url&&<a className="auth-link break-all text-sm" href={item.url} target="_blank" rel="noopener noreferrer">View source ↗</a>}{canManage&&<><button className="auth-link block text-sm" onClick={()=>setEditing(!editing)}>{editing?'Close editor':'Edit reference'}</button>{editing&&<ItemForm key={item.id} org={org} collectionId={collectionId} item={item} onSaved={()=>setEditing(false)}/>}</>}</article>}
-export function Component(){return <LibrarySaveGuard><LibraryPage/></LibrarySaveGuard>}
-const statusLabel={draft:'Draft',in_review:'In review',changes_requested:'Changes requested',published:'Published'}
-function ReviewControls({org,collection,admin,onArchived}:{org:string;collection:Collection;admin:boolean;onArchived:()=>void}){
- const saving=useContext(LibrarySaving),action=useLibraryAction(),[note,setNote]=useState(''),history=useLibraryHistory(collection.id,collection.canSeeDraft)
- const transition=async(p_action:string)=>{const r=await action.run(()=>planningRpc('transition_library_collection',{p_collection_id:collection.id,p_expected_version:collection.edit_version,p_action,p_note:note}));if(r.ok)setNote('')}
- return <section className={panel}><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#eee6dc] px-3 py-1 text-xs font-semibold">{statusLabel[collection.status]}</span><span className={help}>Contributed by {collection.authorName}</span>{collection.published&&<span className={help}>Published revision {collection.published.revision} remains available to projects.</span>}</div>
- {collection.review_note&&collection.canSeeDraft&&<p className="rounded-lg bg-[#fbf0dd] p-3 text-sm"><strong>Review feedback:</strong> {collection.review_note}</p>}
- {collection.canSeeDraft&&<><p className={help}>{collection.status==='in_review'?'This submission is locked while it is reviewed. Withdraw it to make further edits.':collection.status==='published'?'Start a revision to propose changes. The current published version stays available until the revision is approved.':'Add references and save your changes, then submit the collection for owner/admin approval.'}</p><div className="flex flex-wrap gap-2">{collection.canEdit&&<Button disabled={saving||action.busy||!collection.itemCount} onClick={()=>void transition('submit')}>Submit for review</Button>}{collection.status==='published'&&<Button disabled={saving||action.busy} onClick={()=>void transition('revise')}>Start a revision</Button>}{collection.status==='in_review'&&<Button variant="secondary" disabled={saving||action.busy} onClick={()=>void transition('withdraw')}>Withdraw submission</Button>}</div>
- {collection.canReview&&<div className="space-y-3 border-t border-[#e5ddd3] pt-3"><h3 className="font-semibold">Review this submission</h3><p className={help}>Check the collection title, description, references and attached files below before publishing.</p><label className="block text-sm">Review feedback<textarea aria-label="Review feedback" className="auth-field mt-1 w-full" value={note} maxLength={3000} disabled={saving||action.busy} onChange={e=>setNote(e.target.value)}/></label><div className="flex flex-wrap gap-2"><Button disabled={saving||action.busy} onClick={()=>void transition('publish')}>Approve & publish</Button><Button variant="secondary" disabled={saving||action.busy||!note.trim()} onClick={()=>void transition('request_changes')}>Request changes</Button></div></div>}
- <details><summary className="auth-link cursor-pointer text-sm">Review history</summary>{history.isLoading?<p role="status">Loading review history…</p>:history.isError?<p role="alert">Could not load history. <button className="auth-link" onClick={()=>void history.refetch()}>Retry</button></p>:<ol className="mt-3 space-y-2">{history.data?.map(e=><li key={e.id} className="text-sm"><strong>{e.action.replaceAll('_',' ')}</strong> · {e.name} · {new Date(e.created_at).toLocaleString()}{e.note&&<p className="whitespace-pre-wrap">{e.note}</p>}</li>)}</ol>}</details></>}
- {admin&&<button type="button" className="auth-link text-sm" disabled={saving||action.busy} onClick={async()=>{if(!window.confirm('Archive this collection? Existing project copies remain available.'))return;const r=await action.run(()=>planningRpc('save_library_collection',{p_organization_id:org,p_id:collection.id,p_title:collection.title,p_kind:collection.kind,p_description:collection.description,p_expected_version:collection.edit_version,p_archive:true}));if(r.ok)onArchived()}}>Archive collection</button>}
- {action.error&&<p role="alert" className="text-sm text-red-700">{action.error}</p>}</section>
-}
-function LibraryPage(){
- const {org_id:org=''}=useParams(),[params,setParams]=useSearchParams(),query=useLibrary(org),[search,setSearch]=useState(''),[kind,setKind]=useState('all'),[stage,setStage]=useState('all'),[editing,setEditing]=useState(false),[publishedView,setPublishedView]=useState(false)
- const all=query.data?.collections??[],visible=all.filter(c=>(kind==='all'||c.kind===kind)&&(stage==='all'||(stage==='published'?Boolean(c.published):c.status===stage))&&(c.title+' '+c.description+' '+c.authorName+' '+(c.tags??[]).join(' ')).toLowerCase().includes(search.toLowerCase()))
- const collection=visible.find(c=>c.id===params.get('collection'))??visible[0],viewPublished=Boolean(publishedView&&collection?.published),draft=Boolean(collection?.canSeeDraft&&!viewPublished),items=useLibraryItems(collection?.id??'',draft),manage=Boolean(query.data?.canManage),canEdit=Boolean(collection?.canEdit&&draft),display=viewPublished&&collection?.published?collection.published:collection
- const choose=(id:string)=>{const next=new URLSearchParams(params);id?next.set('collection',id):next.delete('collection');setParams(next);setEditing(false);setPublishedView(false)}
- if(query.isLoading)return <p role="status" className="p-6">Loading library…</p>
- if(query.isError)return <div className="p-6"><h1 className="text-2xl">Library unavailable</h1><p role="alert">This library is for active organisation members. Check your organisation access or try again.</p><button className="auth-link" onClick={()=>void query.refetch()}>Retry</button></div>
- return <div className="lign-warm mx-auto max-w-6xl space-y-5 p-5 md:p-7"><header><p className="text-xs uppercase tracking-widest text-[#786b60]">Organisation library</p><h1 className="auth-display mt-2 text-3xl">Templates & references</h1><p className="mt-2 text-sm">Grow your studio’s shared library. Internal members contribute drafts; owners and admins review and publish them for every workspace.</p><p className={'mt-2 '+help}>Drafts are private to their author and organisation admins. Only approved versions can be used from a project’s Reference boards. Project selections and client feedback stay independent.</p></header>
- <details className={panel}><summary className="auth-link cursor-pointer font-medium">New library collection</summary><CollectionForm org={org} onSaved={id=>{setStage('all');setSearch('');setKind('all');choose(id)}}/></details>
- {manage&&<p className={help}>{all.filter(c=>c.status==='in_review').length} collections awaiting review. Use the In review filter to review submissions.</p>}
- <div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Search collections<input className="auth-field mt-1 w-full" type="search" value={search} onChange={e=>setSearch(e.target.value)}/></label><label className="text-sm">Collection type filter<select aria-label="Collection type filter" className="auth-field mt-1 w-full" value={kind} onChange={e=>setKind(e.target.value)}><option value="all">All types</option><option value="template">Templates</option><option value="moodboard">Mood boards</option><option value="references">Reference collections</option><option value="designs">Design collections</option></select></label><label className="text-sm">Library stage<select aria-label="Library stage" className="auth-field mt-1 w-full" value={stage} onChange={e=>{setStage(e.target.value);setPublishedView(false);setEditing(false)}}><option value="all">All available collections</option><option value="published">Published</option><option value="draft">Drafts</option><option value="in_review">In review</option><option value="changes_requested">Changes requested</option></select></label></div>
- {!visible.length?<p className={panel}>{all.length?'No collections match your filters.':'Add your first draft collection to get started.'}</p>:<><label className="block text-sm">Library collection<select aria-label="Library collection" className="auth-field mt-1 w-full" value={collection?.id??''} onChange={e=>choose(e.target.value)}>{visible.map(c=><option key={c.id} value={c.id}>{c.title} · {statusLabel[c.status]} · {c.itemCount} references</option>)}</select></label>{collection&&display&&<>
- {!viewPublished&&<ReviewControls key={collection.id} org={org} collection={collection} admin={manage} onArchived={()=>choose('')}/>}
- {collection.canSeeDraft&&collection.published&&<label className="block text-sm">Collection view<select aria-label="Collection view" className="auth-field mt-1 w-full" value={publishedView?'published':'working'} onChange={e=>{setPublishedView(e.target.value==='published');setEditing(false)}}><option value="working">{collection.status==='published'?'Current approved collection':'Working submission'}</option><option value="published">Published revision {collection.published.revision}</option></select></label>}
- <section className={panel}><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{display.title}</h2><p className={'mt-1 '+help}>{display.kind} · {viewPublished||!collection.canSeeDraft||collection.status==='published'?'Approved for all workspaces':'Working collection — awaiting publication'}</p></div>{canEdit&&<button className="auth-link text-sm" onClick={()=>setEditing(!editing)}>{editing?'Close settings':'Collection settings'}</button>}</div><p className="whitespace-pre-wrap text-sm">{display.description}</p>{display.tags?.length? <p className={help}>Tags: {display.tags.join(' · ')}</p>:null}{editing&&canEdit&&<CollectionForm key={collection.id} org={org} collection={collection} onSaved={choose}/>}</section>
- {canEdit&&<details key={collection.id} className={panel}><summary className="auth-link cursor-pointer font-medium">Add library reference</summary><ItemForm org={org} collectionId={collection.id} onSaved={()=>{}}/></details>}
- {items.isLoading?<p role="status">Loading references…</p>:items.isError?<p role="alert">Could not load references. <button className="auth-link" onClick={()=>void items.refetch()}>Retry</button></p>:<div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">{items.data?.map(item=><ItemCard key={item.id} org={org} collectionId={collection.id} item={item} canManage={canEdit}/>)}</div>}
- {!items.isLoading&&!items.isError&&!items.data?.length&&<p className={help}>Add images, documents or links before submitting this collection for review.</p>}
- </>}</>}
- </div>
+function LibraryContents({
+  items,
+  loading,
+  error,
+  retry,
+  canEdit,
+  focusedId,
+  edit,
+  upload,
+  add,
+}: {
+  items: LibraryItem[]
+  loading: boolean
+  error: boolean
+  retry: () => void
+  canEdit: boolean
+  focusedId: string
+  edit: (item: LibraryItem) => void
+  upload: () => void
+  add: () => void
+}) {
+  const [search, setSearch] = useState(''),
+    [format, setFormat] = useState('all'),
+    [layout, setLayout] = useState('grid')
+  const visible = items.filter(
+    (item) =>
+      (!search ||
+        (
+          item.title +
+          ' ' +
+          item.description +
+          ' ' +
+          (item.url ?? '') +
+          ' ' +
+          (item.file?.name ?? '')
+        )
+          .toLowerCase()
+          .includes(search.toLowerCase())) &&
+      (format === 'all' ||
+        (format === 'images'
+          ? item.file?.mime.startsWith('image/')
+          : format === 'documents'
+            ? Boolean(item.file && !item.file.mime.startsWith('image/'))
+            : format === 'links'
+              ? Boolean(item.url)
+              : !item.file && !item.url)),
+  )
+  useEffect(() => {
+    if (!focusedId || loading) return
+    const el = document.getElementById(`library-item-${focusedId}`)
+    if (el) {
+      el.scrollIntoView({ block: 'center' })
+      el.focus({ preventScroll: true })
+    }
+  }, [focusedId, loading, items])
+  return (
+    <section className="space-y-4" aria-label="Collection content">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">
+            Collection content{' '}
+            <span className="text-[#786b60]">({items.length})</span>
+          </h2>
+          <p className={help}>
+            Files, source links and notes in this collection.
+          </p>
+        </div>
+        {canEdit && (
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={upload}>
+              <Upload size={16} aria-hidden="true" />
+              Add files
+            </Button>
+            <Button variant="secondary" onClick={add}>
+              <FilePlus2 size={16} aria-hidden="true" />
+              Add link or note
+            </Button>
+          </div>
+        )}
+      </div>
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-0 flex-1 basis-60 text-sm">
+            Find in this collection
+            <input
+              className="auth-field mt-1 w-full"
+              type="search"
+              value={search}
+              placeholder="Item title, filename, details or link"
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          <label className="text-sm">
+            Content format
+            <select
+              aria-label="Content format"
+              className="auth-field mt-1 w-full"
+              value={format}
+              onChange={(e) => setFormat(e.target.value)}
+            >
+              <option value="all">All formats</option>
+              <option value="images">Images</option>
+              <option value="documents">Documents</option>
+              <option value="links">Links</option>
+              <option value="notes">Notes</option>
+            </select>
+          </label>
+          <div className="flex gap-1 pb-1" aria-label="Content layout">
+            {['grid', 'list'].map((value) => (
+              <button
+                key={value}
+                aria-pressed={layout === value}
+                className={`rounded-lg px-3 py-2 text-sm ${layout === value ? 'bg-[#3a332d] text-white' : 'border border-[#e5ddd3]'}`}
+                onClick={() => setLayout(value)}
+              >
+                {value === 'grid' ? 'Grid' : 'List'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {loading ? (
+        <p role="status">Loading content…</p>
+      ) : error ? (
+        <p role="alert">
+          Could not load content.{' '}
+          <button className="auth-link" onClick={retry}>
+            Retry
+          </button>
+        </p>
+      ) : !items.length ? (
+        <div className={`${panel} py-10 text-center`}>
+          <h3 className="font-semibold">This collection is empty</h3>
+          <p className={'mt-2 ' + help}>
+            {canEdit
+              ? 'Add files or a source link to get started. You can edit individual titles and details before submitting for approval.'
+              : 'No items are available in this version.'}
+          </p>
+          {canEdit && (
+            <Button className="mt-4" onClick={upload}>
+              Add your first files
+            </Button>
+          )}
+        </div>
+      ) : !visible.length ? (
+        <p className={panel}>
+          No items match.{' '}
+          <button
+            className="auth-link"
+            onClick={() => {
+              setSearch('')
+              setFormat('all')
+            }}
+          >
+            Clear filters
+          </button>
+        </p>
+      ) : (
+        <div
+          className={
+            layout === 'grid'
+              ? 'grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3'
+              : 'space-y-3'
+          }
+        >
+          {visible.map((item) => (
+            <article
+              key={item.id}
+              id={`library-item-${item.id}`}
+              tabIndex={-1}
+              className={`${panel} min-w-0 ${item.id === focusedId ? 'ring-2 ring-[#b64d24]' : ''}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="break-words text-base font-semibold">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-[#786b60]">
+                    {item.file
+                      ? item.file.mime.startsWith('image/')
+                        ? 'Image'
+                        : 'Document'
+                      : item.url
+                        ? 'Link'
+                        : 'Note'}
+                  </p>
+                </div>
+                {canEdit && (
+                  <button
+                    className="auth-link shrink-0 text-sm"
+                    onClick={() => edit(item)}
+                  >
+                    Edit reference
+                  </button>
+                )}
+              </div>
+              {item.description && (
+                <p className="whitespace-pre-wrap break-words text-sm">
+                  {item.description}
+                </p>
+              )}
+              {item.file &&
+                (layout === 'grid' ? (
+                  <FilePreview file={item.file} />
+                ) : (
+                  <details>
+                    <summary className="auth-link cursor-pointer break-all text-sm">
+                      Preview & download · {item.file.name}
+                    </summary>
+                    <FilePreview file={item.file} />
+                  </details>
+                ))}{' '}
+              {item.url && (
+                <a
+                  className="auth-link block break-all text-sm"
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {item.url} ↗
+                </a>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
 }

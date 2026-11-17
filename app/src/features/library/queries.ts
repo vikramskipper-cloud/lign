@@ -1,15 +1,185 @@
-import {useContext,useRef,useState} from 'react'
-import {useQuery,useQueryClient} from '@tanstack/react-query'
-import {useSession} from '@/auth/SessionProvider'
-import {supabase} from '@/lib/supabase'
-import {humanizeError} from '@/features/shared/errors'
-import {planningRpc,type PlanningFile} from '@/features/planning/queries'
-import {LibraryActivity} from './LibraryActivity'
-export interface Collection {id:string;title:string;kind:'template'|'references'|'moodboard'|'designs';description:string;tags?:string[];edit_version:number;itemCount:number;status:'draft'|'in_review'|'changes_requested'|'published';canSeeDraft:boolean;canEdit:boolean;canReview:boolean;authorName:string;review_note?:string;published_revision_id?:string|null;published?:{title:string;kind:Collection['kind'];description:string;tags?:string[];revision:number}|null}
-export interface LibraryItem {id:string;title:string;description:string;url:string|null;file_id:string|null;file:PlanningFile|null;edit_version:number}
-export function useLibrary(org:string,publishedOnly=false){const {user}=useSession();return useQuery({queryKey:['library',user?.id,org,publishedOnly],enabled:Boolean(org&&user),refetchInterval:15000,queryFn:()=>planningRpc<{canManage:boolean;collections:Collection[]}>(publishedOnly?'get_published_library':'get_organization_library',{p_organization_id:org})})}
-export function useLibraryItems(id:string,draft=false){const {user}=useSession();return useQuery({queryKey:['library-items',user?.id,id,draft],enabled:Boolean(id&&user),refetchInterval:30000,queryFn:()=>planningRpc<LibraryItem[]>(draft?'get_library_draft_items':'get_library_items',{p_collection_id:id})})}
-export function useLibraryAction(){const activity=useContext(LibraryActivity),qc=useQueryClient(),flight=useRef(false),[busy,setBusy]=useState(false),[error,setError]=useState('');return {busy,error,run:async<T,>(operation:()=>Promise<T>):Promise<{ok:true;data:T}|{ok:false}>=>{if(flight.current)return{ok:false};flight.current=true;activity(1);setBusy(true);setError('');try{const data=await operation();await Promise.all(['library','library-items','library-history','reference-boards','reference-board'].map(key=>qc.invalidateQueries({queryKey:[key]})));return{ok:true,data}}catch(e){setError(humanizeError(e));return{ok:false}}finally{flight.current=false;activity(-1);setBusy(false)}}}}
-export async function uploadLibrary(org:string,file:File){const r=await planningRpc<{id:string;path:string}>('reserve_library_upload',{p_organization_id:org,p_name:file.name,p_mime:file.type||'application/octet-stream',p_size:file.size});try{const upload=await supabase.storage.from('organization-library').upload(r.path,file,{contentType:file.type,upsert:false});if(upload.error)throw upload.error;await planningRpc('finalize_library_upload',{p_file_id:r.id});return r.id}catch(e){await supabase.storage.from('organization-library').remove([r.path]);throw e}}
+import { useContext, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSession } from '@/auth/SessionProvider'
+import { supabase } from '@/lib/supabase'
+import { humanizeError } from '@/features/shared/errors'
+import { planningRpc, type PlanningFile } from '@/features/planning/queries'
+import { LibraryActivity } from './LibraryActivity'
+export interface Collection {
+  id: string
+  title: string
+  kind: 'template' | 'references' | 'moodboard' | 'designs'
+  description: string
+  tags?: string[]
+  edit_version: number
+  itemCount: number
+  status: 'draft' | 'in_review' | 'changes_requested' | 'published'
+  canSeeDraft: boolean
+  canEdit: boolean
+  canReview: boolean
+  authorName: string
+  review_note?: string
+  published_revision_id?: string | null
+  published?: {
+    title: string
+    kind: Collection['kind']
+    description: string
+    tags?: string[]
+    revision: number
+  } | null
+}
+export interface LibraryItem {
+  id: string
+  title: string
+  description: string
+  url: string | null
+  file_id: string | null
+  file: PlanningFile | null
+  edit_version: number
+}
+export function useLibrary(org: string, publishedOnly = false) {
+  const { user } = useSession()
+  return useQuery({
+    queryKey: ['library', user?.id, org, publishedOnly],
+    enabled: Boolean(org && user),
+    refetchInterval: 15000,
+    queryFn: () =>
+      planningRpc<{ canManage: boolean; collections: Collection[] }>(
+        publishedOnly ? 'get_published_library' : 'get_organization_library',
+        { p_organization_id: org },
+      ),
+  })
+}
+export function useLibraryItems(id: string, draft = false) {
+  const { user } = useSession()
+  return useQuery({
+    queryKey: ['library-items', user?.id, id, draft],
+    enabled: Boolean(id && user),
+    refetchInterval: 30000,
+    queryFn: () =>
+      planningRpc<LibraryItem[]>(
+        draft ? 'get_library_draft_items' : 'get_library_items',
+        { p_collection_id: id },
+      ),
+  })
+}
+export function useLibraryAction() {
+  const activity = useContext(LibraryActivity),
+    qc = useQueryClient(),
+    flight = useRef(false),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('')
+  return {
+    busy,
+    error,
+    run: async <T>(
+      operation: () => Promise<T>,
+    ): Promise<{ ok: true; data: T } | { ok: false }> => {
+      if (flight.current) return { ok: false }
+      flight.current = true
+      activity(1)
+      setBusy(true)
+      setError('')
+      try {
+        const data = await operation()
+        await Promise.all(
+          [
+            'library',
+            'library-catalog',
+            'library-items',
+            'library-history',
+            'reference-boards',
+            'reference-board',
+          ].map((key) => qc.invalidateQueries({ queryKey: [key] })),
+        )
+        return { ok: true, data }
+      } catch (e) {
+        setError(humanizeError(e))
+        return { ok: false }
+      } finally {
+        flight.current = false
+        activity(-1)
+        setBusy(false)
+      }
+    },
+  }
+}
+export async function uploadLibrary(org: string, file: File) {
+  const r = await planningRpc<{ id: string; path: string }>(
+    'reserve_library_upload',
+    {
+      p_organization_id: org,
+      p_name: file.name,
+      p_mime: file.type || 'application/octet-stream',
+      p_size: file.size,
+    },
+  )
+  try {
+    const upload = await supabase.storage
+      .from('organization-library')
+      .upload(r.path, file, { contentType: file.type, upsert: false })
+    if (upload.error) throw upload.error
+    await planningRpc('finalize_library_upload', { p_file_id: r.id })
+    return r.id
+  } catch (e) {
+    await supabase.storage.from('organization-library').remove([r.path])
+    throw e
+  }
+}
 
-export function useLibraryHistory(id:string,enabled:boolean){const {user}=useSession();return useQuery({queryKey:['library-history',user?.id,id],enabled:Boolean(id&&user&&enabled),queryFn:()=>planningRpc<{id:string;action:string;name:string;note:string;created_at:string}[]>('get_library_review_history',{p_collection_id:id})})}
+export function useLibraryHistory(id: string, enabled: boolean) {
+  const { user } = useSession()
+  return useQuery({
+    queryKey: ['library-history', user?.id, id],
+    enabled: Boolean(id && user && enabled),
+    queryFn: () =>
+      planningRpc<
+        {
+          id: string
+          action: string
+          name: string
+          note: string
+          created_at: string
+        }[]
+      >('get_library_review_history', { p_collection_id: id }),
+  })
+}
+
+export type LibraryView = 'published' | 'contributions' | 'review'
+export interface CatalogCollection extends Collection {
+  cover: PlanningFile | null
+  matchCount: number
+  matches: { id: string; title: string; fileName?: string }[]
+}
+export function useLibraryCatalog(
+  org: string,
+  filters: {
+    view: LibraryView
+    search: string
+    kind: string
+    tag: string
+    stage: string
+    offset: number
+  },
+) {
+  const { user } = useSession()
+  return useQuery({
+    queryKey: ['library-catalog', user?.id, org, filters],
+    enabled: Boolean(org && user),
+    refetchInterval: 30000,
+    queryFn: () =>
+      planningRpc<{
+        collections: CatalogCollection[]
+        total: number
+        tags: string[]
+      }>('get_library_catalog', {
+        p_organization_id: org,
+        p_view: filters.view,
+        p_search: filters.search,
+        p_kind: filters.kind,
+        p_tag: filters.tag,
+        p_stage: filters.stage,
+        p_offset: filters.offset,
+      }),
+  })
+}
