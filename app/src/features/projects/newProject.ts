@@ -18,6 +18,7 @@ export interface CreatedInvite {
   email: string
   /** 'member' resolved to an existing workspace member; 'stakeholder' is external. */
   kind: 'member' | 'stakeholder'
+  state?: 'created' | 'pending' | 'active'
   displayName?: string | null
   /** Present for stakeholders only. Shown ONCE — only its sha256 is stored. */
   token?: string | null

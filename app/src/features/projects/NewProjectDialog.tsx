@@ -225,7 +225,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
     setAnnounce(
       member
         ? `${raw} added. ${member.name} is already in this workspace and will be added as an internal approver.`
-        : `${raw} added as an external approver. An invite link will be ready to copy after creation.`,
+        : `${raw} added as an external approver. Existing access will be reused, or a new invite link will be ready after creation.`,
     )
   }
 
@@ -473,7 +473,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
                           <p style={{ margin: '3px 0 0', fontSize: 12, color: C.helper }}>
                             {c.memberName
                               ? `${c.memberName} is already in this workspace. They'll be added as an internal approver instead.`
-                              : 'Approver · invite link ready after creation'}
+                              : 'Approver · existing access reused or new invite link'}
                           </p>
                         </div>
                         <button
@@ -525,7 +525,7 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
             >
               <p style={{ margin: 0, flex: 1, fontSize: 12.5, color: C.helper }}>
                 {externalCount > 0
-                  ? `${externalCount} invite ${externalCount === 1 ? 'link' : 'links'} will be ready to copy after creation. No email is sent.`
+                  ? 'New invitations provide copyable links; existing invitations and accepted clients are reused. No email is sent.'
                   : ''}
               </p>
               <button
@@ -583,6 +583,10 @@ export function NewProjectDialog({ workspaceId, open, onOpenChange }: Props) {
  * claim an email went out, the links are handed over immediately.
  */
 function surfaceInvites(invites: CreatedInvite[]) {
+  const reused = invites.filter(i => i.kind === 'stakeholder' && i.state === 'pending')
+  const active = invites.filter(i => i.kind === 'stakeholder' && i.state === 'active')
+  if (reused.length) toast.info(`${reused.length} existing client invitation${reused.length === 1 ? '' : 's'} reused — the original link covers the added project`, { duration: 12_000 })
+  if (active.length) toast.success(`${active.length} existing client${active.length === 1 ? '' : 's'} added — they can sign in to open this project`)
   const external = invites.filter((i) => i.kind === 'stakeholder' && i.token)
   if (external.length === 0) return
   toast.info(

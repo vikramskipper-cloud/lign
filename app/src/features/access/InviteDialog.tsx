@@ -106,7 +106,7 @@ export function InviteDialog({
   }
 
   const copy = async () => {
-    if (!result) return
+    if (!result?.token) return
     try {
       await navigator.clipboard.writeText(inviteUrl(result.token))
       setCopied(true)
@@ -118,18 +118,17 @@ export function InviteDialog({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100vw_-_2rem)] rounded-xl border-[#e5ddd3] bg-[#fffdf9] text-[#3a332d] sm:max-w-md">
         {result ? (
           <>
             <DialogHeader>
-              <DialogTitle>Invitation created</DialogTitle>
+              <DialogTitle>{result.token ? 'Invitation created' : 'Project access added'}</DialogTitle>
               <DialogDescription>
-                Send this link to {email}. It expires {relative(result.expiresAt)} ({absolute(result.expiresAt)}) and can be
-                used once.
+                {result.token ? <>Send this link to {email}. {result.expiresAt && <>It expires {relative(result.expiresAt)} ({absolute(result.expiresAt)}) and can be used once.</>}</> : result.invitationId ? <>This person already has a pending invitation in this workspace. Their existing invitation link also activates access to this project. Its expiry stays the same.</> : <>This person is already active here. They can sign in to open this project with the role you assigned.</>}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-3">
+            {result.token && <div className="space-y-3">
               <div className="flex items-center gap-2 rounded-[--radius-md] border border-[--color-border] bg-[--color-surface-2] p-2">
                 <Link2 className="h-4 w-4 shrink-0 text-[--color-text-subtle]" />
                 <code className="min-w-0 flex-1 truncate text-xs">{inviteUrl(result.token)}</code>
@@ -141,13 +140,13 @@ export function InviteDialog({
                 Copy it now — this link cannot be shown again here. If you
                 lose it, revoke the invitation and send a new one.
               </p>
-            </div>
+            </div>}
 
             <DialogFooter>
               <Button variant="ghost" onClick={() => reset()}>
                 Invite someone else
               </Button>
-              <Button onClick={() => close(false)}>Done</Button>
+              <Button className="rounded-lg bg-[#d9622b] text-white" onClick={() => close(false)}>Done</Button>
             </DialogFooter>
           </>
         ) : (

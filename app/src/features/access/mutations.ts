@@ -17,10 +17,10 @@ import type { ProjectRole, WorkspaceRole } from './queries'
  */
 
 export interface InviteResult {
-  invitationId: string
+  invitationId: string | null
   /** Shown ONCE. Never persisted anywhere; only its sha256 reaches the database. */
-  token: string
-  expiresAt: string
+  token: string | null
+  expiresAt: string | null
 }
 
 /**
@@ -44,11 +44,11 @@ export function useInviteMember(wsId: string) {
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
       // Post-commit, per APP 023. Never throws — see queueInvitationEmail.
-      await queueInvitationEmail(row.out_token as string)
+      await queueInvitationEmail(row.out_token as string | null)
       return {
-        invitationId: row.out_invitation_id as string,
-        token: row.out_token as string,
-        expiresAt: row.out_expires_at as string,
+        invitationId: row.out_invitation_id as string | null,
+        token: row.out_token as string | null,
+        expiresAt: row.out_expires_at as string | null,
       }
     },
     onSuccess: () => invalidateAccess(qc, wsId),
@@ -79,12 +79,12 @@ export function useInviteStakeholder(wsId: string) {
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
       // Post-commit, per APP 023. Never throws — see queueInvitationEmail.
-      await queueInvitationEmail(row.out_token as string)
+      await queueInvitationEmail(row.out_token as string | null)
       return {
-        invitationId: row.out_invitation_id as string,
+        invitationId: row.out_invitation_id as string | null,
         stakeholderId: row.out_stakeholder_id as string,
-        token: row.out_token as string,
-        expiresAt: row.out_expires_at as string,
+        token: row.out_token as string | null,
+        expiresAt: row.out_expires_at as string | null,
       }
     },
     onSuccess: (_r, input) => invalidateAccess(qc, wsId, input.projectId),
