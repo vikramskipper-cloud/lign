@@ -81,6 +81,8 @@ export function LibraryCatalog({
   view,
   setView,
   open,
+  resume,
+  resumeDrafts,
   onNew,
   initialSearch,
   initialKind,
@@ -93,6 +95,8 @@ export function LibraryCatalog({
   view: LibraryView
   setView: (view: LibraryView) => void
   open: (id: string, item?: string) => void
+  resume: (id: string) => void
+  resumeDrafts: () => void
   onNew: () => void
   initialSearch: string
   initialKind: string
@@ -166,7 +170,8 @@ export function LibraryCatalog({
           <h1 className="auth-display mt-2 text-3xl">Library</h1>
           <p className="mt-2 max-w-2xl text-sm text-[#786b60]">
             Your studio’s templates, inspiration and design knowledge, organised
-            in reusable collections.
+            in reusable collections. Each collection groups related files, links
+            and notes for future projects.
           </p>
         </div>
         <Button onClick={onNew}>+ New collection</Button>
@@ -195,6 +200,20 @@ export function LibraryCatalog({
               ? 'Manage contributions from across the organisation. Drafts remain private to authors and organisation admins.'
               : 'Create and manage your contributions. Submit a finished collection for owner/admin approval.'}
       </p>
+      {view === 'published' && collections.some((c) => c.canEdit) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f3eee6] p-4">
+          <div>
+            <p className="text-sm font-semibold">Continue where you left off</p>
+            <p className={help}>
+              {collections.filter((c) => c.canEdit).length} working collections
+              can be finished and submitted for approval.
+            </p>
+          </div>
+          <Button variant="secondary" onClick={resumeDrafts}>
+            View unfinished collections
+          </Button>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
         {libraryKinds.map((k) => (
           <button
@@ -370,6 +389,13 @@ export function LibraryCatalog({
                       </p>
                     </div>
                   </button>
+                  {view === 'contributions' && c.canEdit && (
+                    <div className="px-4 pb-4">
+                      <Button variant="secondary" onClick={() => resume(c.id)}>
+                        Resume collection
+                      </Button>
+                    </div>
+                  )}
                   {Boolean(c.tags?.length) && (
                     <div className="flex flex-wrap gap-1 px-4 pb-4">
                       {c.tags?.map((t) => (

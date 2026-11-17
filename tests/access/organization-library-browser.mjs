@@ -55,15 +55,22 @@ try {
     .getByLabel('Collection category', { exact: true })
     .selectOption('templates_guides')
   await create
+    .getByText('Description and tags (optional)', { exact: true })
+    .click()
+  await create
     .getByLabel('Description', { exact: true })
     .fill('Reusable material directions')
   await create
-    .getByRole('button', { name: 'Create collection', exact: true })
+    .getByRole('button', { name: 'Continue to add content', exact: true })
     .click()
   await p
     .getByRole('heading', { name: `Browser template ${stamp}`, exact: true })
     .waitFor()
-  await p.getByRole('button', { name: 'Add link or note', exact: true }).click()
+  const initialId = new URL(p.url()).searchParams.get('collection')
+  await p.goto(
+    `${base}/org/${lib.org}/library?collection=${initialId}&mode=working`,
+  )
+  await p.getByRole('button', { name: 'Add a link', exact: true }).click()
   const add = p.getByRole('dialog')
   await add
     .getByLabel('Item title', { exact: true })
@@ -74,6 +81,11 @@ try {
   await add
     .getByLabel('Source URL', { exact: true })
     .fill('https://example.com/oak')
+  await add.getByRole('button', { name: 'Add item', exact: true }).click()
+  await p
+    .getByRole('heading', { name: 'Browser natural oak', exact: true })
+    .waitFor()
+  await p.getByRole('button', { name: 'Edit item', exact: true }).click()
   await add.getByLabel('Image or document', { exact: true }).setInputFiles({
     name: 'Oak.png',
     mimeType: 'image/png',
@@ -91,7 +103,7 @@ try {
     await route.continue()
   }
   await p.route('**/storage/v1/object/organization-library/**', uploadRoute)
-  await add.getByRole('button', { name: 'Add item', exact: true }).click()
+  await add.getByRole('button', { name: 'Save item', exact: true }).click()
   await started
   p.once('dialog', (d) => void d.dismiss())
   await p
@@ -100,6 +112,7 @@ try {
     .evaluate((el) => el.click())
   assert(new URL(p.url()).pathname.endsWith('/library'))
   releaseUpload()
+  await add.waitFor({ state: 'hidden' })
   await p
     .getByRole('heading', { name: 'Browser natural oak', exact: true })
     .waitFor()

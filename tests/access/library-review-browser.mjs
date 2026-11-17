@@ -48,6 +48,9 @@ try {
   await dialog(author)
     .getByLabel('Collection category', { exact: true })
     .selectOption('materials_products')
+  await dialog(author)
+    .getByText('Description and tags (optional)', { exact: true })
+    .click()
   await dialog(author).getByLabel('Tags', { exact: true }).fill('timber, calm')
   author.once('dialog', (d) => d.dismiss())
   await dialog(author)
@@ -60,11 +63,12 @@ try {
     title,
   )
   await dialog(author)
-    .getByRole('button', { name: 'Create collection', exact: true })
+    .getByRole('button', { name: 'Continue to add content', exact: true })
     .click()
   await author.getByRole('heading', { name: title, exact: true }).waitFor()
   const id = new URL(author.url()).searchParams.get('collection')
   assert(id)
+  await author.goto(`${library}?collection=${id}&mode=working`)
   await author.getByRole('button', { name: 'Add files', exact: true }).click()
   const png = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=',
@@ -117,9 +121,7 @@ try {
   assert.equal(saves[`Material-${stamp}`], 1)
   assert.equal(saves[`Drawing-${stamp}`], 2)
   await author.unroute('**/rpc/save_library_item')
-  await author
-    .getByRole('button', { name: 'Add link or note', exact: true })
-    .click()
+  await author.getByRole('button', { name: 'Add a link', exact: true }).click()
   await dialog(author)
     .getByLabel('Item title', { exact: true })
     .fill('Member material palette')

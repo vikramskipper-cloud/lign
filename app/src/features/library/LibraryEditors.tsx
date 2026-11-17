@@ -12,7 +12,8 @@ import {
   type LibraryItem,
 } from './queries'
 import { useLibraryDirty } from './LibraryActivity'
-import { libraryCategories } from './libraryModel'
+import { libraryCategories, collectionExamples } from './libraryModel'
+import { CollectionExample, LibrarySetupProgress } from './LibrarySetup'
 export function CollectionForm({
   org,
   collection,
@@ -20,7 +21,7 @@ export function CollectionForm({
 }: {
   org: string
   collection?: Collection
-  onSaved: (id: string) => void
+  onSaved: (id: string, continueSetup?: boolean) => void
 }) {
   const [title, setTitle] = useState(collection?.title ?? ''),
     [kind, setKind] = useState(collection?.kind ?? 'inspiration'),
@@ -39,6 +40,9 @@ export function CollectionForm({
       className="space-y-3"
       onSubmit={async (e) => {
         e.preventDefault()
+        const continueSetup =
+          (e.nativeEvent as SubmitEvent).submitter?.getAttribute('value') !==
+          'draft'
         const r = await action.run(() =>
           planningRpc<string>('save_library_draft', {
             p_organization_id: org,
@@ -61,16 +65,26 @@ export function CollectionForm({
             setDescription('')
             setTags('')
           }
-          onSaved(r.data)
+          onSaved(r.data, continueSetup)
         }
       }}
     >
+      {!collection && (
+        <>
+          <LibrarySetupProgress step={1} />
+          <p className="text-sm text-[#786b60]">
+            A collection groups related files, links and notes your team can
+            reuse across projects.
+          </p>
+        </>
+      )}
       <label className="block text-sm">
         Collection title
         <input
           className="auth-field mt-1 w-full"
           required
           maxLength={160}
+          placeholder={collectionExamples[kind].name}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           disabled={action.busy}
@@ -99,44 +113,76 @@ export function CollectionForm({
           . Use tags for style, discipline or application.
         </span>
       </label>
-      <label className="block text-sm">
-        Description
-        <textarea
-          aria-label="Description"
-          className="auth-field mt-1 w-full"
-          maxLength={3000}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          disabled={action.busy}
-        />
-      </label>
-      <label className="block text-sm">
-        Tags
-        <input
-          aria-label="Tags"
-          className="auth-field mt-1 w-full"
-          value={tags}
-          maxLength={500}
-          disabled={action.busy}
-          placeholder="e.g. timber, residential, minimal"
-          onChange={(e) => setTags(e.target.value)}
-        />
-        <span className={help}>Comma-separated; up to 12 tags.</span>
-      </label>
+      {!collection && (
+        <CollectionExample kind={kind} onUseName={setTitle} compact />
+      )}
+      <details open={collection ? true : undefined} className="space-y-3">
+        <summary className="auth-link cursor-pointer text-sm">
+          Description and tags (optional)
+        </summary>
+        <label className="block text-sm">
+          Description (optional)
+          <textarea
+            aria-label="Description"
+            className="auth-field mt-1 w-full"
+            maxLength={3000}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={action.busy}
+          />
+        </label>
+        <label className="block text-sm">
+          Tags (optional)
+          <input
+            aria-label="Tags"
+            className="auth-field mt-1 w-full"
+            value={tags}
+            maxLength={500}
+            disabled={action.busy}
+            placeholder="e.g. timber, residential, minimal"
+            onChange={(e) => setTags(e.target.value)}
+          />
+          <span className={help}>Comma-separated; up to 12 tags.</span>
+        </label>
+      </details>
       {collection && collection.edit_version !== version && (
         <p role="alert" className="text-sm text-[#8a4a17]">
           Saved collection details have changed. Your edits are preserved. Close
           and reopen settings to load the latest version.
         </p>
       )}
-      <Button
-        disabled={
-          action.busy ||
-          Boolean(collection && collection.edit_version !== version)
+      <div
+        className={
+          collection
+            ? 'flex flex-wrap gap-2'
+            : 'sticky bottom-0 z-10 flex flex-wrap gap-2 border-t border-[#e5ddd3] bg-[#fffdf9] py-3'
         }
       >
-        {collection ? 'Save collection' : 'Create collection'}
-      </Button>
+        <Button
+          className={!collection ? 'w-full sm:w-auto' : undefined}
+          disabled={
+            action.busy ||
+            Boolean(collection && collection.edit_version !== version)
+          }
+        >
+          {action.busy
+            ? 'Saving…'
+            : collection
+              ? 'Save collection'
+              : 'Continue to add content'}
+        </Button>
+        {!collection && (
+          <Button
+            type="submit"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            value="draft"
+            disabled={action.busy}
+          >
+            Save draft & exit
+          </Button>
+        )}
+      </div>
       {collection && !collection.published && (
         <button
           type="button"
@@ -181,11 +227,13 @@ export function ItemForm({
   org,
   collectionId,
   item,
+  intent,
   onSaved,
 }: {
   org: string
   collectionId: string
   item?: LibraryItem
+  intent?: 'link' | 'note'
   onSaved: () => void
 }) {
   const [title, setTitle] = useState(item?.title ?? ''),
@@ -254,35 +302,48 @@ export function ItemForm({
           aria-label="Item details"
           className="auth-field mt-1 w-full"
           maxLength={5000}
+          required={!item && intent === 'note'}
+          placeholder={
+            intent === 'note'
+              ? 'Explain how and when your team should use this guidance.'
+              : 'Explain why this item is useful and when to use it.'
+          }
           value={description}
           disabled={action.busy}
           onChange={(e) => setDescription(e.target.value)}
         />
       </label>
-      <label className="block text-sm">
-        Source URL
-        <input
-          className="auth-field mt-1 w-full"
-          type="url"
-          maxLength={2000}
-          value={url}
-          disabled={action.busy}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-      </label>
-      <label className="block text-sm">
-        Image or document
-        <input
-          className="mt-2 block w-full text-sm"
-          type="file"
-          accept={planningFileAccept}
-          disabled={action.busy}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-      </label>
-      <p className={help}>
-        PNG, JPEG, WebP, PDF, text, Word or Excel. Up to 50 MB per file.
-      </p>
+      {(item || intent !== 'note') && (
+        <label className="block text-sm">
+          Source URL
+          <input
+            className="auth-field mt-1 w-full"
+            type="url"
+            required={!item && intent === 'link'}
+            maxLength={2000}
+            value={url}
+            disabled={action.busy}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </label>
+      )}
+      {(item || !intent) && (
+        <>
+          <label className="block text-sm">
+            Image or document
+            <input
+              className="mt-2 block w-full text-sm"
+              type="file"
+              accept={planningFileAccept}
+              disabled={action.busy}
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <p className={help}>
+            PNG, JPEG, WebP, PDF, text, Word or Excel. Up to 50 MB per file.
+          </p>
+        </>
+      )}
       {item?.file && !file && (
         <label className="block text-sm">
           <input

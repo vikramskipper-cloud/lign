@@ -1,0 +1,20 @@
+# APP 043 — Guided collection creation and contribution
+
+A first-time contributor can now build a reusable collection through **Name collection → Add content → Check & submit**. The first step explains what a collection is, asks for its name and category, and offers optional description/tags. Category-specific examples illustrate useful topics, content and tags; Use example name fills only the editable name. Examples never seed files, links, notes or approved content. The mobile form has compact progress, expandable example detail and visible save/continue actions.
+
+Continue to add content saves a real private draft and opens step two. Save draft & exit saves the same details and returns to Contributions. Step two offers Add files, Add a link and Write a note. File uploads retain individual status and failed-entry retries. Focused link entry requires a source URL; focused note entry requires note text. Existing item editing still supports replacing attachments, updating URLs/details and archiving items. Each item is persisted using its existing explicit save action.
+
+Save draft & finish later returns to Contributions after saved work is complete. Working collection cards include Resume collection, a published-library banner points to unfinished collections, and ordinary draft detail pages offer the guided flow. Setup stage and layout are carried in the URL; a saved draft can be reopened after refresh or sign-in. Typed but unsaved fields and selected files remain protected by existing dialog, route and unload guards. No autosave or local persistence of unsaved file objects is claimed.
+
+Check & submit previews all saved content; filters reset when entering this step so a prior filter cannot hide items from review. Description, tags, source checks and explanatory notes are suggested to make the collection reusable; optional metadata is not a publishing requirement. At least one saved item is required to advance and submit. Saved content must be loaded before the guided submission action is offered. Details can be corrected through the existing version-checked editor or content step. Pending item saves/uploads and unsaved edits disable progress, finish-later and publication actions.
+
+Submission uses the existing collection version and owner/admin approval transition. A failed save/submission retains the editor or review step for correction/retry. The submitted state says Waiting for organisation admin approval, explains status tracking and locks content. Changes-requested feedback is available while adding content. Once approved, the flow says Published and ready to reuse and explains Project → Reference boards → Add from organisation library, with a workspace-navigation link. Organisation admins retain their existing review controls. Existing published snapshots and project copies stay independent.
+
+No database migration or access-policy change is needed. Existing author/admin draft access, immutable publication/history, version conflicts, file privacy and approved-only imports remain authoritative. This change prepares the organisation Library for the subsequent project flow; it does not alter project requirements or import behavior.
+
+Validation:
+
+- `tests/access/library-setup-browser.mjs`: isolated local organisation, all category examples, no seeded items, save-and-exit, refresh/resume, focused link/note validation, declined discard, failed-save retention, uploads, unfinished-draft discovery, private draft denial, unfiltered review preview, metadata correction, failed submission/retry, changes requested, approval/reuse guidance and desktop/mobile.
+- Updated `tests/access/library-review-browser.mjs`: returning contributor flow, batch upload retry, file/layout filtering, private draft exclusion, review/resubmission, revision-safe import and mobile.
+- Updated `tests/access/organization-library-browser.mjs`: upload navigation guard, guide publication/import, project client image access, catalogue denial and independent source edits.
+- TypeScript/production build, existing 80 unit tests, bundle budget and read-only hosted smoke.

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
-import { ArrowLeft, FilePlus2, Upload } from 'lucide-react'
+import { ArrowLeft, FilePlus2, Upload, StickyNote } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,12 @@ import { ReviewControls, statusLabel } from './LibraryReviewControls'
 import { LibraryCatalog, kindLabel } from './LibraryCatalog'
 import { LibraryUpload } from './LibraryUpload'
 import { libraryLayout, type LibraryLayout } from './libraryModel'
+import {
+  LibrarySetupGuide,
+  LibrarySetupFooter,
+  LibraryPublicationStatus,
+} from './LibrarySetup'
+import { toast } from 'sonner'
 export function Component() {
   return (
     <LibrarySaveGuard>
@@ -36,6 +42,7 @@ export function Component() {
 type Editor = {
   type: 'create' | 'settings' | 'item' | 'upload'
   item?: LibraryItem
+  intent?: 'link' | 'note'
 } | null
 function LibraryPage() {
   const { org_id: org = '' } = useParams(),
@@ -61,6 +68,31 @@ function LibraryPage() {
   const display = published ? collection?.published : collection,
     canEdit = Boolean(draft && collection?.canEdit),
     admin = Boolean(query.data?.canManage)
+  const guided = Boolean(params.get('setup') && draft)
+  const setupStep = params.get('setup') === 'review' ? 'review' : 'content'
+  const contentReady = !items.isLoading && !items.isError && Boolean(items.data)
+  const toContributions = () => {
+    update({
+      collection: null,
+      item: null,
+      mode: null,
+      setup: null,
+      view: 'contributions',
+      q: null,
+      kind: null,
+      tag: null,
+    })
+    setEditor(null)
+    window.scrollTo(0, 0)
+  }
+  const finishDraft = () => {
+    toContributions()
+    toast.success('Draft saved. Continue building it from Contributions.')
+  }
+  const goSetup = (step: 'content' | 'review') => {
+    update({ setup: step })
+    window.scrollTo(0, 0)
+  }
   const update = (values: Record<string, string | null>, replace = false) => {
     const next = new URLSearchParams(params)
     for (const [key, value] of Object.entries(values)) {
@@ -69,9 +101,15 @@ function LibraryPage() {
     }
     setParams(next, { preventScrollReset: true, replace })
   }
-  const choose = (nextId: string, item?: string, mode?: string) => {
+  const choose = (
+    nextId: string,
+    item?: string,
+    mode?: string,
+    setup?: 'content' | 'review',
+  ) => {
     update({
       collection: nextId || null,
+      setup: setup ?? null,
       item: item ?? null,
       mode: mode ?? (view === 'published' ? 'published' : 'working'),
       ...(mode === 'working'
@@ -106,20 +144,22 @@ function LibraryPage() {
       </div>
     )
   const back = () => {
-    update({ collection: null, item: null, mode: null })
+    update({ collection: null, item: null, mode: null, setup: null })
     setEditor(null)
     window.scrollTo(0, 0)
   }
   const editorTitle =
     editor?.type === 'create'
-      ? 'New collection'
+      ? 'Create a collection'
       : editor?.type === 'settings'
         ? 'Collection settings'
         : editor?.type === 'upload'
           ? 'Add files'
           : editor?.item
             ? 'Edit item'
-            : 'Add a link or note'
+            : editor?.intent === 'note'
+              ? 'Write a note'
+              : 'Add a link'
   return (
     <div className="lign-warm mx-auto max-w-6xl space-y-5 p-5 md:p-7">
       {!id ? (
@@ -131,6 +171,12 @@ function LibraryPage() {
           view={view}
           setView={(v) => update({ view: v, tag: null })}
           open={choose}
+          resume={(resumeId) =>
+            choose(resumeId, undefined, 'working', 'content')
+          }
+          resumeDrafts={() =>
+            update({ view: 'contributions', q: null, kind: null, tag: null })
+          }
           onNew={() => setEditor({ type: 'create' })}
           initialSearch={params.get('q') ?? ''}
           initialKind={params.get('kind') ?? 'all'}
@@ -204,7 +250,9 @@ function LibraryPage() {
                   aria-label="Collection view"
                   className="auth-field mt-1 w-full"
                   value={published ? 'published' : 'working'}
-                  onChange={(e) => update({ mode: e.target.value, item: null })}
+                  onChange={(e) =>
+                    update({ mode: e.target.value, item: null, setup: null })
+                  }
                 >
                   <option value="published">
                     Published revision {collection.published.revision}
@@ -225,29 +273,87 @@ function LibraryPage() {
                   : 'Working collection. Add content, check the details, then submit it for approval below.'}
             </p>
           </header>
+          {guided && collection.canEdit ? (
+            <LibrarySetupGuide
+              collection={collection}
+              items={items.data ?? []}
+              step={setupStep}
+              ready={contentReady}
+              editDetails={() => setEditor({ type: 'settings' })}
+              setStep={goSetup}
+            />
+          ) : guided &&
+            (collection.status === 'in_review' ||
+              collection.status === 'published') ? (
+            <LibraryPublicationStatus
+              collection={collection}
+              org={org}
+              toContributions={toContributions}
+              toPublished={() => {
+                update({
+                  collection: null,
+                  item: null,
+                  mode: null,
+                  setup: null,
+                  view: 'published',
+                  q: null,
+                  kind: null,
+                  tag: null,
+                })
+                window.scrollTo(0, 0)
+              }}
+            />
+          ) : canEdit ? (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e5ddd3] bg-[#fffdf9] p-4">
+              <div>
+                <p className="text-sm font-semibold">
+                  Continue building your collection
+                </p>
+                <p className={help}>
+                  Add useful content, check the details, then submit it for
+                  approval.
+                </p>
+              </div>
+              <Button onClick={() => goSetup('content')}>
+                Resume collection
+              </Button>
+            </section>
+          ) : null}
           <LibraryContents
-            key={`${id}-${published}`}
+            key={`${id}-${published}-${guided ? setupStep : 'detail'}`}
             items={items.data ?? []}
             loading={items.isLoading}
             error={items.isError}
             retry={() => void items.refetch()}
-            canEdit={canEdit}
+            canEdit={canEdit && (!guided || setupStep === 'content')}
             focusedId={params.get('item') ?? ''}
             layout={libraryLayout(params.get('layout'))}
             setLayout={(layout) => update({ layout }, true)}
             edit={(item) => setEditor({ type: 'item', item })}
             upload={() => setEditor({ type: 'upload' })}
-            add={() => setEditor({ type: 'item' })}
+            add={(intent) => setEditor({ type: 'item', intent })}
           />
-          {draft && (
-            <ReviewControls
-              key={id}
-              org={org}
-              collection={collection}
-              admin={admin}
-              onArchived={back}
+          {guided && collection.canEdit && (
+            <LibrarySetupFooter
+              step={setupStep}
+              ready={contentReady}
+              hasItems={Boolean(items.data?.length)}
+              finishLater={finishDraft}
+              setStep={goSetup}
             />
           )}
+          {draft &&
+            (!guided ||
+              (setupStep === 'review' && contentReady) ||
+              !collection.canEdit) && (
+              <ReviewControls
+                key={id}
+                org={org}
+                collection={collection}
+                admin={admin}
+                onArchived={back}
+              />
+            )}
         </>
       )}
       <Dialog
@@ -256,11 +362,11 @@ function LibraryPage() {
           if (!open) close()
         }}
       >
-        <DialogContent className="lign-warm max-h-[90dvh] max-w-[min(36rem,calc(100vw-2rem))] overflow-y-auto bg-[#fffdf9]">
+        <DialogContent className="lign-warm max-h-[90dvh] max-w-[min(36rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border-[#e5ddd3] bg-[#fffdf9]">
           <DialogTitle>{editorTitle}</DialogTitle>
           <DialogDescription>
             {editor?.type === 'create'
-              ? 'Group related content together. You can add files and links after creating the collection.'
+              ? 'Start with one useful topic. Save a draft now or continue to add your own content.'
               : editor?.type === 'upload'
                 ? 'Add several files to this collection in one step.'
                 : 'Saved changes stay in the working collection until owner/admin approval.'}
@@ -268,7 +374,13 @@ function LibraryPage() {
           {editor?.type === 'create' ? (
             <CollectionForm
               org={org}
-              onSaved={(newId) => choose(newId, undefined, 'working')}
+              onSaved={(newId, continueSetup) => {
+                if (continueSetup)
+                  choose(newId, undefined, 'working', 'content')
+                else {
+                  finishDraft()
+                }
+              }}
             />
           ) : editor?.type === 'settings' && collection ? (
             <CollectionForm
@@ -289,6 +401,7 @@ function LibraryPage() {
               org={org}
               collectionId={collection.id}
               item={editor.item}
+              intent={editor.intent}
               onSaved={() => setEditor(null)}
             />
           ) : null}
@@ -327,7 +440,7 @@ function LibraryContents({
   setLayout: (layout: LibraryLayout) => void
   edit: (item: LibraryItem) => void
   upload: () => void
-  add: () => void
+  add: (intent: 'link' | 'note') => void
 }) {
   const [search, setSearch] = useState(''),
     [format, setFormat] = useState('all')
@@ -380,9 +493,13 @@ function LibraryContents({
               <Upload size={16} aria-hidden="true" />
               Add files
             </Button>
-            <Button variant="secondary" onClick={add}>
+            <Button variant="secondary" onClick={() => add('link')}>
               <FilePlus2 size={16} aria-hidden="true" />
-              Add link or note
+              Add a link
+            </Button>
+            <Button variant="secondary" onClick={() => add('note')}>
+              <StickyNote size={16} aria-hidden="true" />
+              Write a note
             </Button>
           </div>
         )}
