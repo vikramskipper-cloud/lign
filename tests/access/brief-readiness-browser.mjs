@@ -225,7 +225,7 @@ try {
   await owner
     .getByRole('button', { name: 'Submit for team review', exact: true })
     .click()
-  await panel(owner)
+  await owner
     .getByRole('button', {
       name: 'Return to draft to make changes',
       exact: true,

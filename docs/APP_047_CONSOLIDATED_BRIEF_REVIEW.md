@@ -1,0 +1,17 @@
+# APP 047 — Consolidated review and revision comparison
+
+Review & agree now presents the complete brief in reading order: status, live readiness for a working draft, overall brief, project-wide and area-grouped requirements/preferences, assumptions/answers, selected shared references, brief links and attached files, then the review decision. Section links help navigate long briefs. Editable participants have direct links to the existing field/item editors. Unsaved previews are explicitly labelled and cannot be requested for agreement.
+
+Saved requests, agreed packages and historical revisions render their own captured document, areas, reference selection and attachments. They replace the previous count-only summary. Current area names and reference edits cannot rewrite the saved view. Responsible and approver identities remain the recorded assignments; names are resolved from the current project directory, with an explanation and fallback if the person is no longer listed. Private reference boards/cards are excluded by the existing checked `get_reference_direction` RPC. Reference failures expose Retry and prevent a leadership request until the live package can be loaded. Frozen packages never fall back to live references.
+
+Review brief and Review this revision open/focus the consolidated package. Explicit editing actions still open the editors. A client with unsaved edits must confirm discarding them before loading the requested revision, and agreement stays disabled while those edits remain. Leadership submits/requests/returns a brief in one decision section; only the assigned current responder can agree or request changes. The old readiness-panel return action is removed in favour of the single decision control. Requirement generation/activation is separate and appears only on the current agreed brief for authorized leaders. Historical views expose no decision or activation mutations.
+
+Compare revisions is a collapsed section. A working draft can compare against any saved revision, defaulting to the latest. A saved revision can compare only against lower revision numbers. It shows added/removed/changed fields, commitments, questions, scope assignments, selected references/preferences, direct links, files and disciplines. Stable IDs distinguish edits from replacement; ordering and refresh bookkeeping do not create differences. Storage paths are used to detect file replacement but never displayed. Earlier feedback appears with its revision and actor; the comparison does not claim that feedback was addressed. Missing live reference data is reported as an incomplete comparison, never as no changes.
+
+No database or approval-policy changes are required. Existing version-checked transitions, snapshot creation, decisions, storage authorization and access rules remain authoritative. Email delivery is unchanged.
+
+Validation:
+
+- Fourteen review-model tests cover grouping, current versus captured labels, reassignment, comparison content, ordering, file identity, readable responsibility and earlier-only revision selection (124 unit tests total).
+- `tests/access/brief-review-browser.mjs`: complete grouped package, edit focus, upload inclusion, private-reference exclusion, error/retry, fixed area/reference snapshots, client/viewer actions, feedback and revision comparison, second agreement, historical isolation and desktop/mobile.
+- Existing readiness, agreement-status and full project-brief browser journeys, production build, bundle budget and read-only hosted smoke.

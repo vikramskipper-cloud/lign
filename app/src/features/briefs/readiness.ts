@@ -12,6 +12,7 @@ export type ReadinessTarget =
   | { kind: 'save' }
   | { kind: 'reload' }
   | { kind: 'retry' }
+  | { kind: 'retryReferences' }
   | { kind: 'boards' }
   | { kind: 'people' }
   | { kind: 'requirements' }
@@ -36,6 +37,8 @@ export interface ReadinessInput {
   metadata?: BriefReadinessContext
   metadataError?: boolean
   checking?: boolean
+  previewLoading?: boolean
+  previewError?: boolean
   dirty: boolean
   stale: boolean
   areaDirty: boolean
@@ -49,6 +52,8 @@ export function briefReadiness({
   metadata,
   metadataError = false,
   checking = false,
+  previewLoading = false,
+  previewError = false,
   dirty,
   stale,
   areaDirty,
@@ -283,6 +288,26 @@ export function briefReadiness({
         : undefined,
     })
   }
+  if (previewLoading || previewError)
+    checks.push({
+      id: 'reference-preview',
+      title: previewError
+        ? 'Selected reference preview unavailable'
+        : 'Loading selected references for review',
+      detail:
+        'Load the selected reference package before leadership requests client agreement.',
+      state: previewError ? 'block' : 'pending',
+      responsible: 'Project leadership',
+      actions: previewError
+        ? [
+            {
+              label: 'Retry reference preview',
+              target: { kind: 'retryReferences' },
+              permission: 'view',
+            },
+          ]
+        : undefined,
+    })
   if (fresh) {
     const lostSubmit =
       data.brief?.status === 'draft' &&

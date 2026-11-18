@@ -179,7 +179,7 @@ try {
     .getByRole('button', { name: 'Review brief', exact: true })
     .click()
   await owner
-    .getByRole('tab', { name: '1. Gather needs', selected: true })
+    .getByRole('tab', { name: '4. Review and agree', selected: true })
     .waitFor()
   assert.equal((await read()).brief.status, 'draft')
   await owner
@@ -251,7 +251,7 @@ try {
     .getByRole('button', { name: 'Review this revision', exact: true })
     .click()
   await client
-    .getByRole('tab', { name: '1. Gather needs', selected: true })
+    .getByRole('tab', { name: '4. Review and agree', selected: true })
     .waitFor()
   await client
     .getByText('A comfortable sample area', { exact: true })

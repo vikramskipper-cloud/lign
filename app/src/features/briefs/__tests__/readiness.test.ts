@@ -79,6 +79,25 @@ function fixture(): ReadinessInput {
   } as ReadinessInput)
 }
 describe('brief readiness matches the review/agreement boundary', () => {
+  it('blocks agreement but permits team review when selected reference preview fails', () => {
+    const f = fixture()
+    f.previewError = true
+    const r = briefReadiness(f)
+    expect(r.teamReady).toBe(true)
+    expect(r.clientReady).toBe(false)
+    expect(
+      r.checks.find((c) => c.id === 'reference-preview')?.actions?.[0].target
+        .kind,
+    ).toBe('retryReferences')
+  })
+  it('keeps agreement pending while the selected reference preview refreshes', () => {
+    const f = fixture()
+    f.previewLoading = true
+    const r = briefReadiness(f)
+    expect(r.teamReady).toBe(true)
+    expect(r.clientReady).toBe(false)
+    expect(r.pending).toBe(true)
+  })
   it('does not use a cached pass while the latest metadata is being refreshed', () => {
     const f = fixture()
     f.checking = true

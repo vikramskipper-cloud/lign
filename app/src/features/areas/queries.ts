@@ -3,9 +3,9 @@ import { useSession } from '@/auth/SessionProvider'
 import { supabase } from '@/lib/supabase'
 export interface Area {id:string;parent_area_id:string|null;name:string;path:string;kind:string;depth:number;archived:boolean;description:string}
 export interface AreaSnapshot {id:string;path:string;kind?:string;archived?:boolean}
-export function useProjectAreas(projectId:string){
+export function useProjectAreas(projectId:string,enabled=true){
  const {user}=useSession()
- return useQuery({queryKey:['project-areas',user?.id,projectId],enabled:Boolean(user&&projectId),refetchInterval:30000,queryFn:async()=>{
+ return useQuery({queryKey:['project-areas',user?.id,projectId],enabled:Boolean(user&&projectId&&enabled),refetchInterval:30000,queryFn:async()=>{
  const {data,error}=await supabase.rpc('get_project_areas',{p_project_id:projectId});if(error)throw error;return data as {canManage:boolean;areas:Area[]}
  }})
 }

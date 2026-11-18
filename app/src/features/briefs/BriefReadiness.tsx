@@ -1,10 +1,5 @@
 import { Link } from 'react-router'
-import { Button } from '@/features/planning/PlanningButton'
-import type {
-  BriefRevision,
-  ProjectBriefData,
-  BriefReadinessContext,
-} from './queries'
+import type { ProjectBriefData, BriefReadinessContext } from './queries'
 import {
   briefReadiness,
   type ReadinessCheck,
@@ -19,6 +14,8 @@ export default function BriefReadiness({
   metadata,
   metadataError,
   checking,
+  previewLoading,
+  previewError,
   dirty,
   stale,
   areaDirty,
@@ -26,11 +23,9 @@ export default function BriefReadiness({
   loadedVersion,
   busy,
   canEdit,
-  revision,
   workspaceId,
   projectId,
   onAction,
-  onReturnToDraft,
 }: {
   data: ProjectBriefData
   document: BriefDocument
@@ -38,6 +33,8 @@ export default function BriefReadiness({
   metadata?: BriefReadinessContext
   metadataError: boolean
   checking: boolean
+  previewLoading: boolean
+  previewError: boolean
   dirty: boolean
   stale: boolean
   areaDirty: boolean
@@ -45,11 +42,9 @@ export default function BriefReadiness({
   loadedVersion: number
   busy: boolean
   canEdit: boolean
-  revision?: BriefRevision
   workspaceId: string
   projectId: string
   onAction: (target: ReadinessTarget) => void
-  onReturnToDraft: () => void
 }) {
   const result = briefReadiness({
     data,
@@ -58,41 +53,14 @@ export default function BriefReadiness({
     metadata,
     metadataError,
     checking,
+    previewLoading,
+    previewError,
     dirty,
     stale,
     areaDirty,
     uploading,
     loadedVersion,
   })
-  if (revision)
-    return (
-      <section
-        aria-label="Saved brief package"
-        className="space-y-3 rounded-xl border border-[#e5ddd3] bg-[#fffdf9] p-5"
-      >
-        <h2 className="text-lg font-semibold">
-          Saved package · revision {revision.number}
-        </h2>
-        <p className="text-sm text-[#786b60]">
-          Readiness was checked when leadership requested agreement. This
-          package is fixed; later references, assignments and draft edits do not
-          change it.
-        </p>
-        <p className="text-sm">
-          {
-            revision.document.items.filter(
-              (i) => i.kind === 'mandatory' || i.kind === 'preference',
-            ).length
-          }{' '}
-          requirements/preferences ·{' '}
-          {revision.document.items.filter((i) => i.kind === 'question').length}{' '}
-          recorded questions ·{' '}
-          {revision.document.referenceSelection?.length ?? 0} selected
-          references · {revision.document.references.length} brief links ·{' '}
-          {revision.attachments.length} attached files
-        </p>
-      </section>
-    )
   const blockers = result.checks.filter((c) => c.state === 'block'),
     pending = result.checks.filter((c) => c.state === 'pending'),
     suggestions = result.checks.filter((c) => c.state === 'suggestion'),
@@ -186,13 +154,6 @@ export default function BriefReadiness({
           Client agreement also requires the remaining checks below.
         </p>
       </header>
-      {data.canManage &&
-        data.brief?.status === 'submitted' &&
-        blockers.length > 0 && (
-          <Button variant="secondary" disabled={busy} onClick={onReturnToDraft}>
-            Return to draft to make changes
-          </Button>
-        )}
       {result.automatic && result.automatic.items.length > 0 && (
         <aside
           aria-label="Automatic responsibility"
