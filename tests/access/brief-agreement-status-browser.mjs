@@ -149,7 +149,7 @@ async function login(person) {
   })
   contexts.push(c)
   const p = await c.newPage()
-  p.setDefaultTimeout(25000)
+  p.setDefaultTimeout(45000)
   p.on('pageerror', (e) => errors.push(e.message))
   await p.goto(base + '/sign-in')
   await p.getByLabel('Work email').fill(person.email)

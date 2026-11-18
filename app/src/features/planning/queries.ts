@@ -185,6 +185,7 @@ export function usePlanningAction(projectId: string) {
     }) => planningRpc<unknown>(rpc, args),
     onSuccess: async (_, input) => {
       const jobs = [
+        'brief-readiness',
         'reference-direction',
         'reference-boards',
         'reference-board',

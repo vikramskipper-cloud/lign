@@ -13,7 +13,7 @@ function Question({ field, editable, change, remove }: {
   change: (id: string, patch: Partial<BriefField>) => void; remove: (id: string) => void
 }) {
   const required = ['objective', 'deliverables'].includes(field.id)
-  return <div className="space-y-2 border-b border-[#efe8df] pb-5 last:border-b-0">
+  return <div id={`brief-question-${field.id}`} tabIndex={-1} className="space-y-2 border-b border-[#efe8df] pb-5 last:border-b-0">
     <label htmlFor={`brief-${field.id}`} className="block text-sm font-medium">{field.label}</label>
     {field.help && <p id={`brief-${field.id}-help`} className={help}>{field.help}</p>}
     <textarea id={`brief-${field.id}`} aria-describedby={field.help ? `brief-${field.id}-help` : undefined} className="auth-field min-h-24 w-full resize-y" rows={3} value={field.answer} disabled={!editable} onChange={e => change(field.id, { answer:e.target.value })}/>

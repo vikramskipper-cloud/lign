@@ -86,3 +86,51 @@ export function useBriefProposalAccess(projectId: string, enabled: boolean) {
     retry: 1,
   })
 }
+
+export interface BriefReadinessContext {
+  version: number
+  respondentId: string | null
+  people: { id: string; name: string; role: 'lead' | 'contributor' }[]
+  defaultOwner: {
+    id: string
+    name: string
+    role: 'lead' | 'contributor'
+  } | null
+  approver: {
+    id: string
+    name: string
+    pending: boolean
+    available: boolean
+    isRequester: boolean
+  } | null
+  selectedReferenceCount: number
+  referenceError: string | null
+  canRequest: boolean
+  canSubmit: boolean
+}
+export function useBriefReadiness(
+  projectId: string,
+  respondent: string,
+  version: number,
+  enabled: boolean,
+) {
+  const { user } = useSession()
+  return useQuery({
+    queryKey: ['brief-readiness', user?.id, projectId, respondent, version],
+    staleTime: 0,
+    enabled: Boolean(user && projectId && enabled),
+    refetchInterval: 30000,
+    retry: 1,
+    queryFn: async (): Promise<BriefReadinessContext> => {
+      const { data, error } = await supabase.rpc(
+        'get_project_brief_readiness',
+        {
+          p_project_id: projectId,
+          p_respondent_participant_id: respondent || null,
+        },
+      )
+      if (error) throw error
+      return data as BriefReadinessContext
+    },
+  })
+}
