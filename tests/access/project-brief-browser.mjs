@@ -1,3 +1,4 @@
+import {signInLocal} from './helpers/local-browser-auth.mjs'
 // Isolated browser flow. Requires project-brief.mjs fixtures; never uses hosted data.
 import assert from 'node:assert/strict'
 import {readFileSync,mkdirSync} from 'node:fs'
@@ -12,7 +13,7 @@ const ok=r=>{assert.equal(r.error,null,r.error?.message);return r.data}
 ok(await ownerApi.auth.signInWithPassword({email:f.people.owner.email,password:f.password}))
 const browser=await chromium.launch({headless:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_PATH}),contexts=[],errors=[]
 const base='http://127.0.0.1:5179'
-async function login(email){const c=await browser.newContext({viewport:{width:1280,height:900}});contexts.push(c);const p=await c.newPage();p.setDefaultTimeout(20000);p.on('pageerror',e=>errors.push(e.message));await p.goto(base+'/sign-in');await p.getByLabel('Work email').fill(email);await p.getByLabel('Password',{exact:true}).fill(f.password);await p.getByRole('button',{name:'Sign in',exact:true}).click();await p.waitForURL(u=>u.pathname!=='/sign-in');return p}
+async function login(email){const c=await browser.newContext({viewport:{width:1280,height:900}});contexts.push(c);const p=await c.newPage();p.setDefaultTimeout(20000);p.on('pageerror',e=>errors.push(e.message));await signInLocal(p,base,email,f.password);return p}
 async function save(page){const response=page.waitForResponse(r=>r.url().endsWith('/rpc/save_project_brief'));await page.getByRole('button',{name:'Save draft',exact:true}).click();assert.equal((await response).status(),200);await page.getByRole('button',{name:'Save draft',exact:true}).waitFor();await page.getByText('Unsaved changes',{exact:true}).waitFor({state:'hidden'})}
 try{
  const owner=await login(f.people.owner.email)

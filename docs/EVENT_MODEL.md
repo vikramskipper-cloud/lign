@@ -462,3 +462,10 @@ APP 010 introduces the `notification.*` event namespace. All names below are **R
 
 All three names are locked by APP 010 Wave 1. Zero emitters exist in APP 010 v1; the names are registered here so the AI/cron slices can bind against fixed strings without rename churn.
 
+
+### APP 048–049 — Brief requirement handoff and feedback
+
+- `brief.requirements_prepared`: current revision handoff prepared or a retired proposed draft rebuilt; payload contains revision/item and draft identities. Internal review notes remain in the leadership-only handoff record.
+- `brief.requirement_change_applied`: acknowledged carry-forward, activation/replacement, retirement or independent retention; payload contains revision, item and action. Existing requirement RPCs retain their own canonical requirement events in the same transaction.
+- `brief.requirement_change_matched`: explicit item matching or undo before application; payload records both stable item IDs and an `undone` flag for undo.
+- `brief.feedback_created`, `brief.feedback_addressed`, `brief.feedback_verified`, `brief.feedback_reopened`: source-scoped feedback operations with feedback/revision identities. The private-to-project feedback audit records actor, exact response/note, time and revision. Existing `brief.changes_requested` remains the canonical decision event for automatic overall feedback capture.

@@ -186,6 +186,7 @@ export function usePlanningAction(projectId: string) {
     onSuccess: async (_, input) => {
       const jobs = [
         'brief-readiness',
+        'brief-feedback',
         'reference-direction',
         'reference-boards',
         'reference-board',

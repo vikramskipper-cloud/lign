@@ -134,6 +134,8 @@ console.log('PASS generated draft requirements can be listed and paginated witho
 denied(await service.from('project_brief_revisions').update({document:{tampered:true}}).eq('id',r2),'23514')
 denied(await service.from('project_brief_decisions').delete().eq('revision_id',r2),'23514')
 const agreedDocument=structuredClone((await read()).revisions.find(r=>r.id===r2).document)
+const handoff=ok(await lead.rpc('get_brief_requirement_changes',{p_project_id:f.pA1,p_revision_id:r2}))
+for(const row of handoff.rows.filter(r=>r.state==='pending'))ok(await lead.rpc('apply_brief_requirement_change',{p_project_id:f.pA1,p_revision_id:r2,p_item_id:row.itemId,p_expected_token:row.token,p_action:'activate',p_acknowledge:true,p_note:'Reviewed agreed requirement for activation'}))
 await transition('revise')
 doc.fields[0].answer='A revised reception brief.';await save(lead)
 ok(await lead.rpc('remove_project_brief_file',{p_project_id:f.pA1,p_expected_version:(await read()).brief.edit_version,p_file_id:fileId}))

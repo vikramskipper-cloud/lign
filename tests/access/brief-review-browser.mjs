@@ -1,3 +1,4 @@
+import { signInLocal } from './helpers/local-browser-auth.mjs'
 // Local-only: next actions follow role, current request and immutable revision identity.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -225,11 +226,7 @@ async function login(person) {
   const p = await c.newPage()
   p.setDefaultTimeout(45000)
   p.on('pageerror', (e) => errors.push(e.message))
-  await p.goto(base + '/sign-in')
-  await p.getByLabel('Work email').fill(person.email)
-  await p.getByLabel('Password', { exact: true }).fill(f.password)
-  await p.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await p.waitForURL((u) => u.pathname !== '/sign-in')
+  await signInLocal(p, base, person.email, f.password)
   await p.goto(url)
   return p
 }
